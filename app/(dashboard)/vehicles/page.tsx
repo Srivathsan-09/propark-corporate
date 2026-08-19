@@ -391,7 +391,7 @@ export default function VehiclesPage() {
       {/* Vehicles Grid / Empty State */}
       {isLoading ? (
         <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <CarLoader size="lg" message="Loading your registered vehicles..." />
+          <CarLoader size="page" message="Loading your registered vehicles..." />
         </div>
       ) : vehicles.length === 0 ? (
         <EmptyState

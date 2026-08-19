@@ -201,7 +201,7 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
-        <CarLoader size="lg" message="Loading your profile details..." />
+        <CarLoader size="page" message="Loading your profile details..." />
       </div>
     );
   }

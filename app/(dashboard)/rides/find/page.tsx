@@ -502,7 +502,7 @@ export default function FindRidePage() {
       {/* Available Rides Grid */}
       {isLoading ? (
         <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <CarLoader size="lg" message="Finding available campus rides..." />
+          <CarLoader size="page" message="Finding available campus rides..." />
         </div>
       ) : rides.length === 0 ? (
         <EmptyState

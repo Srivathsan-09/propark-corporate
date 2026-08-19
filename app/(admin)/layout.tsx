@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/common/Navbar";
 import { Sidebar } from "@/components/common/Sidebar";
 import { CarLoader } from "@/components/common/CarLoader";
+import { NavigationCarProgress } from "@/components/common/NavigationCarProgress";
 
 export default function AdminLayout({
   children,
@@ -33,6 +34,9 @@ export default function AdminLayout({
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+      {/* Navigation Top Car Loader Bar */}
+      <NavigationCarProgress />
+
       {/* Top Navbar */}
       <Navbar
         isMobileMenuOpen={isMobileMenuOpen}

@@ -490,7 +490,7 @@ export default function MyRidesPage() {
 
       {isLoading ? (
         <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <CarLoader size="lg" message="Loading your commute rides..." />
+          <CarLoader size="page" message="Loading your commute rides..." />
         </div>
       ) : activeTab === "offered" ? (
         /* OFFERED RIDES TAB (DRIVER VIEW) */

@@ -536,7 +536,7 @@ export default function OfferRidePage() {
 
       {isLoadingVehicles ? (
         <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <CarLoader size="lg" message="Loading your vehicles & route setup..." />
+          <CarLoader size="page" message="Loading your vehicles & route setup..." />
         </div>
       ) : vehicles.length === 0 ? (
         <Card className="border-amber-200 bg-amber-50/60 p-6 text-center space-y-3 rounded-2xl">

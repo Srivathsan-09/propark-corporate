@@ -6,7 +6,7 @@ export interface CarLoaderProps {
   /** Optional loading message displayed underneath the car */
   message?: string;
   /** Size preset */
-  size?: "inline" | "sm" | "md" | "lg" | "fullscreen";
+  size?: "inline" | "sm" | "md" | "lg" | "fullscreen" | "page" | "track";
   /** Optional container class names */
   className?: string;
   /** Whether to render the road dashed track beneath the car (default true) */
@@ -58,6 +58,22 @@ export function CarLoader({
       carHeight: 37,
       textSize: "text-sm",
       roadHeight: "h-[2.5px]",
+    },
+    page: {
+      container: "w-full max-w-md h-28",
+      track: "w-full h-20",
+      carWidth: 84,
+      carHeight: 37,
+      textSize: "text-sm font-semibold",
+      roadHeight: "h-[2.5px]",
+    },
+    track: {
+      container: "w-full h-10",
+      track: "w-full h-8",
+      carWidth: 56,
+      carHeight: 24,
+      textSize: "text-xs",
+      roadHeight: "h-[2px]",
     },
     fullscreen: {
       container: "w-72 sm:w-88 h-32",
