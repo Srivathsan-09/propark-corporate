@@ -7,19 +7,13 @@ export default function AuthLayout({
 }) {
   return (
     <div className="flex min-h-screen w-full flex-col lg:flex-row bg-white lg:bg-slate-50">
-      {/* Left Side: Desktop Brand Logo Showcase (Hidden on Mobile) */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12 bg-white border-r border-slate-200/80 relative overflow-hidden">
-        {/* Subtle decorative background green radial gradient */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Full CommuteX Logo - Centered */}
-        <div className="relative z-10 w-full max-w-lg flex flex-col items-center justify-center p-4">
-          <img
-            src="/images/commutex-logo.png"
-            alt="CommuteX — Ride Together • Go Further"
-            className="w-full h-auto object-contain max-h-[440px] drop-shadow-md transition-transform duration-300 hover:scale-[1.02]"
-          />
-        </div>
+      {/* Left Side: Desktop Full Edge-to-Edge Image (No margins, no padding) */}
+      <div className="hidden lg:block lg:w-1/2 min-h-screen relative bg-white overflow-hidden border-r border-slate-200">
+        <img
+          src="/images/commutex-logo.png"
+          alt="CommuteX — Ride Together • Go Further"
+          className="w-full h-full object-cover object-center"
+        />
       </div>
 
       {/* Right Side: Seamless Edge-to-Edge Form Container on Mobile */}
