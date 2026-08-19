@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import LocationSearchInput from "@/components/map/LocationSearchInput";
 import MapView, { MapPoint } from "@/components/map/MapView";
+import { CarLoader } from "@/components/common/CarLoader";
 import { useRoute } from "@/hooks/useRoute";
 import { offerRideSchema } from "@/validations/ride.schema";
 
@@ -490,10 +491,10 @@ export default function OfferRidePage() {
             disabled={isSubmitting || !isEmployeeApproved || !isVehicleApproved}
           >
             {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Posting Ride...
-              </>
+              <span className="flex items-center justify-center gap-1.5">
+                <CarLoader size="inline" showRoad={false} carColor="#022c22" className="w-8 h-4 scale-75 inline-flex" />
+                <span>Posting Ride...</span>
+              </span>
             ) : !isEmployeeApproved ? (
               "🔒 Account Pending Admin Approval"
             ) : !isVehicleApproved ? (
@@ -534,9 +535,8 @@ export default function OfferRidePage() {
       )}
 
       {isLoadingVehicles ? (
-        <div className="space-y-4">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-96 w-full rounded-2xl" />
+        <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <CarLoader size="lg" message="Loading your vehicles & route setup..." />
         </div>
       ) : vehicles.length === 0 ? (
         <Card className="border-amber-200 bg-amber-50/60 p-6 text-center space-y-3 rounded-2xl">
@@ -565,8 +565,8 @@ export default function OfferRidePage() {
                   </CardTitle>
                 </div>
                 {isCalculating && (
-                  <div className="flex items-center gap-1 text-[11px] text-emerald-700">
-                    <Loader2 className="h-3 w-3 animate-spin" />
+                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 font-medium">
+                    <CarLoader size="inline" showRoad={false} className="w-8 h-4 scale-75 origin-right" />
                     <span>Calculating OSRM route...</span>
                   </div>
                 )}

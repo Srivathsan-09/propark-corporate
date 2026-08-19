@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { CarLoader } from "@/components/common/CarLoader";
 import { registerSchema } from "@/validations/auth.schema";
 
 export default function RegisterPage() {
@@ -188,7 +189,7 @@ export default function RegisterPage() {
           className="w-full h-11 border-slate-200 bg-white hover:bg-emerald-50/50 hover:border-emerald-300 font-medium text-slate-700 flex items-center justify-center gap-3 transition-colors shadow-xs rounded-xl"
         >
           {isGoogleLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+            <CarLoader size="inline" showRoad={false} className="w-8 h-4 scale-75" />
           ) : (
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
@@ -446,10 +447,10 @@ export default function RegisterPage() {
               disabled={isLoading || isGoogleLoading}
             >
               {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting Registration...
-                </>
+                <span className="flex items-center justify-center gap-1.5">
+                  <CarLoader size="inline" showRoad={false} carColor="#ffffff" className="w-8 h-4 scale-75 inline-flex" />
+                  <span>Submitting Registration...</span>
+                </span>
               ) : (
                 "Register & Submit for Approval"
               )}

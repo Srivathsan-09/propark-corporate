@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { CarLoader } from "@/components/common/CarLoader";
 import { loginSchema } from "@/validations/auth.schema";
 
 function LoginForm() {
@@ -159,7 +160,7 @@ function LoginForm() {
           className="w-full h-11 border-slate-200 bg-white hover:bg-emerald-50/50 hover:border-emerald-300 font-medium text-slate-700 flex items-center justify-center gap-3 transition-colors shadow-xs rounded-xl"
         >
           {isGoogleLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+            <CarLoader size="inline" showRoad={false} className="w-8 h-4 scale-75" />
           ) : (
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
@@ -267,10 +268,10 @@ function LoginForm() {
             disabled={isLoading || isGoogleLoading}
           >
             {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
-              </>
+              <span className="flex items-center justify-center gap-1.5">
+                <CarLoader size="inline" showRoad={false} carColor="#ffffff" className="w-8 h-4 scale-75 inline-flex" />
+                <span>Signing in...</span>
+              </span>
             ) : (
               "Sign In to Pro Park"
             )}
@@ -283,9 +284,9 @@ function LoginForm() {
           Don&apos;t have an account?{" "}
           <Link
             href="/register"
-            className="font-bold text-emerald-700 hover:underline inline-flex items-center gap-1"
+            className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
           >
-            Create account <ArrowRight className="h-3 w-3" />
+            Register Now
           </Link>
         </p>
       </CardFooter>
@@ -297,8 +298,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="w-full h-96 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+        <div className="w-full h-96 flex flex-col items-center justify-center">
+          <CarLoader size="lg" message="Getting things ready..." />
         </div>
       }
     >

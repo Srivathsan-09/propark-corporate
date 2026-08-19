@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import { geocodingService } from "@/lib/services/geocoding";
 import { Loader2, Navigation2, MapPin, IndianRupee, Car } from "lucide-react";
+import { CarLoader } from "@/components/common/CarLoader";
 
 export interface MapPoint {
   address?: string;
@@ -353,8 +354,8 @@ export default function LeafletRouteMap({
             <span className="font-semibold">{clickPickLabel}</span>
           </div>
           {isReverseGeocoding && (
-            <div className="flex items-center gap-1.5 text-emerald-300 text-[11px]">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <div className="flex items-center gap-1 text-emerald-300 text-[11px] font-medium">
+              <CarLoader size="inline" showRoad={false} className="w-8 h-4 scale-75 origin-right" />
               <span>Fetching address...</span>
             </div>
           )}

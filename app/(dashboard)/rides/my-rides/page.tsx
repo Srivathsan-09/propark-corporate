@@ -43,6 +43,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/common/EmptyState";
+import { CarLoader } from "@/components/common/CarLoader";
 import MapView, { DriverLivePoint } from "@/components/map/MapView";
 import { locationService } from "@/lib/services/location";
 import { getInitials } from "@/lib/utils";
@@ -488,9 +489,8 @@ export default function MyRidesPage() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-48 rounded-2xl" />
-          <Skeleton className="h-48 rounded-2xl" />
+        <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <CarLoader size="lg" message="Loading your commute rides..." />
         </div>
       ) : activeTab === "offered" ? (
         /* OFFERED RIDES TAB (DRIVER VIEW) */
@@ -570,7 +570,7 @@ export default function MyRidesPage() {
                             className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-bold text-xs rounded-xl gap-1.5 h-8"
                           >
                             {actionLoadingId === ride._id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <CarLoader size="inline" showRoad={false} carColor="#e11d48" className="w-8 h-4 scale-75" />
                             ) : (
                               <Trash2 className="h-3.5 w-3.5" />
                             )}
@@ -589,7 +589,7 @@ export default function MyRidesPage() {
                           title="Delete Ride Record"
                         >
                           {actionLoadingId === ride._id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <CarLoader size="inline" showRoad={false} carColor="#e11d48" className="w-8 h-4 scale-75" />
                           ) : (
                             <Trash2 className="h-3.5 w-3.5" />
                           )}
@@ -692,7 +692,7 @@ export default function MyRidesPage() {
                                         className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1"
                                       >
                                         {actionLoadingId === req._id ? (
-                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                          <CarLoader size="inline" showRoad={false} carColor="#ffffff" className="w-8 h-4 scale-75" />
                                         ) : (
                                           <Check className="h-3.5 w-3.5" />
                                         )}

@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EmptyState } from "@/components/common/EmptyState";
+import { CarLoader } from "@/components/common/CarLoader";
 import { vehicleSchema } from "@/validations/vehicle.schema";
 import { compressImage } from "@/lib/utils/imageCompressor";
 
@@ -389,9 +390,8 @@ export default function VehiclesPage() {
 
       {/* Vehicles Grid / Empty State */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Skeleton className="h-64 rounded-2xl" />
-          <Skeleton className="h-64 rounded-2xl" />
+        <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <CarLoader size="lg" message="Loading your registered vehicles..." />
         </div>
       ) : vehicles.length === 0 ? (
         <EmptyState
@@ -733,8 +733,8 @@ export default function VehiclesPage() {
                       </button>
                     </div>
                   ) : compressingField === "vehiclePhoto" ? (
-                    <div className="border border-emerald-200 bg-emerald-50/60 rounded-xl p-3 text-center flex items-center justify-center gap-2 text-xs text-emerald-700">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                    <div className="border border-emerald-200 bg-emerald-50/60 rounded-xl p-3 text-center flex items-center justify-center gap-2 text-xs text-emerald-700 font-medium">
+                      <CarLoader size="inline" showRoad={false} className="w-8 h-4 scale-75 origin-right" />
                       <span>Optimizing photo...</span>
                     </div>
                   ) : (
@@ -788,8 +788,8 @@ export default function VehiclesPage() {
                       </button>
                     </div>
                   ) : compressingField === "numberPlatePhoto" ? (
-                    <div className="border border-emerald-200 bg-emerald-50/60 rounded-xl p-3 text-center flex items-center justify-center gap-2 text-xs text-emerald-700">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                    <div className="border border-emerald-200 bg-emerald-50/60 rounded-xl p-3 text-center flex items-center justify-center gap-2 text-xs text-emerald-700 font-medium">
+                      <CarLoader size="inline" showRoad={false} className="w-8 h-4 scale-75 origin-right" />
                       <span>Optimizing photo...</span>
                     </div>
                   ) : (
@@ -843,8 +843,8 @@ export default function VehiclesPage() {
                       </button>
                     </div>
                   ) : compressingField === "drivingLicensePhoto" ? (
-                    <div className="border border-emerald-200 bg-emerald-50/60 rounded-xl p-3 text-center flex items-center justify-center gap-2 text-xs text-emerald-700">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                    <div className="border border-emerald-200 bg-emerald-50/60 rounded-xl p-3 text-center flex items-center justify-center gap-2 text-xs text-emerald-700 font-medium">
+                      <CarLoader size="inline" showRoad={false} className="w-8 h-4 scale-75 origin-right" />
                       <span>Optimizing photo...</span>
                     </div>
                   ) : (
@@ -892,10 +892,10 @@ export default function VehiclesPage() {
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
+                  <span className="flex items-center justify-center gap-1.5">
+                    <CarLoader size="inline" showRoad={false} carColor="#ffffff" className="w-8 h-4 scale-75 inline-flex" />
+                    <span>Submitting...</span>
+                  </span>
                 ) : isEditOpen ? (
                   "Save Changes"
                 ) : (
@@ -939,10 +939,10 @@ export default function VehiclesPage() {
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Removing...
-                </>
+                <span className="flex items-center justify-center gap-1.5">
+                  <CarLoader size="inline" showRoad={false} carColor="#ffffff" className="w-8 h-4 scale-75 inline-flex" />
+                  <span>Removing...</span>
+                </span>
               ) : (
                 "Delete Vehicle"
               )}

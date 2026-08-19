@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CarLoader } from "@/components/common/CarLoader";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { LocationResult } from "@/lib/services/geocoding";
@@ -129,7 +130,7 @@ export default function LocationSearchInput({
 
         <div className="absolute right-1.5 flex items-center gap-1">
           {isLoading && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400 mr-1" />
+            <CarLoader size="inline" showRoad={false} className="w-8 h-4 scale-75 origin-right mr-1" />
           )}
 
           {query && (
@@ -155,7 +156,7 @@ export default function LocationSearchInput({
               title="Use Current Location (GPS)"
             >
               {isLocating ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                <CarLoader size="inline" showRoad={false} className="w-6 h-4 scale-65" />
               ) : (
                 <Crosshair className="h-3.5 w-3.5 text-emerald-600" />
               )}

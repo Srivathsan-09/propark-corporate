@@ -2,8 +2,7 @@
 
 import dynamic from "next/dynamic";
 import React from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin } from "lucide-react";
+import { CarLoader } from "@/components/common/CarLoader";
 import type { MapPoint, DriverLivePoint } from "./LeafletRouteMap";
 
 export type { MapPoint, DriverLivePoint };
@@ -31,9 +30,8 @@ export interface MapViewProps {
 const DynamicLeafletMap = dynamic(() => import("./LeafletRouteMap"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[380px] rounded-2xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center text-slate-400 gap-2 animate-pulse">
-      <MapPin className="h-8 w-8 text-slate-300" />
-      <span className="text-xs font-semibold text-slate-400">Loading OpenStreetMap...</span>
+    <div className="w-full h-[340px] rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center p-6">
+      <CarLoader size="md" message="Loading interactive map..." />
     </div>
   ),
 });

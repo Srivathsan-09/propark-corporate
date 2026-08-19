@@ -39,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CarLoader } from "@/components/common/CarLoader";
 import MapView from "@/components/map/MapView";
 import { getInitials } from "@/lib/utils";
 
@@ -310,9 +311,8 @@ export default function AdminRidesPage() {
 
       {/* Rides & Passenger Manifest List */}
       {isLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-44 w-full rounded-2xl" />
-          <Skeleton className="h-44 w-full rounded-2xl" />
+        <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <CarLoader size="lg" message="Loading campus carpool rides..." />
         </div>
       ) : filteredRides.length === 0 ? (
         <Card className="border-slate-200 bg-white p-12 text-center rounded-2xl">

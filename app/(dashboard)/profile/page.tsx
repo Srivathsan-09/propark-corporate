@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CarLoader } from "@/components/common/CarLoader";
 import { updateProfileSchema } from "@/validations/profile.schema";
 import { getInitials } from "@/lib/utils";
 
@@ -556,10 +557,10 @@ export default function ProfilePage() {
                   disabled={isSaving}
                 >
                   {isSaving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving Profile...
-                    </>
+                    <span className="flex items-center justify-center gap-1.5">
+                      <CarLoader size="inline" showRoad={false} carColor="#ffffff" className="w-8 h-4 scale-75 inline-flex" />
+                      <span>Saving Profile...</span>
+                    </span>
                   ) : (
                     "Save Changes"
                   )}

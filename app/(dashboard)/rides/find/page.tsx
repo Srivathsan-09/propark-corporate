@@ -51,6 +51,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EmptyState } from "@/components/common/EmptyState";
+import { CarLoader } from "@/components/common/CarLoader";
 import MapView, { MapPoint } from "@/components/map/MapView";
 import LocationSearchInput from "@/components/map/LocationSearchInput";
 import { geocodingService } from "@/lib/services/geocoding";
@@ -500,10 +501,8 @@ export default function FindRidePage() {
 
       {/* Available Rides Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Skeleton className="h-72 rounded-2xl" />
-          <Skeleton className="h-72 rounded-2xl" />
-          <Skeleton className="h-72 rounded-2xl" />
+        <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <CarLoader size="lg" message="Finding available campus rides..." />
         </div>
       ) : rides.length === 0 ? (
         <EmptyState
@@ -859,8 +858,8 @@ export default function FindRidePage() {
                             Type Your Boarding Landmark, Junction, or Street:
                           </Label>
                           {isLocatingCustomStop && (
-                            <span className="text-[10px] text-emerald-700 flex items-center gap-1 font-medium animate-pulse">
-                              <Loader2 className="h-3 w-3 animate-spin" />
+                            <span className="text-[10px] text-emerald-700 flex items-center gap-1 font-medium">
+                              <CarLoader size="inline" showRoad={false} className="w-8 h-4 scale-75 origin-right" />
                               Locating on map...
                             </span>
                           )}
@@ -980,10 +979,10 @@ export default function FindRidePage() {
                   }
                 >
                   {isSubmittingBooking ? (
-                    <>
-                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                      Sending Request...
-                    </>
+                    <span className="flex items-center justify-center gap-1.5">
+                      <CarLoader size="inline" showRoad={false} carColor="#ffffff" className="w-8 h-4 scale-75 inline-flex" />
+                      <span>Sending Request...</span>
+                    </span>
                   ) : session?.user?.role !== "admin" &&
                     (!session?.user?.isApproved && session?.user?.verificationStatus === "pending") ? (
                     "🔒 Awaiting Admin Approval"
