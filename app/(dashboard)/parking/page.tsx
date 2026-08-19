@@ -29,7 +29,7 @@ export default function ParkingPage() {
             Campus Parking Module Coming in Phase 5
           </CardTitle>
           <CardDescription className="max-w-md mx-auto text-sm text-slate-500 mt-2">
-            In Phase 5, Pro Park will link completed carpools directly with freed campus parking stalls and priority parking allocations.
+            In Phase 5, CommuteX will link completed carpools directly with freed campus parking stalls and priority parking allocations.
           </CardDescription>
         </CardHeader>
         <CardContent className="border-t border-slate-100 p-6 flex flex-col sm:flex-row items-center justify-center gap-4 bg-slate-50/50">

@@ -129,10 +129,10 @@ function LoginForm() {
 
       <CardHeader className="space-y-1 text-center pt-6 pb-4">
         <CardTitle className="text-2xl font-extrabold tracking-tight text-slate-900">
-          Welcome to Pro Park
+          Welcome to Commute<span className="text-emerald-600">X</span>
         </CardTitle>
         <CardDescription className="text-xs sm:text-sm text-slate-500">
-          Sign in to your campus carpooling & parking portal
+          Sign in to your corporate carpooling & commute portal
         </CardDescription>
       </CardHeader>
 
@@ -273,7 +273,7 @@ function LoginForm() {
                 <span>Signing in...</span>
               </span>
             ) : (
-              "Sign In to Pro Park"
+              "Sign In to CommuteX"
             )}
           </Button>
         </form>

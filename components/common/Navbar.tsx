@@ -34,12 +34,14 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
 
         {/* Brand Logo */}
         <Link href="/dashboard" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm">
-            <Car className="h-5 w-5" />
-          </div>
+          <img
+            src="/images/commutex-logo.png"
+            alt="CommuteX"
+            className="h-9 w-auto object-contain rounded-md"
+          />
           <div className="flex flex-col">
-            <span className="text-base font-bold tracking-tight text-slate-900 leading-tight">
-              PRO PARK
+            <span className="text-base font-black tracking-tight text-slate-900 leading-tight flex items-center">
+              COMMUTE<span className="text-emerald-600">X</span>
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
               Corporate Commute

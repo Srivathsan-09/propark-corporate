@@ -208,9 +208,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Footer info box */}
         <div className="border-t border-slate-200 p-4">
           <div className={cn("rounded-lg p-3 text-xs", isAdmin ? "bg-purple-50/70 text-purple-900" : "bg-slate-50 text-slate-600")}>
-            <p className="font-semibold">{isAdmin ? "Campus Admin Portal" : "Pro Park Campus"}</p>
+            <p className="font-semibold">{isAdmin ? "Campus Admin Portal" : "CommuteX Campus"}</p>
             <p className="mt-0.5 text-[11px] opacity-80">
-              {isAdmin ? "Platform oversight & fleet control" : "Corporate Ride Sharing & Parking"}
+              {isAdmin ? "Platform oversight & fleet control" : "Corporate Ride Sharing & Commute"}
             </p>
           </div>
         </div>

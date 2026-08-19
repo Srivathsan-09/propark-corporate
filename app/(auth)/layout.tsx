@@ -12,12 +12,12 @@ export default function AuthLayout({
         {/* Subtle decorative background green radial gradient */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Full Pro Park Logo - Centered */}
-        <div className="relative z-10 w-full max-w-lg flex items-center justify-center p-4">
+        {/* Full CommuteX Logo - Centered */}
+        <div className="relative z-10 w-full max-w-lg flex flex-col items-center justify-center p-4">
           <img
-            src="/images/logo.png"
-            alt="PRO PARK — Smart Ride • Better Tomorrow"
-            className="w-full h-auto object-contain max-h-[420px] drop-shadow-sm transition-transform duration-300 hover:scale-[1.02]"
+            src="/images/commutex-logo.png"
+            alt="CommuteX — Ride Together • Go Further"
+            className="w-full h-auto object-contain max-h-[440px] drop-shadow-md transition-transform duration-300 hover:scale-[1.02]"
           />
         </div>
       </div>
@@ -28,9 +28,9 @@ export default function AuthLayout({
           {/* Mobile Full-Width Logo Header (Edge-to-Edge, No Border, Seamlessly Joined with Form) */}
           <div className="w-full bg-white flex items-center justify-center pt-8 pb-3 px-6 lg:hidden">
             <img
-              src="/images/logo.png"
-              alt="PRO PARK"
-              className="w-full max-w-[320px] h-auto object-contain max-h-[180px]"
+              src="/images/commutex-logo.png"
+              alt="CommuteX"
+              className="w-full max-w-[300px] h-auto object-contain max-h-[170px]"
             />
           </div>
 

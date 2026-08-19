@@ -117,7 +117,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
               recipient: req.passenger,
               sender: ride.driver._id,
               title: "Ride Completed! 🎉",
-              message: `You have reached your destination. Thank you for carpooling with Employee ${driverName} on Pro Park.`,
+              message: `You have reached your destination. Thank you for carpooling with Employee ${driverName} on CommuteX.`,
               type: "ride_completed",
               ride: ride._id,
               rideRequest: req._id,

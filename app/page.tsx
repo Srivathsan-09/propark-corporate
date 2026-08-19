@@ -29,12 +29,14 @@ export default async function HomePage() {
       {/* Top Corporate Header */}
       <header className="flex h-16 w-full items-center justify-between border-b border-slate-200 px-6 md:px-12 bg-white">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm">
-            <Car className="h-5 w-5" />
-          </div>
+          <img
+            src="/images/commutex-logo.png"
+            alt="CommuteX"
+            className="h-9 w-auto object-contain rounded-md"
+          />
           <div className="flex flex-col">
-            <span className="text-base font-bold tracking-tight text-slate-900 leading-tight">
-              PRO PARK
+            <span className="text-base font-black tracking-tight text-slate-900 leading-tight flex items-center">
+              COMMUTE<span className="text-emerald-600">X</span>
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
               Corporate Commute
@@ -178,7 +180,7 @@ export default async function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-200 py-6 px-6 text-center text-xs text-slate-500 bg-white">
-        <p>© 2026 Pro Park — Smart Corporate Ride Sharing System. All rights reserved.</p>
+        <p>© 2026 CommuteX — Corporate Ride Sharing & Mobility System. All rights reserved.</p>
       </footer>
     </div>
   );

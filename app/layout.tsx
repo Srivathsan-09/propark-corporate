@@ -6,7 +6,7 @@ import { Providers } from "@/components/common/Providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Pro Park — Smart Corporate Ride Sharing & Parking Optimization",
+  title: "CommuteX — Ride Together • Go Further | Corporate Carpooling Platform",
   description:
     "A modern corporate-campus ride-sharing platform designed to reduce campus parking demand, cut commute costs, and foster sustainable corporate mobility.",
 };

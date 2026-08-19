@@ -349,7 +349,7 @@ export default function DashboardPage() {
           <Card className="border-slate-200 bg-slate-900 text-white">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold">
-                <Sparkles className="h-4 w-4" /> Pro Park Benefits
+                <Sparkles className="h-4 w-4" /> CommuteX Benefits
               </div>
               <CardTitle className="text-base font-semibold text-white">
                 Campus Verification Policy
