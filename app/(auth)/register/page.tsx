@@ -137,44 +137,44 @@ export default function RegisterPage() {
       <div className="flex border-b border-slate-100 bg-slate-50 text-xs font-semibold">
         <Link
           href="/login"
-          className="flex-1 py-3.5 text-center text-slate-500 hover:text-emerald-700 transition-colors"
+          className="flex-1 py-2.5 text-center text-slate-500 hover:text-emerald-700 transition-colors"
         >
           Sign In
         </Link>
-        <div className="flex-1 py-3.5 text-center border-b-2 border-emerald-600 text-emerald-700 bg-white font-bold">
+        <div className="flex-1 py-2.5 text-center border-b-2 border-emerald-600 text-emerald-700 bg-white font-bold">
           Sign Up
         </div>
       </div>
 
-      <CardHeader className="space-y-1 text-center pt-5 pb-3">
-        <CardTitle className="text-2xl font-extrabold tracking-tight text-slate-900">
+      <CardHeader className="space-y-0.5 text-center pt-3 pb-1.5">
+        <CardTitle className="text-xl font-extrabold tracking-tight text-slate-900">
           Employee Registration
         </CardTitle>
-        <CardDescription className="text-xs sm:text-sm text-slate-500">
-          Register with your official campus Employee ID
+        <CardDescription className="text-[11px] text-slate-500">
+          Register with your corporate ID to join the CommuteX campus pool
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4 px-6">
+      <CardContent className="space-y-2.5 px-5 py-2">
         {/* Account Exists Warning Box with Direct Action */}
         {existingEmailFound ? (
-          <div className="rounded-xl bg-amber-50 p-4 border border-amber-200 text-amber-900 space-y-2 animate-in fade-in-50">
-            <div className="flex items-center gap-2 font-bold text-sm text-amber-800">
-              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+          <div className="rounded-lg bg-amber-50 p-2.5 border border-amber-200 text-amber-900 space-y-1 animate-in fade-in-50">
+            <div className="flex items-center gap-1.5 font-bold text-xs text-amber-800">
+              <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
               <span>Account Already Exists</span>
             </div>
-            <p className="text-xs text-amber-700">
-              A corporate profile with <strong>{existingEmailFound}</strong> is already registered. You only need to sign in.
+            <p className="text-[11px] text-amber-700">
+              A corporate profile with <strong>{existingEmailFound}</strong> is already registered.
             </p>
             <Link
               href={`/login?email=${encodeURIComponent(existingEmailFound)}`}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-white border border-amber-200 px-3 py-1.5 rounded-lg shadow-xs hover:bg-emerald-50 transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-white border border-amber-200 px-2.5 py-1 rounded shadow-xs hover:bg-emerald-50 transition-colors"
             >
               Sign In With This Account <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
         ) : serverError ? (
-          <div className="flex items-start gap-2.5 rounded-xl bg-rose-50 p-3.5 text-xs sm:text-sm text-rose-900 border border-rose-200 animate-in fade-in-50">
+          <div className="flex items-start gap-2 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-900 border border-rose-200 animate-in fade-in-50">
             <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
             <span>{serverError}</span>
           </div>
@@ -186,12 +186,12 @@ export default function RegisterPage() {
           variant="outline"
           onClick={handleGoogleSignUp}
           disabled={isGoogleLoading || isLoading}
-          className="w-full h-11 border-slate-200 bg-white hover:bg-emerald-50/50 hover:border-emerald-300 font-medium text-slate-700 flex items-center justify-center gap-3 transition-colors shadow-xs rounded-xl"
+          className="w-full h-9 border-slate-200 bg-white hover:bg-emerald-50/50 hover:border-emerald-300 font-medium text-slate-700 flex items-center justify-center gap-2 transition-colors shadow-xs rounded-lg text-xs"
         >
           {isGoogleLoading ? (
             <CarLoader size="inline" showRoad={false} className="w-8 h-4 scale-75" />
           ) : (
-            <svg className="h-5 w-5" viewBox="0 0 24 24">
+            <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -210,56 +210,81 @@ export default function RegisterPage() {
               />
             </svg>
           )}
-          <span className="font-semibold text-slate-800 text-sm">Sign up with Google</span>
+          <span className="font-semibold text-slate-800 text-xs">Sign up with Google</span>
         </Button>
 
         {/* Separator */}
-        <div className="relative flex items-center justify-center my-1">
+        <div className="relative flex items-center justify-center my-0.5">
           <div className="w-full border-t border-slate-100" />
-          <span className="bg-white px-3 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
-            or fill employee details
+          <span className="bg-white px-2 text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+            or employee details
           </span>
           <div className="w-full border-t border-slate-100" />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {/* Full Name */}
-          <div className="space-y-1">
-            <Label htmlFor="name" className="text-xs font-semibold text-slate-700">
-              Full Name
-            </Label>
-            <div className="relative">
-              <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                placeholder="Sarah Jenkins"
-                value={formData.name}
-                onChange={handleChange}
-                disabled={isLoading || isGoogleLoading}
-                className={`pl-9 rounded-xl ${fieldErrors.name ? "border-rose-500" : "border-slate-200"}`}
-                required
-              />
+        <form onSubmit={handleSubmit} className="space-y-2">
+          {/* Row 1: Full Name & Corporate Work Email */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-0.5">
+              <Label htmlFor="name" className="text-[11px] font-semibold text-slate-700">
+                Full Name
+              </Label>
+              <div className="relative">
+                <User className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  placeholder="Sarah Jenkins"
+                  value={formData.name}
+                  onChange={handleChange}
+                  disabled={isLoading || isGoogleLoading}
+                  className={`h-8.5 pl-8 text-xs rounded-lg ${fieldErrors.name ? "border-rose-500" : "border-slate-200"}`}
+                  required
+                />
+              </div>
+              {fieldErrors.name && (
+                <p className="text-[10px] text-rose-600">{fieldErrors.name}</p>
+              )}
             </div>
-            {fieldErrors.name && (
-              <p className="text-xs text-rose-600">{fieldErrors.name}</p>
-            )}
+
+            <div className="space-y-0.5">
+              <Label htmlFor="email" className="text-[11px] font-semibold text-slate-700">
+                Corporate Work Email
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="s.jenkins@company.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  disabled={isLoading || isGoogleLoading}
+                  className={`h-8.5 pl-8 text-xs rounded-lg ${fieldErrors.email ? "border-rose-500" : "border-slate-200"}`}
+                  required
+                />
+              </div>
+              {fieldErrors.email && (
+                <p className="text-[10px] text-rose-600">{fieldErrors.email}</p>
+              )}
+            </div>
           </div>
 
-          {/* Grid: Company ID & Company Name */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
+          {/* Row 2: Company ID & Company Name */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-0.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="employeeId" className="text-xs font-semibold text-slate-700">
+                <Label htmlFor="employeeId" className="text-[11px] font-semibold text-slate-700">
                   Company ID
                 </Label>
-                <span className="text-[10px] text-emerald-700 font-medium flex items-center gap-0.5">
-                  <Info className="h-3 w-3" /> Required
+                <span className="text-[9px] text-emerald-700 font-medium flex items-center gap-0.5">
+                  <Info className="h-2.5 w-2.5" /> Required
                 </span>
               </div>
               <div className="relative">
-                <BadgeCheck className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <BadgeCheck className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                 <Input
                   id="employeeId"
                   name="employeeId"
@@ -268,47 +293,47 @@ export default function RegisterPage() {
                   value={formData.employeeId}
                   onChange={handleChange}
                   disabled={isLoading || isGoogleLoading}
-                  className={`pl-9 uppercase font-mono rounded-xl ${fieldErrors.employeeId ? "border-rose-500" : "border-slate-200"}`}
+                  className={`h-8.5 pl-8 uppercase font-mono text-xs rounded-lg ${fieldErrors.employeeId ? "border-rose-500" : "border-slate-200"}`}
                   required
                 />
               </div>
               {fieldErrors.employeeId && (
-                <p className="text-xs text-rose-600">{fieldErrors.employeeId}</p>
+                <p className="text-[10px] text-rose-600">{fieldErrors.employeeId}</p>
               )}
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="companyName" className="text-xs font-semibold text-slate-700">
+            <div className="space-y-0.5">
+              <Label htmlFor="companyName" className="text-[11px] font-semibold text-slate-700">
                 Company / Organization
               </Label>
               <div className="relative">
-                <Building2 className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Building2 className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                 <Input
                   id="companyName"
                   name="companyName"
                   type="text"
-                  placeholder="e.g. Tech Mahindra, Infosys"
+                  placeholder="e.g. Tech Mahindra"
                   value={formData.companyName}
                   onChange={handleChange}
                   disabled={isLoading || isGoogleLoading}
-                  className={`pl-9 rounded-xl ${fieldErrors.companyName ? "border-rose-500" : "border-slate-200"}`}
+                  className={`h-8.5 pl-8 text-xs rounded-lg ${fieldErrors.companyName ? "border-rose-500" : "border-slate-200"}`}
                   required
                 />
               </div>
               {fieldErrors.companyName && (
-                <p className="text-xs text-rose-600">{fieldErrors.companyName}</p>
+                <p className="text-[10px] text-rose-600">{fieldErrors.companyName}</p>
               )}
             </div>
           </div>
 
-          {/* Grid: Department & Phone Number */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="department" className="text-xs font-semibold text-slate-700">
+          {/* Row 3: Department & Phone Number */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-0.5">
+              <Label htmlFor="department" className="text-[11px] font-semibold text-slate-700">
                 Department
               </Label>
               <div className="relative">
-                <Building className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Building className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                 <Input
                   id="department"
                   name="department"
@@ -317,21 +342,21 @@ export default function RegisterPage() {
                   value={formData.department}
                   onChange={handleChange}
                   disabled={isLoading || isGoogleLoading}
-                  className={`pl-9 rounded-xl ${fieldErrors.department ? "border-rose-500" : "border-slate-200"}`}
+                  className={`h-8.5 pl-8 text-xs rounded-lg ${fieldErrors.department ? "border-rose-500" : "border-slate-200"}`}
                   required
                 />
               </div>
               {fieldErrors.department && (
-                <p className="text-xs text-rose-600">{fieldErrors.department}</p>
+                <p className="text-[10px] text-rose-600">{fieldErrors.department}</p>
               )}
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="phone" className="text-xs font-semibold text-slate-700">
+            <div className="space-y-0.5">
+              <Label htmlFor="phone" className="text-[11px] font-semibold text-slate-700">
                 Phone Number
               </Label>
               <div className="relative">
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                 <Input
                   id="phone"
                   name="phone"
@@ -340,48 +365,24 @@ export default function RegisterPage() {
                   value={formData.phone}
                   onChange={handleChange}
                   disabled={isLoading || isGoogleLoading}
-                  className={`pl-9 rounded-xl ${fieldErrors.phone ? "border-rose-500" : "border-slate-200"}`}
+                  className={`h-8.5 pl-8 text-xs rounded-lg ${fieldErrors.phone ? "border-rose-500" : "border-slate-200"}`}
                   required
                 />
               </div>
               {fieldErrors.phone && (
-                <p className="text-xs text-rose-600">{fieldErrors.phone}</p>
+                <p className="text-[10px] text-rose-600">{fieldErrors.phone}</p>
               )}
             </div>
           </div>
 
-          {/* Corporate Email */}
-          <div className="space-y-1">
-            <Label htmlFor="email" className="text-xs font-semibold text-slate-700">
-              Corporate Work Email
-            </Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="s.jenkins@company.com"
-                value={formData.email}
-                onChange={handleChange}
-                disabled={isLoading || isGoogleLoading}
-                className={`pl-9 rounded-xl ${fieldErrors.email ? "border-rose-500" : "border-slate-200"}`}
-                required
-              />
-            </div>
-            {fieldErrors.email && (
-              <p className="text-xs text-rose-600">{fieldErrors.email}</p>
-            )}
-          </div>
-
-          {/* Password & Confirm Password */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="password" className="text-xs font-semibold text-slate-700">
+          {/* Row 4: Password & Confirm Password */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-0.5">
+              <Label htmlFor="password" className="text-[11px] font-semibold text-slate-700">
                 Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Lock className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                 <Input
                   id="password"
                   name="password"
@@ -390,29 +391,29 @@ export default function RegisterPage() {
                   value={formData.password}
                   onChange={handleChange}
                   disabled={isLoading || isGoogleLoading}
-                  className={`pl-9 pr-9 rounded-xl ${fieldErrors.password ? "border-rose-500" : "border-slate-200"}`}
+                  className={`h-8.5 pl-8 pr-8 text-xs rounded-lg ${fieldErrors.password ? "border-rose-500" : "border-slate-200"}`}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-3 text-slate-400 hover:text-slate-600"
+                  className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600"
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
               {fieldErrors.password && (
-                <p className="text-xs text-rose-600">{fieldErrors.password}</p>
+                <p className="text-[10px] text-rose-600">{fieldErrors.password}</p>
               )}
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="confirmPassword" className="text-xs font-semibold text-slate-700">
+            <div className="space-y-0.5">
+              <Label htmlFor="confirmPassword" className="text-[11px] font-semibold text-slate-700">
                 Confirm Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Lock className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                 <Input
                   id="confirmPassword"
                   name="confirmPassword"
@@ -421,29 +422,29 @@ export default function RegisterPage() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   disabled={isLoading || isGoogleLoading}
-                  className={`pl-9 pr-9 rounded-xl ${fieldErrors.confirmPassword ? "border-rose-500" : "border-slate-200"}`}
+                  className={`h-8.5 pl-8 pr-8 text-xs rounded-lg ${fieldErrors.confirmPassword ? "border-rose-500" : "border-slate-200"}`}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-2.5 top-3 text-slate-400 hover:text-slate-600"
+                  className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600"
                   tabIndex={-1}
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
               {fieldErrors.confirmPassword && (
-                <p className="text-xs text-rose-600">{fieldErrors.confirmPassword}</p>
+                <p className="text-[10px] text-rose-600">{fieldErrors.confirmPassword}</p>
               )}
             </div>
           </div>
 
           {/* Submit Button */}
-          <div className="pt-2">
+          <div className="pt-1">
             <Button
               type="submit"
-              className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs transition-colors"
+              className="w-full h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-xs transition-colors text-xs"
               disabled={isLoading || isGoogleLoading}
             >
               {isLoading ? (
@@ -452,19 +453,19 @@ export default function RegisterPage() {
                   <span>Submitting Registration...</span>
                 </span>
               ) : (
-                "Register & Submit for Approval"
+                "Register & Join CommuteX"
               )}
             </Button>
           </div>
         </form>
       </CardContent>
 
-      <CardFooter className="flex flex-col items-center justify-center border-t border-slate-100 py-4 bg-slate-50/50">
-        <p className="text-xs text-slate-600">
+      <CardFooter className="flex flex-col items-center justify-center border-t border-slate-100 py-2.5 bg-slate-50/50">
+        <p className="text-[11px] text-slate-600">
           Already have a corporate account?{" "}
           <Link
             href="/login"
-            className="font-bold text-emerald-700 hover:underline inline-flex items-center gap-1"
+            className="font-bold text-emerald-700 hover:underline inline-flex items-center gap-0.5"
           >
             Sign in here <ArrowRight className="h-3 w-3" />
           </Link>
