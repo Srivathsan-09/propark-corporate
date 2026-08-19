@@ -200,15 +200,8 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-72 mt-2" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Skeleton className="h-64 rounded-xl" />
-          <Skeleton className="h-96 md:col-span-2 rounded-xl" />
-        </div>
+      <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
+        <CarLoader size="lg" message="Loading your profile details..." />
       </div>
     );
   }

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CarLoader } from "@/components/common/CarLoader";
 import { getInitials } from "@/lib/utils";
 
 interface IEmployee {
@@ -126,10 +127,8 @@ export default function AdminEmployeesPage() {
 
         <CardContent className="pt-4">
           {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-14 w-full" />
-              <Skeleton className="h-14 w-full" />
-              <Skeleton className="h-14 w-full" />
+            <div className="py-16 flex flex-col items-center justify-center">
+              <CarLoader size="lg" message="Loading campus employees..." />
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-12 text-slate-500 text-sm">

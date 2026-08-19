@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { CarLoader } from "@/components/common/CarLoader";
 import { getInitials } from "@/lib/utils";
 
 interface IEmployee {
@@ -258,9 +259,8 @@ export default function AdminDashboardPage() {
 
         <CardContent className="pt-4">
           {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
+            <div className="py-12 flex flex-col items-center justify-center">
+              <CarLoader size="lg" message="Loading admin telemetry & verification queue..." />
             </div>
           ) : employees.length === 0 ? (
             <div className="text-center py-8 text-slate-500 text-sm">

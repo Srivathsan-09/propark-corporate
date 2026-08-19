@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/common/EmptyState";
+import { CarLoader } from "@/components/common/CarLoader";
 
 interface IVehicleItem {
   _id: string;
@@ -292,9 +293,8 @@ export default function DashboardPage() {
           </div>
 
           {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-24 w-full rounded-xl" />
-              <Skeleton className="h-24 w-full rounded-xl" />
+            <div className="py-8 flex flex-col items-center justify-center rounded-xl bg-slate-50 border border-slate-200">
+              <CarLoader size="md" message="Loading your vehicles..." />
             </div>
           ) : vehicles.length === 0 ? (
             <EmptyState

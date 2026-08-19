@@ -179,26 +179,31 @@ export function CarLoader({
           }
 
           .propark-wheel-back {
+            transform-box: view-box;
             transform-origin: 20px 22px;
             animation: propark-wheel-spin 0.45s linear infinite;
           }
 
           .propark-wheel-front {
+            transform-box: view-box;
             transform-origin: 54px 22px;
             animation: propark-wheel-spin 0.45s linear infinite;
           }
 
           .propark-puff-1 {
+            transform-box: view-box;
             transform-origin: 8px 21px;
             animation: propark-exhaust-1 0.75s ease-out infinite;
           }
 
           .propark-puff-2 {
+            transform-box: view-box;
             transform-origin: 8px 21px;
             animation: propark-exhaust-2 0.75s ease-out 0.25s infinite;
           }
 
           .propark-puff-3 {
+            transform-box: view-box;
             transform-origin: 8px 21px;
             animation: propark-exhaust-3 0.75s ease-out 0.5s infinite;
           }

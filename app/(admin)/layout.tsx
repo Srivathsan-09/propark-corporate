@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/common/Navbar";
 import { Sidebar } from "@/components/common/Sidebar";
+import { CarLoader } from "@/components/common/CarLoader";
 
 export default function AdminLayout({
   children,
@@ -17,11 +18,8 @@ export default function AdminLayout({
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-800">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
-          <span className="text-sm font-medium text-slate-600">Verifying Admin Privileges...</span>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <CarLoader size="fullscreen" message="Verifying Admin Privileges..." />
       </div>
     );
   }

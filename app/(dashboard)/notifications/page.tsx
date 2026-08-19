@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/common/EmptyState";
+import { CarLoader } from "@/components/common/CarLoader";
 
 interface INotificationItem {
   _id: string;
@@ -126,10 +127,8 @@ export default function NotificationsPage() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-20 w-full rounded-2xl" />
-          <Skeleton className="h-20 w-full rounded-2xl" />
-          <Skeleton className="h-20 w-full rounded-2xl" />
+        <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
+          <CarLoader size="lg" message="Loading your notifications..." />
         </div>
       ) : notifications.length === 0 ? (
         <EmptyState
