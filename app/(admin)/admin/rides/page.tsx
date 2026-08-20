@@ -267,25 +267,25 @@ export default function AdminRidesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {/* Search */}
             <div className="relative sm:col-span-2">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <Input
                 placeholder="Search driver, passenger, company, vehicle plate, or route..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-10 text-xs rounded-xl"
+                className="pl-9 h-10 text-sm rounded-xl"
               />
             </div>
 
             {/* Commute Type Filter */}
             <div>
               <Select value={filterRideType} onValueChange={setFilterRideType}>
-                <SelectTrigger className="h-10 text-xs rounded-xl">
+                <SelectTrigger className="h-10 text-sm rounded-xl">
                   <SelectValue placeholder="All Commute Types" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Commutes</SelectItem>
-                  <SelectItem value="pickup">🌅 Morning Pickup (To Campus)</SelectItem>
-                  <SelectItem value="drop">🌆 Evening Drop (From Campus)</SelectItem>
+                  <SelectItem value="pickup">Morning Pickup (To Campus)</SelectItem>
+                  <SelectItem value="drop">Evening Drop (From Campus)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -293,7 +293,7 @@ export default function AdminRidesPage() {
             {/* Status Filter */}
             <div>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="h-10 text-xs rounded-xl">
+                <SelectTrigger className="h-10 text-sm rounded-xl">
                   <SelectValue placeholder="All Statuses" />
                 </SelectTrigger>
                 <SelectContent>

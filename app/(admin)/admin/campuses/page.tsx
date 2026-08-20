@@ -509,38 +509,38 @@ export default function AdminCampusesPage() {
   }
 
   return (
-    <div className="space-y-4 animate-in fade-in-50 duration-300">
+    <div className="space-y-5 animate-in fade-in-50 duration-300">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <Link href="/admin" className="text-xs text-slate-500 hover:text-purple-600 flex items-center gap-1 font-medium">
-              <ArrowLeft className="h-3 w-3" /> Back to Overview
+            <Link href="/admin" className="text-xs text-slate-500 hover:text-purple-600 flex items-center gap-1 font-semibold transition-colors">
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Overview
             </Link>
           </div>
-          <div className="flex items-center gap-2 mt-1">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-purple-600" />
+          <div className="flex flex-wrap items-center gap-3 mt-2">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+              <Building2 className="h-6 w-6 text-purple-600" />
               Campus & Admin Hub
             </h1>
             {isSuperAdmin ? (
-              <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold">
+              <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold px-2.5 py-0.5">
                 Super Admin Console
               </Badge>
             ) : (
-              <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold">
+              <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-0.5">
                 Campus Admin ({session?.user?.campusId})
               </Badge>
             )}
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-sm text-slate-500 mt-1">
             {isSuperAdmin
-              ? "Governance across all campuses, campus admins, and company addition approvals."
-              : "Manage operating companies and commuters for your assigned campus."}
+              ? "Governance across all physical campuses, campus administrators, and company addition approvals."
+              : "Manage operating companies and commuters for your assigned physical campus."}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 shrink-0">
           {isSuperAdmin && (
             <Button
               onClick={() => {
@@ -560,10 +560,10 @@ export default function AdminCampusesPage() {
                 });
                 setIsAddCampusOpen(true);
               }}
-              size="sm"
-              className="h-8.5 px-3.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-xs gap-1.5"
+              size="default"
+              className="h-10 px-5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow transition-all gap-2"
             >
-              <Plus className="h-3.5 w-3.5" /> Add Campus
+              <Plus className="h-4 w-4" /> Add Campus
             </Button>
           )}
         </div>
@@ -571,58 +571,58 @@ export default function AdminCampusesPage() {
 
       {/* Alert Messages */}
       {successMessage && (
-        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800 border border-emerald-200 animate-in fade-in-50">
-          <CheckCircle className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+        <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 border border-emerald-200 animate-in fade-in-50">
+          <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" />
           <span className="font-medium">{successMessage}</span>
         </div>
       )}
 
       {errorMessage && (
-        <div className="flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-800 border border-rose-200 animate-in fade-in-50">
-          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-600 mt-0.5" />
+        <div className="flex items-start gap-2.5 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800 border border-rose-200 animate-in fade-in-50">
+          <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {/* SUPER ADMIN: PENDING COMPANY APPROVALS BANNER */}
       {isSuperAdmin && allPendingRequests.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/60 shadow-xs overflow-hidden">
-          <CardHeader className="py-2.5 px-3.5 bg-amber-100/60 border-b border-amber-200/80">
+        <Card className="border-amber-200 bg-amber-50/60 shadow-xs overflow-hidden rounded-2xl">
+          <CardHeader className="py-3 px-4 bg-amber-100/60 border-b border-amber-200/80">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-amber-700" />
-                <span className="font-bold text-xs text-amber-900">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-700" />
+                <span className="font-bold text-sm text-amber-900">
                   Pending Company Addition Requests ({allPendingRequests.length})
                 </span>
               </div>
-              <Badge className="bg-amber-600 text-white text-[10px] py-0 px-1.5">Action Required</Badge>
+              <Badge className="bg-amber-600 text-white text-xs py-0.5 px-2 font-semibold">Action Required</Badge>
             </div>
           </CardHeader>
-          <CardContent className="p-3 space-y-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <CardContent className="p-4 space-y-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {allPendingRequests.map((req) => (
                 <div
                   key={`${req.campusId}-${req.name}`}
-                  className="bg-white p-2.5 rounded-lg border border-amber-200 shadow-xs flex items-center justify-between gap-2"
+                  className="bg-white p-3.5 rounded-xl border border-amber-200 shadow-xs flex items-center justify-between gap-3"
                 >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs text-slate-900">{req.name}</span>
-                      <span className="font-mono text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.2 rounded border border-purple-200 font-semibold">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-900">{req.name}</span>
+                      <span className="font-mono text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200 font-semibold">
                         {req.campusId}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-500">
-                      Campus: <strong>{req.campusName}</strong> • By: {req.requestedBy}
+                    <div className="text-xs text-slate-500">
+                      Campus: <strong>{req.campusName}</strong> • Requested By: {req.requestedBy}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <Button
                       size="sm"
                       onClick={() => handleApproveCompany(req.campusId, req.name)}
                       disabled={companyActionLoadingId === `${req.campusId}-approve-${req.name}`}
-                      className="h-6.5 px-2 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white gap-1 font-semibold"
+                      className="h-8 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1 font-semibold rounded-lg shadow-xs"
                     >
                       {companyActionLoadingId === `${req.campusId}-approve-${req.name}` ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -636,7 +636,7 @@ export default function AdminCampusesPage() {
                       variant="outline"
                       onClick={() => handleRejectCompany(req.campusId, req.name)}
                       disabled={companyActionLoadingId === `${req.campusId}-reject-${req.name}`}
-                      className="h-6.5 px-2 text-[11px] border-rose-300 text-rose-700 hover:bg-rose-50"
+                      className="h-8 px-3 text-xs border-rose-300 text-rose-700 hover:bg-rose-50 rounded-lg font-semibold"
                     >
                       Reject
                     </Button>
@@ -648,72 +648,72 @@ export default function AdminCampusesPage() {
         </Card>
       )}
 
-      {/* Top Metrics Cards - Compact & High Density */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+      {/* Top Metrics Cards - Enterprise Standard */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
           <div>
-            <span className="text-[11px] font-medium text-slate-400 block">Physical Campuses</span>
-            <div className="text-lg font-bold text-slate-900">{totalCampuses}</div>
+            <span className="text-xs font-semibold text-slate-400 block uppercase tracking-wider">Physical Campuses</span>
+            <div className="text-2xl font-bold text-slate-900 mt-0.5">{totalCampuses}</div>
           </div>
-          <div className="p-2 bg-purple-50 rounded-md text-purple-600">
-            <Building2 className="h-4 w-4" />
+          <div className="p-3 bg-purple-50 rounded-xl text-purple-600">
+            <Building2 className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
           <div>
-            <span className="text-[11px] font-medium text-blue-600 block">Campus Admins</span>
-            <div className="text-lg font-bold text-blue-900">{assignedAdminsCount} / {totalCampuses}</div>
+            <span className="text-xs font-semibold text-blue-600 block uppercase tracking-wider">Campus Admins</span>
+            <div className="text-2xl font-bold text-blue-900 mt-0.5">{assignedAdminsCount} / {totalCampuses}</div>
           </div>
-          <div className="p-2 bg-blue-50 rounded-md text-blue-600">
-            <ShieldCheck className="h-4 w-4" />
+          <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
+            <ShieldCheck className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
           <div>
-            <span className="text-[11px] font-medium text-slate-400 block">Operating Companies</span>
-            <div className="text-lg font-bold text-slate-900">{totalCompaniesCount}</div>
+            <span className="text-xs font-semibold text-slate-400 block uppercase tracking-wider">Operating Companies</span>
+            <div className="text-2xl font-bold text-slate-900 mt-0.5">{totalCompaniesCount}</div>
           </div>
-          <div className="p-2 bg-purple-50 rounded-md text-purple-600">
-            <Briefcase className="h-4 w-4" />
+          <div className="p-3 bg-purple-50 rounded-xl text-purple-600">
+            <Briefcase className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
           <div>
-            <span className="text-[11px] font-medium text-emerald-600 block">Total Commuters</span>
-            <div className="text-lg font-bold text-emerald-900">{totalEmployeesCount}</div>
+            <span className="text-xs font-semibold text-emerald-600 block uppercase tracking-wider">Total Commuters</span>
+            <div className="text-2xl font-bold text-emerald-900 mt-0.5">{totalEmployeesCount}</div>
           </div>
-          <div className="p-2 bg-emerald-50 rounded-md text-emerald-600">
-            <Users className="h-4 w-4" />
+          <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
+            <Users className="h-5 w-5" />
           </div>
         </div>
       </div>
 
       {/* Tabs Navigation */}
       {isSuperAdmin && (
-        <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2">
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
           <button
             onClick={() => setActiveTab("campuses")}
-            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 ${
               activeTab === "campuses"
                 ? "bg-purple-600 text-white shadow-xs"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            <Building2 className="h-3.5 w-3.5" />
+            <Building2 className="h-4 w-4" />
             Campuses & Companies ({campuses.length})
           </button>
           <button
             onClick={() => setActiveTab("admins")}
-            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 ${
               activeTab === "admins"
                 ? "bg-purple-600 text-white shadow-xs"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            <ShieldCheck className="h-3.5 w-3.5" />
+            <ShieldCheck className="h-4 w-4" />
             Campus Admins Directory ({assignedAdminsCount})
           </button>
         </div>
@@ -721,14 +721,14 @@ export default function AdminCampusesPage() {
 
       {/* VIEW 1: CAMPUSES & COMPANIES */}
       {activeTab === "campuses" && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Filter & Search Bar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="h-8 px-2.5 text-xs rounded-md border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
+                className="h-10 px-3.5 text-sm rounded-xl border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
               >
                 <option value="all">All Cities ({campuses.length})</option>
                 {uniqueCities.map((city) => (
@@ -739,67 +739,67 @@ export default function AdminCampusesPage() {
               </select>
             </div>
 
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <Input
                 placeholder="Search campus, city, company, admin..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 h-8 text-xs rounded-md"
+                className="pl-9 h-10 text-sm rounded-xl"
               />
             </div>
           </div>
 
-          {/* Campus Cards List - Sleek & Compact */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+          {/* Campus Cards List - Sleek & High-End */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {filteredCampuses.map((campus) => (
-              <Card key={campus._id} className="border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col justify-between">
+              <Card key={campus._id} className="border-slate-200 bg-white shadow-xs hover:shadow-md transition-all rounded-2xl overflow-hidden flex flex-col justify-between">
                 <div>
                   {/* Campus Card Header */}
-                  <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-2.5 px-3.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-[11px] font-bold px-1.5 py-0.2 bg-purple-50 text-purple-700 rounded border border-purple-200">
+                  <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3.5 px-4.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold px-2 py-0.5 bg-purple-50 text-purple-700 rounded-md border border-purple-200">
                             {campus.campusId}
                           </span>
-                          <CardTitle className="text-sm font-bold text-slate-900">{campus.name}</CardTitle>
+                          <CardTitle className="text-base font-bold text-slate-900">{campus.name}</CardTitle>
                         </div>
-                        <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                          <MapPin className="h-3 w-3 text-emerald-600 shrink-0" />
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                          <MapPin className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                           <span>{campus.address}</span>
                           <span className="text-slate-300">•</span>
                           <strong className="text-slate-700">{campus.city}, {campus.state}</strong>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1">
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0 px-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-semibold py-0.5 px-2">
                           Active
                         </Badge>
                         {isSuperAdmin && (
                           <button
                             onClick={() => handleDeleteCampus(campus.campusId, campus.name)}
-                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                             title="Delete Campus"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         )}
                       </div>
                     </div>
 
                     {/* Campus Admin Badge & Allocation */}
-                    <div className="mt-2 p-1.5 bg-purple-50/60 rounded border border-purple-100 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5 text-slate-700 truncate">
-                        <ShieldCheck className="h-3.5 w-3.5 text-purple-600 shrink-0" />
-                        <span className="text-[11px] font-medium text-slate-600">Admin:</span>
+                    <div className="mt-3 p-2.5 bg-purple-50/70 rounded-xl border border-purple-100 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 text-slate-700 truncate">
+                        <ShieldCheck className="h-4 w-4 text-purple-600 shrink-0" />
+                        <span className="text-xs font-semibold text-slate-600">Admin:</span>
                         {campus.adminEmail ? (
-                          <span className="font-semibold text-[11px] text-purple-900 truncate">
+                          <span className="font-semibold text-xs text-purple-900 truncate">
                             {campus.adminEmail}
                           </span>
                         ) : (
-                          <span className="italic text-[11px] text-slate-400">No admin assigned</span>
+                          <span className="italic text-xs text-slate-400">No admin assigned</span>
                         )}
                       </div>
 
@@ -813,9 +813,9 @@ export default function AdminCampusesPage() {
                             setModalError(null);
                             setOtpDevCode(null);
                           }}
-                          className="text-xs font-semibold text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 px-2.5 py-1 rounded-lg flex items-center gap-1 ml-2 shrink-0 transition-colors"
+                          className="text-xs font-semibold text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 px-3 py-1 rounded-lg flex items-center gap-1 ml-2 shrink-0 transition-colors shadow-2xs"
                         >
-                          <Edit2 className="h-3 w-3" />
+                          <Edit2 className="h-3.5 w-3.5" />
                           {campus.adminEmail ? "Reassign" : "Assign"}
                         </button>
                       )}
@@ -823,38 +823,38 @@ export default function AdminCampusesPage() {
                   </CardHeader>
 
                   {/* Campus Summary Pills */}
-                  <div className="px-3.5 py-1.5 bg-slate-50/40 border-b border-slate-100 flex items-center gap-2 text-[11px] text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <Briefcase className="h-3 w-3 text-purple-600" />
+                  <div className="px-4.5 py-2 bg-slate-50/50 border-b border-slate-100 flex items-center gap-3 text-xs text-slate-500">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Briefcase className="h-3.5 w-3.5 text-purple-600" />
                       <strong>{campus.companies.length}</strong> Operating Companies
                     </span>
                     <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3 w-3 text-emerald-600" />
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Users className="h-3.5 w-3.5 text-emerald-600" />
                       <strong>{campus.employeeCount || 0}</strong> Commuters
                     </span>
                   </div>
 
                   {/* Companies Section */}
-                  <CardContent className="p-3 space-y-2.5">
+                  <CardContent className="p-4 space-y-3">
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                      <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
                         Operating Companies ({campus.companies.length})
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap gap-2">
                         {campus.companies.map((comp) => (
                           <span
                             key={comp}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200"
                           >
                             {comp}
                             {(isSuperAdmin || (isCampusAdmin && session?.user?.campusId === campus.campusId)) && (
                               <button
                                 onClick={() => handleRemoveCompany(campus.campusId, comp)}
-                                className="text-slate-400 hover:text-rose-600 ml-0.5"
+                                className="text-slate-400 hover:text-rose-600 ml-1"
                                 title="Remove company"
                               >
-                                <X className="h-3 w-3" />
+                                <X className="h-3.5 w-3.5" />
                               </button>
                             )}
                           </span>
@@ -864,33 +864,33 @@ export default function AdminCampusesPage() {
 
                     {/* Pending Requests for this campus */}
                     {campus.pendingCompanies && campus.pendingCompanies.length > 0 && (
-                      <div className="p-2 bg-amber-50/80 rounded border border-amber-200/70 space-y-1 text-xs">
-                        <div className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> Awaiting Super Admin Approval
+                      <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/70 space-y-1.5 text-xs">
+                        <div className="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5" /> Awaiting Super Admin Approval
                         </div>
                         {campus.pendingCompanies.map((pending) => (
                           <div
                             key={pending.name}
-                            className="flex items-center justify-between gap-1 text-[11px] text-slate-700 bg-white px-2 py-1 rounded border border-amber-200"
+                            className="flex items-center justify-between gap-2 text-xs text-slate-700 bg-white px-3 py-1.5 rounded-lg border border-amber-200"
                           >
                             <span className="font-semibold">{pending.name}</span>
                             {isSuperAdmin ? (
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={() => handleApproveCompany(campus.campusId, pending.name)}
-                                  className="px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[10px] font-bold"
+                                  className="px-2 py-1 bg-emerald-600 text-white rounded-md text-xs font-bold shadow-xs hover:bg-emerald-700 transition-colors"
                                 >
                                   Approve
                                 </button>
                                 <button
                                   onClick={() => handleRejectCompany(campus.campusId, pending.name)}
-                                  className="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold"
+                                  className="px-2 py-1 bg-rose-100 text-rose-700 rounded-md text-xs font-bold hover:bg-rose-200 transition-colors"
                                 >
                                   Reject
                                 </button>
                               </div>
                             ) : (
-                              <span className="text-[10px] text-amber-700 font-medium">Pending...</span>
+                              <span className="text-xs text-amber-700 font-medium">Pending...</span>
                             )}
                           </div>
                         ))}
@@ -900,7 +900,7 @@ export default function AdminCampusesPage() {
                 </div>
 
                 {/* Inline Add Company Footer */}
-                <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
+                <div className="p-3.5 bg-slate-50 border-t border-slate-100 flex items-center gap-2.5">
                   <Input
                     placeholder="Add operating company name..."
                     value={companyInputs[campus.campusId] || ""}
@@ -913,21 +913,21 @@ export default function AdminCampusesPage() {
                         handleAddOrRequestCompany(campus.campusId);
                       }
                     }}
-                    className="h-9 text-xs bg-white rounded-lg px-3 border-slate-200"
+                    className="h-10 text-sm bg-white rounded-xl px-3.5 border-slate-200"
                   />
                   <Button
-                    size="sm"
+                    size="default"
                     onClick={() => handleAddOrRequestCompany(campus.campusId)}
                     disabled={
                       !(companyInputs[campus.campusId] || "").trim() ||
                       companyActionLoadingId === `${campus.campusId}-add`
                     }
-                    className="h-9 px-4 text-xs bg-purple-600 hover:bg-purple-700 text-white shrink-0 font-semibold gap-1.5 rounded-lg shadow-xs"
+                    className="h-10 px-5 text-sm bg-purple-600 hover:bg-purple-700 text-white shrink-0 font-semibold gap-1.5 rounded-xl shadow-xs"
                   >
                     {companyActionLoadingId === `${campus.campusId}-add` ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Plus className="h-3.5 w-3.5" />
+                      <Plus className="h-4 w-4" />
                     )}
                     Add
                   </Button>
@@ -940,16 +940,16 @@ export default function AdminCampusesPage() {
 
       {/* VIEW 2: CAMPUS ADMINS DIRECTORY */}
       {activeTab === "admins" && isSuperAdmin && (
-        <Card className="border-slate-200 bg-white shadow-xs overflow-hidden">
-          <CardHeader className="py-2.5 px-3.5 bg-slate-50/70 border-b border-slate-100">
+        <Card className="border-slate-200 bg-white shadow-xs rounded-2xl overflow-hidden">
+          <CardHeader className="py-4 px-5 bg-slate-50/80 border-b border-slate-100">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-purple-600" />
+                <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-purple-600" />
                   Campus Administrators Governance Directory
                 </CardTitle>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Designate individual administrators for each campus.
+                  Designate and manage authorized administrators for each individual physical campus.
                 </p>
               </div>
             </div>
@@ -958,50 +958,50 @@ export default function AdminCampusesPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] uppercase tracking-wider text-slate-500">
-                    <th className="py-2.5 px-3.5 font-semibold">Campus Code</th>
-                    <th className="py-2.5 px-3.5 font-semibold">Campus Name</th>
-                    <th className="py-2.5 px-3.5 font-semibold">Location</th>
-                    <th className="py-2.5 px-3.5 font-semibold">Allocated Campus Admin</th>
-                    <th className="py-2.5 px-3.5 font-semibold">Status</th>
-                    <th className="py-2.5 px-3.5 font-semibold text-right">Actions</th>
+                  <tr className="border-b border-slate-100 bg-slate-50/50 text-xs uppercase tracking-wider text-slate-500">
+                    <th className="py-3 px-4.5 font-bold">Campus Code</th>
+                    <th className="py-3 px-4.5 font-bold">Campus Name</th>
+                    <th className="py-3 px-4.5 font-bold">Location</th>
+                    <th className="py-3 px-4.5 font-bold">Allocated Campus Admin</th>
+                    <th className="py-3 px-4.5 font-bold">Status</th>
+                    <th className="py-3 px-4.5 font-bold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {campuses.map((campus) => (
                     <tr key={campus.campusId} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-2.5 px-3.5 font-mono font-bold text-purple-700">
+                      <td className="py-3.5 px-4.5 font-mono font-bold text-purple-700 text-xs">
                         {campus.campusId}
                       </td>
-                      <td className="py-2.5 px-3.5 font-semibold text-slate-900">
+                      <td className="py-3.5 px-4.5 font-semibold text-slate-900 text-sm">
                         {campus.name}
                       </td>
-                      <td className="py-2.5 px-3.5 text-slate-500">
+                      <td className="py-3.5 px-4.5 text-slate-500 text-xs">
                         {campus.city}, {campus.state}
                       </td>
-                      <td className="py-2.5 px-3.5">
+                      <td className="py-3.5 px-4.5">
                         {campus.adminEmail ? (
-                          <div className="flex items-center gap-1.5 text-slate-900 font-medium">
-                            <Mail className="h-3 w-3 text-purple-600" />
+                          <div className="flex items-center gap-1.5 text-slate-900 font-medium text-xs">
+                            <Mail className="h-3.5 w-3.5 text-purple-600 shrink-0" />
                             <span>{campus.adminEmail}</span>
                           </div>
                         ) : (
-                          <span className="italic text-slate-400">Not Assigned</span>
+                          <span className="italic text-slate-400 text-xs">Not Assigned</span>
                         )}
                       </td>
-                      <td className="py-2.5 px-3.5">
+                      <td className="py-3.5 px-4.5">
                         {campus.adminEmail ? (
-                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0 px-1.5">
+                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-semibold py-0.5 px-2">
                             Active Admin
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-amber-700 border-amber-200 text-[10px] py-0 px-1.5">
+                          <Badge variant="outline" className="text-amber-700 border-amber-200 text-xs py-0.5 px-2 font-medium">
                             Pending Assignment
                           </Badge>
                         )}
                       </td>
-                      <td className="py-2.5 px-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="py-3.5 px-4.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <Button
                             size="sm"
                             variant="outline"
@@ -1013,9 +1013,9 @@ export default function AdminCampusesPage() {
                               setModalError(null);
                               setOtpDevCode(null);
                             }}
-                            className="h-6.5 text-[11px] px-2 border-purple-200 text-purple-700 hover:bg-purple-50 gap-1 rounded"
+                            className="h-8 text-xs px-3 border-purple-200 text-purple-700 hover:bg-purple-50 gap-1.5 rounded-lg font-semibold shadow-2xs"
                           >
-                            <Edit2 className="h-3 w-3" />
+                            <Edit2 className="h-3.5 w-3.5" />
                             {campus.adminEmail ? "Reassign" : "Assign"}
                           </Button>
                           {campus.adminEmail && (
@@ -1044,9 +1044,9 @@ export default function AdminCampusesPage() {
                                   },
                                 });
                               }}
-                              className="h-6.5 text-[11px] px-2 border-rose-200 text-rose-700 hover:bg-rose-50 gap-1 rounded"
+                              className="h-8 text-xs px-3 border-rose-200 text-rose-700 hover:bg-rose-50 gap-1.5 rounded-lg font-semibold"
                             >
-                              <UserX className="h-3 w-3" />
+                              <UserX className="h-3.5 w-3.5" />
                               Revoke
                             </Button>
                           )}

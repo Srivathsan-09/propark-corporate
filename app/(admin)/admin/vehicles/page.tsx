@@ -129,14 +129,14 @@ export default function AdminVehiclesPage() {
           </p>
         </div>
 
-        <div className="w-full sm:w-72">
+        <div className="w-full sm:w-80">
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
             <Input
               placeholder="Search by model, plate, or owner..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-9 text-xs"
+              className="pl-9 h-10 text-sm rounded-xl"
             />
           </div>
         </div>
@@ -275,17 +275,17 @@ export default function AdminVehiclesPage() {
                             </Badge>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="py-3.5 px-4.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
                             {!isApproved && (
                               <Button
                                 size="sm"
                                 onClick={() => handleVerify(veh._id, "approve")}
                                 disabled={actionLoadingId === veh._id}
-                                className="h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1 font-semibold"
+                                className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5 font-semibold rounded-lg shadow-xs"
                               >
                                 {actionLoadingId === veh._id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
                                   <Check className="h-3.5 w-3.5" />
                                 )}
@@ -298,7 +298,7 @@ export default function AdminVehiclesPage() {
                                 variant="outline"
                                 onClick={() => handleVerify(veh._id, "reject")}
                                 disabled={actionLoadingId === veh._id}
-                                className="h-7 px-2 border-rose-200 text-rose-700 hover:bg-rose-50 text-xs gap-1"
+                                className="h-8 px-3 border-rose-300 text-rose-700 hover:bg-rose-50 text-xs gap-1.5 rounded-lg font-semibold"
                               >
                                 <X className="h-3.5 w-3.5" />
                                 Reject

@@ -142,25 +142,25 @@ export default function AdminDashboardPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <Link href="/admin/campuses">
-            <Button variant="outline" size="sm" className="text-xs font-semibold rounded-xl gap-1.5">
-              <Building2 className="h-3.5 w-3.5" /> Campuses
+            <Button variant="outline" size="default" className="h-10 px-4 text-sm font-semibold rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 gap-2 shadow-xs">
+              <Building2 className="h-4 w-4 text-purple-600" /> Campuses
             </Button>
           </Link>
           <Link href="/admin/employees">
-            <Button variant="outline" size="sm" className="text-xs font-semibold rounded-xl gap-1.5">
-              <Users className="h-3.5 w-3.5" /> Employees
+            <Button variant="outline" size="default" className="h-10 px-4 text-sm font-semibold rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 gap-2 shadow-xs">
+              <Users className="h-4 w-4 text-blue-600" /> Employees
             </Button>
           </Link>
           <Link href="/admin/vehicles">
-            <Button variant="outline" size="sm" className="text-xs font-semibold rounded-xl gap-1.5">
-              <Car className="h-3.5 w-3.5" /> Fleet Desk
+            <Button variant="outline" size="default" className="h-10 px-4 text-sm font-semibold rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 gap-2 shadow-xs">
+              <Car className="h-4 w-4 text-indigo-600" /> Fleet Desk
             </Button>
           </Link>
           <Link href="/admin/rides">
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1.5 shadow-xs">
-              <Route className="h-3.5 w-3.5" /> Track Rides & Passengers
+            <Button size="default" className="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl gap-2 shadow-sm">
+              <Route className="h-4 w-4" /> Track Rides & Passengers
             </Button>
           </Link>
         </div>

@@ -212,6 +212,7 @@ export default function AdminEmployeesPage() {
   const superAdminCount = employees.filter((e) => e.role === "admin").length;
   const campusAdminCount = employees.filter((e) => e.role === "campus_admin").length;
   const employeeOnlyCount = employees.filter((e) => e.role === "employee").length;
+  const pendingCount = employees.filter((e) => e.verificationStatus === "pending").length;
 
   if (isLoading) {
     return (
@@ -222,31 +223,31 @@ export default function AdminEmployeesPage() {
   }
 
   return (
-    <div className="space-y-4 animate-in fade-in-50 duration-300">
+    <div className="space-y-5 animate-in fade-in-50 duration-300">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <Link href="/admin" className="text-xs text-slate-500 hover:text-purple-600 flex items-center gap-1 font-medium">
-              <ArrowLeft className="h-3 w-3" /> Back to Overview
+            <Link href="/admin" className="text-xs text-slate-500 hover:text-purple-600 flex items-center gap-1 font-semibold transition-colors">
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Overview
             </Link>
           </div>
-          <div className="flex items-center gap-2 mt-1">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              <Users className="h-5 w-5 text-purple-600" />
+          <div className="flex flex-wrap items-center gap-3 mt-2">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+              <Users className="h-6 w-6 text-purple-600" />
               Corporate Employee Directory
             </h1>
             {isSuperAdmin ? (
-              <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold">
+              <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold px-2.5 py-0.5">
                 Super Admin Access
               </Badge>
             ) : (
-              <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold">
+              <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-0.5">
                 Campus Admin ({session?.user?.campusId})
               </Badge>
             )}
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-sm text-slate-500 mt-1">
             {isSuperAdmin
               ? "Super Admin console: Manage all users, allocate Campus Admins, and verify corporate employees."
               : "Campus Admin console: Manage and verify corporate commuters inside your assigned physical campus."}
@@ -255,8 +256,8 @@ export default function AdminEmployeesPage() {
 
         {isSuperAdmin && (
           <Link href="/admin/campuses">
-            <Button variant="outline" size="sm" className="h-8 text-xs font-semibold rounded-lg gap-1.5 border-purple-200 text-purple-700 hover:bg-purple-50">
-              <Building2 className="h-3.5 w-3.5" /> Manage Campuses
+            <Button variant="outline" size="default" className="h-10 px-5 text-sm font-semibold rounded-xl gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 shadow-xs">
+              <Building2 className="h-4 w-4" /> Manage Campuses
             </Button>
           </Link>
         )}
@@ -265,72 +266,72 @@ export default function AdminEmployeesPage() {
       {/* Feedback banner */}
       {feedbackMessage && (
         <div
-          className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs border animate-in fade-in-50 ${
+          className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm border animate-in fade-in-50 ${
             feedbackMessage.type === "success"
               ? "bg-emerald-50 text-emerald-800 border-emerald-200"
               : "bg-rose-50 text-rose-800 border-rose-200"
           }`}
         >
           {feedbackMessage.type === "success" ? (
-            <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+            <Check className="h-4 w-4 shrink-0 text-emerald-600" />
           ) : (
-            <X className="h-3.5 w-3.5 shrink-0 text-rose-600" />
+            <X className="h-4 w-4 shrink-0 text-rose-600" />
           )}
           <span className="font-medium">{feedbackMessage.text}</span>
         </div>
       )}
 
-      {/* Quick Metrics Bar - Sleek & Compact */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+      {/* Metrics Widgets */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
           <div>
-            <span className="text-[11px] font-medium text-slate-400 block">Total Users</span>
-            <div className="text-lg font-bold text-slate-900">{employees.length}</div>
+            <span className="text-xs font-semibold text-slate-400 block uppercase tracking-wider">Total Commuters</span>
+            <div className="text-2xl font-bold text-slate-900 mt-0.5">{employees.length}</div>
           </div>
-          <div className="p-2 bg-slate-50 rounded-md text-slate-500">
-            <Users className="h-4 w-4" />
+          <div className="p-3 bg-purple-50 rounded-xl text-purple-600">
+            <Users className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
           <div>
-            <span className="text-[11px] font-medium text-purple-600 block">Super Admins</span>
-            <div className="text-lg font-bold text-purple-900">{superAdminCount}</div>
+            <span className="text-xs font-semibold text-amber-600 block uppercase tracking-wider">Pending Review</span>
+            <div className="text-2xl font-bold text-amber-800 mt-0.5">{pendingCount}</div>
           </div>
-          <div className="p-2 bg-purple-50 rounded-md text-purple-600">
-            <Crown className="h-4 w-4" />
+          <div className="p-3 bg-amber-50 rounded-xl text-amber-600">
+            <Clock className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
           <div>
-            <span className="text-[11px] font-medium text-blue-600 block">Campus Admins</span>
-            <div className="text-lg font-bold text-blue-900">{campusAdminCount}</div>
+            <span className="text-xs font-semibold text-blue-600 block uppercase tracking-wider">Campus Admins</span>
+            <div className="text-2xl font-bold text-blue-900 mt-0.5">{campusAdminCount}</div>
           </div>
-          <div className="p-2 bg-blue-50 rounded-md text-blue-600">
-            <ShieldCheck className="h-4 w-4" />
+          <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
+            <Crown className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
           <div>
-            <span className="text-[11px] font-medium text-emerald-600 block">Commuters</span>
-            <div className="text-lg font-bold text-emerald-900">{employeeOnlyCount}</div>
+            <span className="text-xs font-semibold text-emerald-600 block uppercase tracking-wider">Physical Campuses</span>
+            <div className="text-2xl font-bold text-emerald-900 mt-0.5">{campuses.length}</div>
           </div>
-          <div className="p-2 bg-emerald-50 rounded-md text-emerald-600">
-            <Building className="h-4 w-4" />
+          <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
+            <Building className="h-5 w-5" />
           </div>
         </div>
       </div>
 
-      {/* Filter and Search Toolbar - Clean & Emoji-Free */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-2.5 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+      {/* Filter and Search Toolbar */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
           {/* Role Filter */}
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="h-8 px-2.5 text-xs rounded-md border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
+            className="h-10 px-3.5 text-sm rounded-xl border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
           >
             <option value="all">All Roles</option>
             <option value="admin">Super Admins ({superAdminCount})</option>
@@ -342,7 +343,7 @@ export default function AdminEmployeesPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-8 px-2.5 text-xs rounded-md border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
+            className="h-10 px-3.5 text-sm rounded-xl border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
           >
             <option value="all">All Statuses</option>
             <option value="pending">Pending Review</option>
@@ -355,7 +356,7 @@ export default function AdminEmployeesPage() {
             <select
               value={campusFilter}
               onChange={(e) => setCampusFilter(e.target.value)}
-              className="h-8 px-2.5 text-xs rounded-md border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
+              className="h-10 px-3.5 text-sm rounded-xl border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
             >
               <option value="all">All Campuses</option>
               {campuses.map((c) => (
@@ -367,13 +368,13 @@ export default function AdminEmployeesPage() {
           )}
         </div>
 
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Search by name, ID, email, company..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8 h-8 text-xs rounded-md"
+            className="pl-9 h-10 text-sm rounded-xl"
           />
         </div>
       </div>
