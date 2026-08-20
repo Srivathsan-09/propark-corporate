@@ -33,6 +33,9 @@ interface IEmployee {
 export default function AdminEmployeesPage() {
   const [employees, setEmployees] = useState<IEmployee[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCampus, setSelectedCampus] = useState("all");
+  const [selectedCompany, setSelectedCompany] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
@@ -83,13 +86,30 @@ export default function AdminEmployeesPage() {
     }
   };
 
-  const filtered = employees.filter(
-    (emp) =>
+  // Get unique campuses and companies for filters
+  const uniqueCampuses = Array.from(new Set(employees.map((e) => e.campusName).filter(Boolean)));
+  const uniqueCompanies = Array.from(new Set(employees.map((e) => e.companyName).filter(Boolean)));
+
+  const filtered = employees.filter((emp) => {
+    const matchesSearch =
       emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.department.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      emp.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (emp.companyName && emp.companyName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (emp.campusName && emp.campusName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (emp.campusCompanyId && emp.campusCompanyId.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const matchesCampus = selectedCampus === "all" || emp.campusName === selectedCampus;
+    const matchesCompany = selectedCompany === "all" || emp.companyName === selectedCompany;
+    const matchesStatus =
+      selectedStatus === "all" ||
+      (selectedStatus === "pending" && emp.verificationStatus === "pending") ||
+      (selectedStatus === "approved" && emp.verificationStatus === "approved") ||
+      (selectedStatus === "rejected" && emp.verificationStatus === "rejected");
+
+    return matchesSearch && matchesCampus && matchesCompany && matchesStatus;
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-300">
@@ -104,15 +124,55 @@ export default function AdminEmployeesPage() {
             Registered Employees Directory
           </h1>
           <p className="text-xs text-slate-500">
-            Review company credentials, approve verified campus commuters, and manage access
+            Super Admin access: Manage campuses, companies inside campuses, and employees
           </p>
         </div>
 
-        <div className="w-full sm:w-72">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Campus Filter */}
+          <select
+            value={selectedCampus}
+            onChange={(e) => setSelectedCampus(e.target.value)}
+            className="h-9 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-emerald-600 shadow-xs"
+          >
+            <option value="all">🏢 All Campuses</option>
+            {uniqueCampuses.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+
+          {/* Company Filter */}
+          <select
+            value={selectedCompany}
+            onChange={(e) => setSelectedCompany(e.target.value)}
+            className="h-9 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-emerald-600 shadow-xs"
+          >
+            <option value="all">🏬 All Companies</option>
+            {uniqueCompanies.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="h-9 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-emerald-600 shadow-xs"
+          >
+            <option value="all">⚡ All Statuses</option>
+            <option value="pending">⏳ Pending</option>
+            <option value="approved">✅ Approved</option>
+            <option value="rejected">❌ Rejected</option>
+          </select>
+
+          <div className="relative w-full sm:w-56">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <Input
-              placeholder="Search by name, ID, or dept..."
+              placeholder="Search name, ID, campus..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 h-9 text-xs"
