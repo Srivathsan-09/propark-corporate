@@ -281,57 +281,57 @@ export default function AdminEmployeesPage() {
         </div>
       )}
 
-      {/* Metrics Widgets */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
+      {/* Metrics Widgets - Compact */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-slate-400 block uppercase tracking-wider">Total Commuters</span>
-            <div className="text-2xl font-bold text-slate-900 mt-0.5">{employees.length}</div>
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Total Commuters</span>
+            <div className="text-xl font-bold text-slate-900 mt-0.5">{employees.length}</div>
           </div>
-          <div className="p-3 bg-purple-50 rounded-xl text-purple-600">
-            <Users className="h-5 w-5" />
+          <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
+            <Users className="h-4 w-4" />
           </div>
         </div>
 
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
+        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-amber-600 block uppercase tracking-wider">Pending Review</span>
-            <div className="text-2xl font-bold text-amber-800 mt-0.5">{pendingCount}</div>
+            <span className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider block">Pending Review</span>
+            <div className="text-xl font-bold text-amber-800 mt-0.5">{pendingCount}</div>
           </div>
-          <div className="p-3 bg-amber-50 rounded-xl text-amber-600">
-            <Clock className="h-5 w-5" />
+          <div className="p-2 bg-amber-50 rounded-lg text-amber-600">
+            <Clock className="h-4 w-4" />
           </div>
         </div>
 
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
+        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-blue-600 block uppercase tracking-wider">Campus Admins</span>
-            <div className="text-2xl font-bold text-blue-900 mt-0.5">{campusAdminCount}</div>
+            <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider block">Campus Admins</span>
+            <div className="text-xl font-bold text-blue-900 mt-0.5">{campusAdminCount}</div>
           </div>
-          <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
-            <Crown className="h-5 w-5" />
+          <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
+            <Crown className="h-4 w-4" />
           </div>
         </div>
 
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between hover:border-slate-300 transition-all">
+        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-emerald-600 block uppercase tracking-wider">Physical Campuses</span>
-            <div className="text-2xl font-bold text-emerald-900 mt-0.5">{campuses.length}</div>
+            <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider block">Physical Campuses</span>
+            <div className="text-xl font-bold text-emerald-900 mt-0.5">{campuses.length}</div>
           </div>
-          <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
-            <Building className="h-5 w-5" />
+          <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+            <Building className="h-4 w-4" />
           </div>
         </div>
       </div>
 
       {/* Filter and Search Toolbar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {/* Role Filter */}
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="h-10 px-3.5 text-sm rounded-xl border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
+            className="h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600"
           >
             <option value="all">All Roles</option>
             <option value="admin">Super Admins ({superAdminCount})</option>
@@ -343,7 +343,7 @@ export default function AdminEmployeesPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 px-3.5 text-sm rounded-xl border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
+            className="h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600"
           >
             <option value="all">All Statuses</option>
             <option value="pending">Pending Review</option>
@@ -356,7 +356,7 @@ export default function AdminEmployeesPage() {
             <select
               value={campusFilter}
               onChange={(e) => setCampusFilter(e.target.value)}
-              className="h-10 px-3.5 text-sm rounded-xl border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
+              className="h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600"
             >
               <option value="all">All Campuses</option>
               {campuses.map((c) => (
@@ -368,184 +368,179 @@ export default function AdminEmployeesPage() {
           )}
         </div>
 
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+        <div className="relative w-full md:w-72">
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
           <Input
             placeholder="Search by name, ID, email, company..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 h-10 text-sm rounded-xl"
+            className="pl-8 h-9 text-xs rounded-lg"
           />
         </div>
       </div>
 
-      {/* Employees Table - Highly Legible, Structured & Compact */}
-      <Card className="border-slate-200 bg-white shadow-xs overflow-hidden">
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="py-16 flex flex-col items-center justify-center">
-              <CarLoader size="lg" message="Loading employee directory..." />
-            </div>
-          ) : filteredEmployees.length === 0 ? (
-            <div className="text-center py-16 text-slate-500 text-xs">
-              <Users className="mx-auto h-8 w-8 text-slate-300 mb-1.5" />
-              No records found matching your filters.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] uppercase tracking-wider text-slate-500">
-                    <th className="py-2.5 px-3.5 font-semibold">Employee</th>
-                    <th className="py-2.5 px-3.5 font-semibold">ID</th>
-                    <th className="py-2.5 px-3.5 font-semibold">Role & Access</th>
-                    <th className="py-2.5 px-3.5 font-semibold">Company & Campus</th>
-                    <th className="py-2.5 px-3.5 font-semibold">Fleet</th>
-                    <th className="py-2.5 px-3.5 font-semibold">Status</th>
-                    <th className="py-2.5 px-3.5 font-semibold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredEmployees.map((emp) => (
-                    <tr key={emp._id} className="hover:bg-slate-50/60 transition-colors">
-                      {/* Employee Info */}
-                      <td className="py-2.5 px-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-purple-800 font-bold text-xs shrink-0">
-                            {getInitials(emp.name)}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-slate-900 flex items-center gap-1">
-                              {emp.name}
-                              {emp.role === "admin" && (
-                                <Crown className="h-3 w-3 text-purple-600 shrink-0" />
-                              )}
-                            </div>
-                            <div className="text-[11px] text-slate-500">{emp.email}</div>
-                          </div>
+      {/* Employees Table */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
+        {isLoading ? (
+          <div className="py-16 flex flex-col items-center justify-center">
+            <CarLoader size="lg" message="Loading employee directory..." />
+          </div>
+        ) : filteredEmployees.length === 0 ? (
+          <div className="text-center py-16 text-slate-500 text-xs">
+            <Users className="mx-auto h-8 w-8 text-slate-300 mb-1.5" />
+            No records found matching your filters.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs" style={{ minWidth: "680px" }}>
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/80 text-[10px] uppercase tracking-wider text-slate-500">
+                  <th className="py-2 px-3 font-semibold w-[220px]">Employee</th>
+                  <th className="py-2 px-3 font-semibold w-[100px]">ID</th>
+                  <th className="py-2 px-3 font-semibold w-[110px]">Role</th>
+                  <th className="py-2 px-3 font-semibold w-[150px]">Company & Campus</th>
+                  <th className="py-2 px-3 font-semibold w-[80px]">Fleet</th>
+                  <th className="py-2 px-3 font-semibold w-[90px]">Status</th>
+                  <th className="py-2 px-3 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredEmployees.map((emp) => (
+                  <tr key={emp._id} className="hover:bg-slate-50/60 transition-colors">
+                    {/* Employee Info - Name + Email, constrained */}
+                    <td className="py-2 px-3 max-w-[220px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-purple-800 font-bold text-[10px] shrink-0">
+                          {getInitials(emp.name)}
                         </div>
-                      </td>
-
-                      {/* Employee ID */}
-                      <td className="py-2.5 px-3.5">
-                        <span className="font-mono text-[11px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                          {emp.employeeId}
-                        </span>
-                      </td>
-
-                      {/* Role & Access Tier */}
-                      <td className="py-2.5 px-3.5">
-                        {emp.role === "admin" ? (
-                          <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold py-0 px-1.5 gap-1">
-                            <Crown className="h-2.5 w-2.5" /> Super Admin
-                          </Badge>
-                        ) : emp.role === "campus_admin" ? (
-                          <div className="space-y-0.5">
-                            <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-semibold py-0 px-1.5 gap-1">
-                              <Building2 className="h-2.5 w-2.5" /> Campus Admin
-                            </Badge>
-                            {emp.campusId && (
-                              <div className="font-mono text-[10px] text-blue-600 font-semibold pl-0.5">
-                                {emp.campusId}
-                              </div>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-slate-900 flex items-center gap-1 truncate">
+                            <span className="truncate">{emp.name}</span>
+                            {emp.role === "admin" && (
+                              <Crown className="h-3 w-3 text-purple-600 shrink-0" />
                             )}
                           </div>
-                        ) : (
-                          <Badge variant="outline" className="text-slate-600 text-[10px] font-medium py-0 px-1.5 gap-1">
-                            <Users className="h-2.5 w-2.5" /> Employee
+                          <div className="text-[10px] text-slate-500 truncate">{emp.email}</div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Employee ID */}
+                    <td className="py-2 px-3">
+                      <span className="font-mono text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 whitespace-nowrap">
+                        {emp.employeeId}
+                      </span>
+                    </td>
+
+                    {/* Role & Access Tier */}
+                    <td className="py-2 px-3">
+                      {emp.role === "admin" ? (
+                        <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-[9px] font-semibold py-0 px-1.5 gap-1">
+                          <Crown className="h-2.5 w-2.5" /> Super Admin
+                        </Badge>
+                      ) : emp.role === "campus_admin" ? (
+                        <div className="space-y-0.5">
+                          <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[9px] font-semibold py-0 px-1.5 gap-1">
+                            <Building2 className="h-2.5 w-2.5" /> Campus Admin
                           </Badge>
-                        )}
-                      </td>
-
-                      {/* Company & Physical Campus */}
-                      <td className="py-2.5 px-3.5">
-                        <div className="font-semibold text-slate-900 text-xs">{emp.companyName || "—"}</div>
-                        <div className="text-[11px] text-slate-500 flex items-center gap-1">
-                          <span className="font-mono font-bold text-purple-700">{emp.campusId || "—"}</span>
-                          {emp.campusName && <span className="text-slate-400">({emp.campusName})</span>}
+                          {emp.campusId && (
+                            <div className="font-mono text-[9px] text-blue-600 font-semibold">
+                              {emp.campusId}
+                            </div>
+                          )}
                         </div>
-                      </td>
+                      ) : (
+                        <Badge variant="outline" className="text-slate-600 text-[9px] font-medium py-0 px-1.5 gap-1">
+                          <Users className="h-2.5 w-2.5" /> Employee
+                        </Badge>
+                      )}
+                    </td>
 
-                      {/* Vehicles */}
-                      <td className="py-2.5 px-3.5">
-                        <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                          <Car className="h-3 w-3 text-slate-400" />
-                          {emp.vehicleCount} {emp.vehicleCount === 1 ? "vehicle" : "vehicles"}
+                    {/* Company & Physical Campus */}
+                    <td className="py-2 px-3 max-w-[150px]">
+                      <div className="font-semibold text-slate-900 text-[11px] truncate">{emp.companyName || "—"}</div>
+                      <div className="text-[10px] text-slate-500 truncate">
+                        <span className="font-mono font-bold text-purple-700">{emp.campusId || "—"}</span>
+                        {emp.campusName && <span className="text-slate-400 ml-0.5 truncate"> {emp.campusName}</span>}
+                      </div>
+                    </td>
+
+                    {/* Vehicles */}
+                    <td className="py-2 px-3 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                        <Car className="h-3 w-3 text-slate-400" />
+                        {emp.vehicleCount} {emp.vehicleCount === 1 ? "vehicle" : "vehicles"}
+                      </span>
+                    </td>
+
+                    {/* Status */}
+                    <td className="py-2 px-3 whitespace-nowrap">
+                      {emp.verificationStatus === "approved" ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Check className="h-3 w-3" /> Approved
                         </span>
-                      </td>
+                      ) : emp.verificationStatus === "rejected" ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                          <X className="h-3 w-3" /> Rejected
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                          <Clock className="h-3 w-3" /> Pending
+                        </span>
+                      )}
+                    </td>
 
-                      {/* Status */}
-                      <td className="py-2.5 px-3.5">
-                        {emp.verificationStatus === "approved" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <Check className="h-3 w-3" /> Approved
-                          </span>
-                        ) : emp.verificationStatus === "rejected" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
-                            <X className="h-3 w-3" /> Rejected
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                            <Clock className="h-3 w-3" /> Pending
-                          </span>
+                    {/* Actions */}
+                    <td className="py-2 px-3 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Super Admin Role Management */}
+                        {isSuperAdmin && emp.role !== "admin" && (
+                          <button
+                            type="button"
+                            onClick={() => openRoleModal(emp)}
+                            className="h-7 px-2 text-[11px] font-semibold border border-purple-200 text-purple-700 hover:bg-purple-50 rounded flex items-center gap-1 transition-colors"
+                          >
+                            <Edit2 className="h-3 w-3" /> Role
+                          </button>
                         )}
-                      </td>
 
-                      {/* Actions */}
-                      <td className="py-2.5 px-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Super Admin Role Management Button */}
-                          {isSuperAdmin && emp.role !== "admin" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openRoleModal(emp)}
-                              className="h-8 text-xs px-3 border-purple-200 text-purple-700 hover:bg-purple-50 gap-1.5 rounded-lg font-semibold"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                              Role
-                            </Button>
-                          )}
+                        {/* Approve */}
+                        {emp.verificationStatus !== "approved" && (
+                          <button
+                            type="button"
+                            onClick={() => handleVerify(emp._id, "approve")}
+                            disabled={actionLoadingId === emp._id}
+                            className="h-7 px-2 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded flex items-center gap-1 transition-colors disabled:opacity-60"
+                          >
+                            {actionLoadingId === emp._id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Check className="h-3 w-3" />
+                            )}
+                            Approve
+                          </button>
+                        )}
 
-                          {/* Quick Verification Actions */}
-                          {emp.verificationStatus !== "approved" && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleVerify(emp._id, "approve")}
-                              disabled={actionLoadingId === emp._id}
-                              className="h-8 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white gap-1 rounded-lg font-semibold shadow-xs"
-                            >
-                              {actionLoadingId === emp._id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Check className="h-3.5 w-3.5" />
-                              )}
-                              Approve
-                            </Button>
-                          )}
-
-                          {emp.verificationStatus !== "rejected" && emp.role !== "admin" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleVerify(emp._id, "reject")}
-                              disabled={actionLoadingId === emp._id}
-                              className="h-8 text-xs px-3 border-rose-200 text-rose-700 hover:bg-rose-50 gap-1 rounded-lg font-semibold"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                              Reject
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        {/* Reject */}
+                        {emp.verificationStatus !== "rejected" && emp.role !== "admin" && (
+                          <button
+                            type="button"
+                            onClick={() => handleVerify(emp._id, "reject")}
+                            disabled={actionLoadingId === emp._id}
+                            className="h-7 px-2 text-[11px] font-semibold border border-rose-200 text-rose-700 hover:bg-rose-50 rounded flex items-center gap-1 transition-colors disabled:opacity-60"
+                          >
+                            <X className="h-3 w-3" /> Reject
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* SUPER ADMIN ROLE & PRIVILEGES MODAL */}
       {roleModalUser && (
