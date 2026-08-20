@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import { getToken } from "next-auth/jwt";
 import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
@@ -290,27 +291,30 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    // Use getToken — reads JWT directly from cookie, always reliable on Vercel
+    const token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET || "propark_corporate_mobility_platform_super_secret_2026_key",
+    });
 
-    // Primary auth check from session
-    let userRole: string | undefined = session?.user?.role;
-    let userEmail: string | undefined = session?.user?.email || undefined;
+    const tokenRole = token?.role as string | undefined;
+    const tokenEmail = token?.email as string | undefined;
 
-    // Fallback: if session role isn't "admin", re-check directly from DB
-    if (userRole !== "admin" && userEmail) {
-      try {
-        await connectToDatabase();
-        const dbUser = await User.findOne({ email: userEmail.toLowerCase().trim() }).select("role");
-        if (dbUser) {
-          userRole = dbUser.role;
-        }
-      } catch (dbErr) {
-        console.error("DELETE fallback DB role check failed:", dbErr);
+    console.log(`DELETE campus: token role="${tokenRole}" email="${tokenEmail}"`);
+
+    // If JWT says not admin, do one final DB lookup as safety net
+    let effectiveRole = tokenRole;
+    if (effectiveRole !== "admin" && tokenEmail) {
+      await connectToDatabase();
+      const dbUser = await User.findOne({ email: tokenEmail.toLowerCase().trim() }).select("role");
+      if (dbUser?.role === "admin") {
+        effectiveRole = "admin";
+        console.log(`DELETE campus: DB override — email "${tokenEmail}" is admin`);
       }
     }
 
-    if (!userRole || userRole !== "admin") {
-      console.warn(`DELETE campus blocked — role="${userRole}" email="${userEmail}"`);
+    if (effectiveRole !== "admin") {
+      console.warn(`DELETE campus BLOCKED — effectiveRole="${effectiveRole}" email="${tokenEmail}"`);
       return NextResponse.json(
         { success: false, error: "Only Super Administrators can delete campuses." },
         { status: 403 }
@@ -321,42 +325,41 @@ export async function DELETE(
     await connectToDatabase();
 
     const idParam = decodeURIComponent(id || "").trim();
-    console.log(`DELETE campus requested for id="${idParam}" by "${userEmail}"`);
+    console.log(`DELETE campus: attempting to delete campusId="${idParam}"`);
 
-    const isObjId = mongoose.Types.ObjectId.isValid(idParam) && idParam.length === 24;
+    // Try case-insensitive regex first
+    let deleted = await Campus.findOneAndDelete({
+      campusId: new RegExp(`^${idParam}$`, "i"),
+    });
 
-    const query = isObjId
-      ? { $or: [{ _id: new mongoose.Types.ObjectId(idParam) }, { campusId: new RegExp(`^${idParam}$`, "i") }] }
-      : { campusId: new RegExp(`^${idParam}$`, "i") };
-
-    let deleted = await Campus.findOneAndDelete(query);
+    // Fallback: exact uppercase match
     if (!deleted) {
-      // Also try direct exact match
-      deleted = await Campus.findOneAndDelete({
-        $or: [
-          { campusId: idParam.toUpperCase() },
-          { name: new RegExp(`^${idParam}$`, "i") },
-        ],
-      });
+      deleted = await Campus.findOneAndDelete({ campusId: idParam.toUpperCase() });
+    }
+
+    // Fallback: ObjectId match
+    if (!deleted && mongoose.Types.ObjectId.isValid(idParam) && idParam.length === 24) {
+      deleted = await Campus.findOneAndDelete({ _id: new mongoose.Types.ObjectId(idParam) });
     }
 
     if (!deleted) {
-      console.warn(`DELETE campus: campus "${idParam}" not found in DB`);
+      console.warn(`DELETE campus: campusId="${idParam}" NOT FOUND in DB`);
       return NextResponse.json(
-        { success: false, error: `Campus "${idParam}" not found for deletion.` },
+        { success: false, error: `Campus "${idParam}" not found. It may have already been deleted.` },
         { status: 404 }
       );
     }
 
-    console.log(`DELETE campus: successfully deleted "${deleted.name}" (${deleted.campusId})`);
-
     const targetCampusId = deleted.campusId;
+    console.log(`DELETE campus: SUCCESS — deleted "${deleted.name}" (${targetCampusId})`);
 
-    // Delete all companies associated with this campus
-    const companyDel = await Company.deleteMany({ campusId: new RegExp(`^${targetCampusId}$`, "i") });
-    console.log(`DELETE campus: removed ${companyDel.deletedCount} companies for campus ${targetCampusId}`);
+    // Cascade: delete all associated companies
+    const { deletedCount: compCount } = await Company.deleteMany({
+      campusId: new RegExp(`^${targetCampusId}$`, "i"),
+    });
+    console.log(`DELETE campus: removed ${compCount} companies for ${targetCampusId}`);
 
-    // Unlink users from this deleted campus
+    // Cascade: unlink all users from this campus
     await User.updateMany(
       { campusId: new RegExp(`^${targetCampusId}$`, "i") },
       { $set: { campusId: "", campusName: "", role: "employee" } }
@@ -364,13 +367,13 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: `Campus "${deleted.name}" (${deleted.campusId}) deleted successfully.`,
-      campusId: deleted.campusId,
+      message: `Campus "${deleted.name}" (${targetCampusId}) has been permanently deleted.`,
+      campusId: targetCampusId,
     });
   } catch (error: unknown) {
     console.error("Admin Campus DELETE error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to delete campus." },
+      { success: false, error: "Server error while deleting campus. Please try again." },
       { status: 500 }
     );
   }
