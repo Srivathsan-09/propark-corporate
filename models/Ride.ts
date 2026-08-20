@@ -46,6 +46,8 @@ export interface IRide extends Document {
   basePrice: number;
   stops: IRideStop[];
   notes?: string;
+  campusId?: string;
+  campusCompanyId?: string;
   status: "scheduled" | "in_progress" | "completed" | "cancelled";
   acceptedPassengers: mongoose.Types.ObjectId[];
   createdAt: Date;
@@ -184,6 +186,20 @@ const RideSchema = new Schema<IRide>(
       type: String,
       default: "",
       trim: true,
+    },
+    campusId: {
+      type: String,
+      default: "CAMP001",
+      uppercase: true,
+      trim: true,
+      index: true,
+    },
+    campusCompanyId: {
+      type: String,
+      default: "CAMP-ABC-001",
+      uppercase: true,
+      trim: true,
+      index: true,
     },
     status: {
       type: String,

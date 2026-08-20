@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   try {
     await connectToDatabase();
 
+    const session = await getServerSession(authOptions);
     const { searchParams } = new URL(req.url);
     const origin = searchParams.get("origin");
     const destination = searchParams.get("destination");
@@ -22,10 +23,17 @@ export async function GET(req: NextRequest) {
     const vehicleType = searchParams.get("vehicleType");
     const rideType = searchParams.get("rideType");
     const maxPrice = searchParams.get("maxPrice");
+    const campusIdParam = searchParams.get("campusId");
 
     const query: Record<string, any> = {
       status: "scheduled",
     };
+
+    // Scoped by physical campus (Campus Isolation)
+    const effectiveCampusId = campusIdParam || session?.user?.campusId;
+    if (effectiveCampusId && effectiveCampusId !== "all") {
+      query.campusId = effectiveCampusId;
+    }
 
     if (origin) {
       query.startingLocation = { $regex: origin, $options: "i" };
@@ -217,19 +225,22 @@ export async function POST(req: NextRequest) {
       basePrice,
       stops: stops || [],
       notes: notes || "",
+      campusId: dbUser.campusId || "CAMP001",
+      campusCompanyId: dbUser.campusCompanyId || "CAMP-ABC-001",
       status: "scheduled",
       acceptedPassengers: [],
     });
 
     // Populate for return
     const populatedRide = await Ride.findById(newRide._id)
-      .populate("driver", "name email employeeId companyName department phone profileImage")
+      .populate("driver", "name email employeeId companyName campusName campusCompanyId department phone profileImage")
       .populate("vehicle", "vehicleModel vehicleType registrationNumber vehiclePhoto");
 
-    // Broadcast Notification to campus colleagues
+    // Broadcast Notification to campus colleagues in the SAME physical campus
     try {
       const otherEmployees = await User.find({
         _id: { $ne: session.user.id },
+        campusId: dbUser.campusId || "CAMP001",
         isApproved: true,
       })
         .select("_id")

@@ -1,5 +1,4 @@
-import { DefaultSession } from "next-auth";
-import "next-auth/jwt";
+﻿import NextAuth, { DefaultSession, DefaultUser } from "next-auth";
 
 declare module "next-auth" {
   interface Session {
@@ -8,31 +7,46 @@ declare module "next-auth" {
       role: "employee" | "admin";
       employeeId: string;
       department: string;
+      phone?: string;
+      companyName?: string;
+      campusCompanyId?: string;
+      campusId?: string;
+      companyId?: string;
+      campusName?: string;
       verificationStatus: "pending" | "approved" | "rejected";
       isApproved: boolean;
-      phone?: string;
     } & DefaultSession["user"];
   }
 
-  interface User {
+  interface User extends DefaultUser {
     id: string;
     role: "employee" | "admin";
     employeeId: string;
     department: string;
+    phone?: string;
+    companyName?: string;
+    campusCompanyId?: string;
+    campusId?: string;
+    companyId?: string;
+    campusName?: string;
     verificationStatus: "pending" | "approved" | "rejected";
     isApproved: boolean;
-    phone?: string;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    id: string;
-    role: "employee" | "admin";
-    employeeId: string;
-    department: string;
-    verificationStatus: "pending" | "approved" | "rejected";
-    isApproved: boolean;
+    id?: string;
+    role?: "employee" | "admin";
+    employeeId?: string;
+    department?: string;
     phone?: string;
+    companyName?: string;
+    campusCompanyId?: string;
+    campusId?: string;
+    companyId?: string;
+    campusName?: string;
+    verificationStatus?: "pending" | "approved" | "rejected";
+    isApproved?: boolean;
   }
 }

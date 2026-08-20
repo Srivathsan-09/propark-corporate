@@ -38,6 +38,9 @@ interface UserProfileData {
   phone: string;
   department: string;
   companyName?: string;
+  campusCompanyId?: string;
+  campusId?: string;
+  campusName?: string;
   role: "employee" | "admin";
   verificationStatus?: "pending" | "approved" | "rejected";
   isApproved?: boolean;
@@ -287,11 +290,26 @@ export default function ProfilePage() {
 
               <div>
                 <span className="text-xs font-medium text-slate-400 block uppercase tracking-wider">
+                  Physical Campus & Campus ID
+                </span>
+                <div className="flex flex-col gap-0.5 mt-1 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/80 text-xs">
+                  <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                    <MapPin className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span>{profile?.campusName || "Tech Park Chennai"}</span>
+                  </div>
+                  <div className="font-mono text-[11px] text-slate-500 pl-5">
+                    Campus ID: <strong className="text-emerald-700">{profile?.campusCompanyId || "CAMP-ABC-001"}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-xs font-medium text-slate-400 block uppercase tracking-wider">
                   Company / Organization
                 </span>
                 <div className="flex items-center gap-2 mt-1 font-semibold text-slate-800 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/80">
                   <Building2 className="h-4 w-4 text-slate-400 shrink-0" />
-                  <span>{profile?.companyName || "Tech Mahindra"}</span>
+                  <span>{profile?.companyName || "ABC Technologies"}</span>
                 </div>
               </div>
 

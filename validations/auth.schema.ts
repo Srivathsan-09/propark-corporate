@@ -30,11 +30,16 @@ export const registerSchema = z
       .min(2, "Department must be at least 2 characters")
       .max(50, "Department cannot exceed 50 characters"),
     companyName: z
-      .string()
+      .string({ required_error: "Company / Organization is required" })
       .trim()
-      .max(100, "Company name cannot exceed 100 characters")
-      .optional()
-      .default("Tech Mahindra"),
+      .min(2, "Company name must be at least 2 characters")
+      .max(100, "Company name cannot exceed 100 characters"),
+    campusId: z
+      .string({ required_error: "Campus ID is required" })
+      .trim()
+      .min(3, "Campus ID must be at least 3 characters")
+      .max(50, "Campus ID cannot exceed 50 characters")
+      .regex(/^[A-Za-z0-9_-]+$/, "Campus ID can only contain letters, numbers, hyphens, and underscores"),
     password: z
       .string({ required_error: "Password is required" })
       .min(6, "Password must be at least 6 characters")

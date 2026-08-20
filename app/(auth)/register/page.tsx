@@ -11,6 +11,7 @@ import {
   Phone,
   Building,
   Building2,
+  MapPin,
   Lock,
   Eye,
   EyeOff,
@@ -35,6 +36,7 @@ export default function RegisterPage() {
     email: "",
     phone: "",
     companyName: "",
+    campusId: "",
     department: "",
     password: "",
     confirmPassword: "",
@@ -104,7 +106,8 @@ export default function RegisterPage() {
           employeeId: formData.employeeId.trim().toUpperCase(),
           email: formData.email.trim().toLowerCase(),
           phone: formData.phone.trim(),
-          companyName: formData.companyName.trim() || "Tech Mahindra",
+          companyName: formData.companyName.trim(),
+          campusId: formData.campusId.trim().toUpperCase(),
           department: formData.department.trim(),
           password: formData.password,
           confirmPassword: formData.confirmPassword,
@@ -272,17 +275,66 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Row 2: Company ID & Company Name */}
+          {/* Row 2: Company / Organization & Campus ID */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-0.5">
+              <Label htmlFor="companyName" className="text-[11px] font-semibold text-slate-700">
+                Company / Organization
+              </Label>
+              <div className="relative">
+                <Building2 className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  id="companyName"
+                  name="companyName"
+                  type="text"
+                  placeholder="e.g. ABC Technologies"
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  disabled={isLoading || isGoogleLoading}
+                  className={`h-8.5 pl-8 text-xs rounded-lg ${fieldErrors.companyName ? "border-rose-500" : "border-slate-200"}`}
+                  required
+                />
+              </div>
+              {fieldErrors.companyName && (
+                <p className="text-[10px] text-rose-600">{fieldErrors.companyName}</p>
+              )}
+            </div>
+
+            <div className="space-y-0.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="employeeId" className="text-[11px] font-semibold text-slate-700">
-                  Company ID
+                <Label htmlFor="campusId" className="text-[11px] font-semibold text-slate-700">
+                  Campus ID
                 </Label>
                 <span className="text-[9px] text-emerald-700 font-medium flex items-center gap-0.5">
                   <Info className="h-2.5 w-2.5" /> Required
                 </span>
               </div>
+              <div className="relative">
+                <MapPin className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  id="campusId"
+                  name="campusId"
+                  type="text"
+                  placeholder="CAMP-ABC-001"
+                  value={formData.campusId}
+                  onChange={handleChange}
+                  disabled={isLoading || isGoogleLoading}
+                  className={`h-8.5 pl-8 uppercase font-mono text-xs rounded-lg ${fieldErrors.campusId ? "border-rose-500" : "border-slate-200"}`}
+                  required
+                />
+              </div>
+              {fieldErrors.campusId && (
+                <p className="text-[10px] text-rose-600">{fieldErrors.campusId}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Row 3: Company ID & Department */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="space-y-0.5">
+              <Label htmlFor="employeeId" className="text-[11px] font-semibold text-slate-700">
+                Company ID (Employee Badge)
+              </Label>
               <div className="relative">
                 <BadgeCheck className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                 <Input
@@ -302,32 +354,6 @@ export default function RegisterPage() {
               )}
             </div>
 
-            <div className="space-y-0.5">
-              <Label htmlFor="companyName" className="text-[11px] font-semibold text-slate-700">
-                Company / Organization
-              </Label>
-              <div className="relative">
-                <Building2 className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                <Input
-                  id="companyName"
-                  name="companyName"
-                  type="text"
-                  placeholder="e.g. Tech Mahindra"
-                  value={formData.companyName}
-                  onChange={handleChange}
-                  disabled={isLoading || isGoogleLoading}
-                  className={`h-8.5 pl-8 text-xs rounded-lg ${fieldErrors.companyName ? "border-rose-500" : "border-slate-200"}`}
-                  required
-                />
-              </div>
-              {fieldErrors.companyName && (
-                <p className="text-[10px] text-rose-600">{fieldErrors.companyName}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Row 3: Department & Phone Number */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="space-y-0.5">
               <Label htmlFor="department" className="text-[11px] font-semibold text-slate-700">
                 Department
@@ -350,29 +376,30 @@ export default function RegisterPage() {
                 <p className="text-[10px] text-rose-600">{fieldErrors.department}</p>
               )}
             </div>
+          </div>
 
-            <div className="space-y-0.5">
-              <Label htmlFor="phone" className="text-[11px] font-semibold text-slate-700">
-                Phone Number
-              </Label>
-              <div className="relative">
-                <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  placeholder="+91 98765 43210"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  disabled={isLoading || isGoogleLoading}
-                  className={`h-8.5 pl-8 text-xs rounded-lg ${fieldErrors.phone ? "border-rose-500" : "border-slate-200"}`}
-                  required
-                />
-              </div>
-              {fieldErrors.phone && (
-                <p className="text-[10px] text-rose-600">{fieldErrors.phone}</p>
-              )}
+          {/* Row 4: Phone Number */}
+          <div className="space-y-0.5">
+            <Label htmlFor="phone" className="text-[11px] font-semibold text-slate-700">
+              Phone Number
+            </Label>
+            <div className="relative">
+              <Phone className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                placeholder="+91 98765 43210"
+                value={formData.phone}
+                onChange={handleChange}
+                disabled={isLoading || isGoogleLoading}
+                className={`h-8.5 pl-8 text-xs rounded-lg ${fieldErrors.phone ? "border-rose-500" : "border-slate-200"}`}
+                required
+              />
             </div>
+            {fieldErrors.phone && (
+              <p className="text-[10px] text-rose-600">{fieldErrors.phone}</p>
+            )}
           </div>
 
           {/* Row 4: Password & Confirm Password */}

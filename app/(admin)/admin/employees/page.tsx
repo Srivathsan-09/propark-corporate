@@ -19,6 +19,9 @@ interface IEmployee {
   phone: string;
   department: string;
   companyName?: string;
+  campusCompanyId?: string;
+  campusId?: string;
+  campusName?: string;
   role: "employee" | "admin";
   verificationStatus: "pending" | "approved" | "rejected";
   isApproved: boolean;
@@ -166,8 +169,14 @@ export default function AdminEmployeesPage() {
                         {emp.employeeId}
                       </td>
                       <td className="py-3 px-4 text-xs">
-                        <div className="font-semibold text-slate-800">{emp.companyName || "Tech Mahindra"}</div>
-                        <div className="text-slate-500 text-[11px]">{emp.department}</div>
+                        <div className="font-semibold text-slate-900">{emp.companyName || "ABC Technologies"}</div>
+                        <div className="text-emerald-700 font-medium text-[11px] flex items-center gap-1">
+                          <span>{emp.campusName || "Tech Park Chennai"}</span>
+                          {emp.campusCompanyId && (
+                            <span className="font-mono text-[10px] text-slate-400">({emp.campusCompanyId})</span>
+                          )}
+                        </div>
+                        <div className="text-slate-500 text-[10px]">{emp.department}</div>
                       </td>
                       <td className="py-3 px-4 text-xs text-slate-500">
                         {emp.phone || "—"}

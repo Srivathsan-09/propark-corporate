@@ -14,7 +14,11 @@ export interface IUser extends Document {
   email: string;
   phone: string;
   department: string;
-  companyName?: string;
+  companyName: string;
+  campusCompanyId?: string; // Unique Campus ID (e.g. "CAMP-ABC-001")
+  campusId?: string;        // Physical Campus (e.g. "CAMP001")
+  companyId?: string;       // Corporate Entity (e.g. "COMP001")
+  campusName?: string;      // Physical Campus Name (e.g. "Tech Park Chennai")
   passwordHash: string;
   role: "employee" | "admin";
   verificationStatus: "pending" | "approved" | "rejected";
@@ -64,7 +68,34 @@ const UserSchema = new Schema<IUser>(
     },
     companyName: {
       type: String,
-      default: "Tech Mahindra",
+      default: "ABC Technologies",
+      trim: true,
+      index: true,
+    },
+    campusCompanyId: {
+      type: String,
+      default: "CAMP-ABC-001",
+      uppercase: true,
+      trim: true,
+      index: true,
+    },
+    campusId: {
+      type: String,
+      default: "CAMP001",
+      uppercase: true,
+      trim: true,
+      index: true,
+    },
+    companyId: {
+      type: String,
+      default: "COMP001",
+      uppercase: true,
+      trim: true,
+      index: true,
+    },
+    campusName: {
+      type: String,
+      default: "Tech Park Chennai",
       trim: true,
     },
     passwordHash: {
