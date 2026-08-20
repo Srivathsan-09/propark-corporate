@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "CommuteX — Ride Together • Go Further | Corporate Carpooling Platform",
   description:
-    "A modern corporate-campus ride-sharing platform designed to reduce campus parking demand, cut commute costs, and foster sustainable corporate mobility.",
+    "A modern corporate ride-sharing platform designed to streamline daily carpooling, reduce commute costs, and foster sustainable employee mobility.",
 };
 
 export default function RootLayout({

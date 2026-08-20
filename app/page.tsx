@@ -5,12 +5,12 @@ import { authOptions } from "@/lib/auth";
 import {
   Car,
   ShieldCheck,
-  ParkingSquare,
   Leaf,
   Users,
   ArrowRight,
   TrendingDown,
   Building2,
+  Route,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -73,8 +73,8 @@ export default async function HomePage() {
             </h1>
 
             <p className="mt-6 max-w-2xl mx-auto text-base sm:text-lg text-slate-300 leading-relaxed">
-              Connect with colleagues commuting along your route. Reduce single-occupancy vehicles,
-              alleviate campus parking congestion, and contribute to measurable carbon reduction.
+              Connect with colleagues commuting along your route. Share empty vehicle seats,
+              cut daily commute expenses, and contribute to measurable carbon reduction.
             </p>
 
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -101,7 +101,7 @@ export default async function HomePage() {
                   <TrendingDown className="h-5 w-5" />
                 </div>
                 <div className="text-xl font-bold text-white">40%+</div>
-                <div className="text-xs text-slate-400 mt-0.5">Parking Demand Offload</div>
+                <div className="text-xs text-slate-400 mt-0.5">Commute Cost Savings</div>
               </div>
 
               <div className="p-4 rounded-lg bg-slate-800/60 border border-slate-700/60">
@@ -122,10 +122,10 @@ export default async function HomePage() {
 
               <div className="p-4 rounded-lg bg-slate-800/60 border border-slate-700/60">
                 <div className="text-emerald-400 mb-2">
-                  <ParkingSquare className="h-5 w-5" />
+                  <Route className="h-5 w-5" />
                 </div>
                 <div className="text-xl font-bold text-white">Optimized</div>
-                <div className="text-xs text-slate-400 mt-0.5">Campus Stalls & Zones</div>
+                <div className="text-xs text-slate-400 mt-0.5">Live Route Matching</div>
               </div>
             </div>
           </div>
@@ -139,7 +139,7 @@ export default async function HomePage() {
                 Designed Around the Corporate Campus Commute
               </h2>
               <p className="mt-2 text-sm text-slate-600">
-                A closed-loop platform bringing employees, drivers, routes, and campus parking into one seamless system.
+                A closed-loop platform bringing employees, drivers, and daily commute routes into one seamless system.
               </p>
             </div>
 
@@ -166,11 +166,11 @@ export default async function HomePage() {
 
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-700 mb-4">
-                  <ParkingSquare className="h-5 w-5" />
+                  <Leaf className="h-5 w-5" />
                 </div>
-                <h3 className="text-base font-semibold text-slate-900">Campus Parking Optimization</h3>
+                <h3 className="text-base font-semibold text-slate-900">Eco-Friendly Commutes</h3>
                 <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                  Every shared ride directly cuts down single-car campus entry, freeing up valuable parking slots and reducing morning peak bottlenecks.
+                  Every shared ride directly cuts down single-occupancy vehicles, reducing morning traffic congestion and corporate carbon emissions.
                 </p>
               </div>
             </div>

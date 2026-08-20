@@ -10,7 +10,6 @@ import {
   PlusCircle,
   Clock,
   Car,
-  ParkingSquare,
   Bell,
   User,
   ShieldAlert,
@@ -57,12 +56,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       phaseBadge: "Phase 2",
     },
     {
-      title: "Parking Management",
-      href: "/admin/parking",
-      icon: ParkingSquare,
-      phaseBadge: "Phase 5",
-    },
-    {
       title: "System Reports & Safety",
       href: "/admin/reports",
       icon: ShieldAlert,
@@ -99,12 +92,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "My Vehicles",
       href: "/vehicles",
       icon: Car,
-    },
-    {
-      title: "Campus Parking",
-      href: "/parking",
-      icon: ParkingSquare,
-      phaseBadge: "Phase 5",
     },
     {
       title: "Notifications",

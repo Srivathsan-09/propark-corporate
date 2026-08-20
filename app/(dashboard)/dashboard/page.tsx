@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   Building2,
   ArrowRight,
-  ParkingSquare,
+  Leaf,
   Sparkles,
   AlertTriangle,
   Lock,
@@ -172,7 +172,7 @@ export default function DashboardPage() {
           )}
 
           <p className="mt-2 text-sm sm:text-base text-slate-300 leading-relaxed">
-            Ready for your campus commute? Connect with verified coworkers, share rides to ease campus parking pressure, and travel sustainably.
+            Ready for your campus commute? Connect with verified coworkers, share daily rides, cut commute expenses, and travel sustainably.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -363,9 +363,9 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className="flex items-start gap-2">
-                <ParkingSquare className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                <Leaf className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                 <span>
-                  <strong>Carpool Parking:</strong> Verified carpool drivers receive priority entrance to campus parking.
+                  <strong>Eco Commute:</strong> Shared rides directly cut down fuel expenses, traffic congestion, and carbon footprint.
                 </span>
               </div>
               <div className="flex items-start gap-2">

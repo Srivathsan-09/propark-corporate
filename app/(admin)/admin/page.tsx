@@ -6,7 +6,7 @@ import {
   Users,
   Car,
   Route,
-  ParkingSquare,
+  Leaf,
   ArrowUpRight,
   Shield,
   Check,
@@ -220,21 +220,21 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Estimated Parking Offload */}
+        {/* Total Commute Seat Capacity */}
         <Card className="border-slate-200 bg-white shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Parking Demand Relief
+              Commute Seat Pool
             </CardTitle>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-              <ParkingSquare className="h-5 w-5" />
+              <Leaf className="h-5 w-5" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-700">
-              {vehicles.reduce((acc, v) => acc + (v.availableSeats || 0), 0)} Stalls
+              {vehicles.reduce((acc, v) => acc + (v.availableSeats || 0), 0)} Seats
             </div>
-            <p className="text-xs text-slate-500 mt-1">Potential daily parking reduction</p>
+            <p className="text-xs text-slate-500 mt-1">Available corporate commuter capacity</p>
           </CardContent>
         </Card>
       </div>

@@ -30,7 +30,8 @@ function LoginForm() {
   const getErrorMessageForAuth = (error: string | null) => {
     if (!error) return null;
     if (error === "OAuthSignin" || error === "OAuthCallback" || error === "redirect_uri_mismatch") {
-      return "Google OAuth connection error. Please ensure your Google Cloud authorized redirect URI is set to: https://propark-corporate.vercel.app/api/auth/callback/google";
+      const origin = typeof window !== "undefined" ? window.location.origin : "https://commutex-corporate.vercel.app";
+      return `Google OAuth connection error. Please ensure your Google Cloud authorized redirect URI is set to: ${origin}/api/auth/callback/google`;
     }
     if (error === "Callback" || error === "OAuthCreateAccount") {
       return "Database error during sign-in. Please ensure MONGODB_URI is set in Vercel and MongoDB Atlas IP is 0.0.0.0/0.";
