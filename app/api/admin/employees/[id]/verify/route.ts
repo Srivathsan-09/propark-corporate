@@ -16,7 +16,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user || session.user.role !== "admin") {
+    if (!session || !session.user || (session.user.role !== "admin" && session.user.role !== "campus_admin")) {
       return NextResponse.json(
         { success: false, error: "Access denied. Administrator privileges required." },
         { status: 403 }
@@ -43,26 +43,31 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     await connectToDatabase();
 
-    const isApprove = action === "approve";
-
-    const updatedEmployee = await User.findByIdAndUpdate(
-      id,
-      {
-        $set: {
-          verificationStatus: isApprove ? "approved" : "rejected",
-          isApproved: isApprove,
-          rejectionReason: isApprove ? "" : rejectionReason || "Rejected by administrator",
-        },
-      },
-      { new: true }
-    ).select("-passwordHash");
-
-    if (!updatedEmployee) {
+    const targetEmployee = await User.findById(id);
+    if (!targetEmployee) {
       return NextResponse.json(
         { success: false, error: "Employee account not found." },
         { status: 404 }
       );
     }
+
+    // Campus Admin can only approve/reject employees from their own physical campus
+    if (session.user.role === "campus_admin" && targetEmployee.campusId !== session.user.campusId) {
+      return NextResponse.json(
+        { success: false, error: "You are only authorized to manage employees from your own physical campus." },
+        { status: 403 }
+      );
+    }
+
+    const isApprove = action === "approve";
+
+    targetEmployee.verificationStatus = isApprove ? "approved" : "rejected";
+    targetEmployee.isApproved = isApprove;
+    targetEmployee.rejectionReason = isApprove ? "" : rejectionReason || "Rejected by campus administrator";
+    await targetEmployee.save();
+
+    const updatedEmployee = targetEmployee.toObject() as Record<string, any>;
+    delete updatedEmployee.passwordHash;
 
     // When an employee is approved, also automatically approve their registered fleet
     if (isApprove) {

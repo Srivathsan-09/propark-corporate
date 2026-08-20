@@ -13,7 +13,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user || session.user.role !== "admin") {
+    if (!session || !session.user || (session.user.role !== "admin" && session.user.role !== "campus_admin")) {
       return NextResponse.json(
         { success: false, error: "Access denied. Administrator privileges required." },
         { status: 403 }
@@ -22,9 +22,18 @@ export async function GET() {
 
     await connectToDatabase();
 
-    // 1. Fetch all rides with populated driver and vehicle
-    const rides = await Ride.find()
-      .populate("driver", "name email employeeId department companyName phone profileImage")
+    const isSuperAdmin = session.user.role === "admin";
+    let driverFilter: Record<string, any> = {};
+
+    if (!isSuperAdmin) {
+      const campusUsers = await User.find({ campusId: session.user.campusId }).select("_id");
+      const campusUserIds = campusUsers.map((u) => u._id);
+      driverFilter = { driver: { $in: campusUserIds } };
+    }
+
+    // 1. Fetch rides with populated driver and vehicle
+    const rides = await Ride.find(driverFilter)
+      .populate("driver", "name email employeeId department companyName campusId phone profileImage")
       .populate("vehicle", "vehicleModel vehicleType registrationNumber seatingCapacity")
       .populate("acceptedPassengers", "name email employeeId department companyName phone profileImage")
       .sort({ createdAt: -1 })

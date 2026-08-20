@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user || session.user.role !== "admin") {
+    if (!session || !session.user || (session.user.role !== "admin" && session.user.role !== "campus_admin")) {
       return NextResponse.json(
         { success: false, error: "Access denied. Administrator privileges required." },
         { status: 403 }
@@ -20,11 +20,22 @@ export async function GET() {
 
     await connectToDatabase();
 
-    const adminUsers = await User.find({ role: "admin" }).select("_id");
-    const adminIds = adminUsers.map((u) => u._id);
+    const isSuperAdmin = session.user.role === "admin";
 
-    const vehicles = await Vehicle.find({ owner: { $nin: adminIds } })
-      .populate("owner", "name email employeeId department phone")
+    let ownerQuery: Record<string, any> = {};
+    if (isSuperAdmin) {
+      const adminUsers = await User.find({ role: "admin" }).select("_id");
+      const adminIds = adminUsers.map((u) => u._id);
+      ownerQuery = { owner: { $nin: adminIds } };
+    } else {
+      // Campus Admin: only vehicles belonging to employees of their campus
+      const campusUsers = await User.find({ campusId: session.user.campusId }).select("_id");
+      const campusUserIds = campusUsers.map((u) => u._id);
+      ownerQuery = { owner: { $in: campusUserIds } };
+    }
+
+    const vehicles = await Vehicle.find(ownerQuery)
+      .populate("owner", "name email employeeId department phone campusId companyName")
       .sort({ createdAt: -1 })
       .lean();
 
