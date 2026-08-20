@@ -617,10 +617,10 @@ export default function AdminRidesPage() {
                                   }`}
                                 >
                                   {req.status === "accepted"
-                                    ? "✓ Joined / Confirmed"
+                                    ? "Joined / Confirmed"
                                     : req.status === "pending"
-                                    ? "⏳ Pending Driver Approval"
-                                    : "✕ " + req.status.toUpperCase()}
+                                    ? "Pending Driver Approval"
+                                    : req.status.toUpperCase()}
                                 </Badge>
                               </div>
                             </div>

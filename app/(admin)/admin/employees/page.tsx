@@ -19,8 +19,11 @@ import {
   Crown,
   ChevronRight,
   Filter,
+  Car,
+  Clock,
+  UserCheck,
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -211,41 +214,41 @@ export default function AdminEmployeesPage() {
   const employeeOnlyCount = employees.filter((e) => e.role === "employee").length;
 
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-300">
+    <div className="space-y-4 animate-in fade-in-50 duration-300">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <Link href="/admin" className="text-xs text-slate-500 hover:text-purple-600 flex items-center gap-1">
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to Admin Overview
+            <Link href="/admin" className="text-xs text-slate-500 hover:text-purple-600 flex items-center gap-1 font-medium">
+              <ArrowLeft className="h-3 w-3" /> Back to Overview
             </Link>
           </div>
           <div className="flex items-center gap-2 mt-1">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              <Users className="h-6 w-6 text-purple-600" />
-              Corporate Employee & Admin Directory
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+              <Users className="h-5 w-5 text-purple-600" />
+              Corporate Employee Directory
             </h1>
             {isSuperAdmin ? (
-              <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs font-semibold">
+              <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold">
                 Super Admin Access
               </Badge>
             ) : (
-              <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs font-semibold">
+              <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold">
                 Campus Admin ({session?.user?.campusId})
               </Badge>
             )}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
             {isSuperAdmin
-              ? "Super Admin console: Manage all users, allocate Campus Admins, and verify corporate employees across all campuses."
+              ? "Super Admin console: Manage all users, allocate Campus Admins, and verify corporate employees."
               : "Campus Admin console: Manage and verify corporate commuters inside your assigned physical campus."}
           </p>
         </div>
 
         {isSuperAdmin && (
           <Link href="/admin/campuses">
-            <Button variant="outline" size="sm" className="h-9 text-xs font-semibold rounded-lg gap-1.5 border-purple-200 text-purple-700 hover:bg-purple-50">
-              <Building2 className="h-4 w-4" /> Manage Campuses & Admins
+            <Button variant="outline" size="sm" className="h-8 text-xs font-semibold rounded-lg gap-1.5 border-purple-200 text-purple-700 hover:bg-purple-50">
+              <Building2 className="h-3.5 w-3.5" /> Manage Campuses
             </Button>
           </Link>
         )}
@@ -254,81 +257,89 @@ export default function AdminEmployeesPage() {
       {/* Feedback banner */}
       {feedbackMessage && (
         <div
-          className={`flex items-center gap-2.5 rounded-lg p-3 text-xs border animate-in fade-in-50 ${
+          className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs border animate-in fade-in-50 ${
             feedbackMessage.type === "success"
               ? "bg-emerald-50 text-emerald-800 border-emerald-200"
               : "bg-rose-50 text-rose-800 border-rose-200"
           }`}
         >
           {feedbackMessage.type === "success" ? (
-            <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+            <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
           ) : (
-            <X className="h-4 w-4 shrink-0 text-rose-600" />
+            <X className="h-3.5 w-3.5 shrink-0 text-rose-600" />
           )}
-          <span className="font-semibold">{feedbackMessage.text}</span>
+          <span className="font-medium">{feedbackMessage.text}</span>
         </div>
       )}
 
-      {/* Quick Metrics Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+      {/* Quick Metrics Bar - Sleek & Compact */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold uppercase text-slate-400">Total Users</span>
-            <div className="text-xl font-bold text-slate-900">{employees.length}</div>
+            <span className="text-[11px] font-medium text-slate-400 block">Total Users</span>
+            <div className="text-lg font-bold text-slate-900">{employees.length}</div>
           </div>
-          <Users className="h-5 w-5 text-slate-400" />
+          <div className="p-2 bg-slate-50 rounded-md text-slate-500">
+            <Users className="h-4 w-4" />
+          </div>
         </div>
 
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold uppercase text-purple-700">Super Admins</span>
-            <div className="text-xl font-bold text-purple-900">{superAdminCount}</div>
+            <span className="text-[11px] font-medium text-purple-600 block">Super Admins</span>
+            <div className="text-lg font-bold text-purple-900">{superAdminCount}</div>
           </div>
-          <Crown className="h-5 w-5 text-purple-600" />
+          <div className="p-2 bg-purple-50 rounded-md text-purple-600">
+            <Crown className="h-4 w-4" />
+          </div>
         </div>
 
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold uppercase text-blue-700">Campus Admins</span>
-            <div className="text-xl font-bold text-blue-900">{campusAdminCount}</div>
+            <span className="text-[11px] font-medium text-blue-600 block">Campus Admins</span>
+            <div className="text-lg font-bold text-blue-900">{campusAdminCount}</div>
           </div>
-          <ShieldCheck className="h-5 w-5 text-blue-600" />
+          <div className="p-2 bg-blue-50 rounded-md text-blue-600">
+            <ShieldCheck className="h-4 w-4" />
+          </div>
         </div>
 
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold uppercase text-emerald-700">Commuters</span>
-            <div className="text-xl font-bold text-emerald-900">{employeeOnlyCount}</div>
+            <span className="text-[11px] font-medium text-emerald-600 block">Commuters</span>
+            <div className="text-lg font-bold text-emerald-900">{employeeOnlyCount}</div>
           </div>
-          <Building className="h-5 w-5 text-emerald-600" />
+          <div className="p-2 bg-emerald-50 rounded-md text-emerald-600">
+            <Building className="h-4 w-4" />
+          </div>
         </div>
       </div>
 
-      {/* Filter and Search Toolbar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+      {/* Filter and Search Toolbar - Clean & Emoji-Free */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-2.5 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {/* Role Filter */}
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="h-8.5 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
+            className="h-8 px-2.5 text-xs rounded-md border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
           >
-            <option value="all">🛡️ All Roles</option>
-            <option value="admin">👑 Super Admins ({superAdminCount})</option>
-            <option value="campus_admin">🏢 Campus Admins ({campusAdminCount})</option>
-            <option value="employee">👤 Employees ({employeeOnlyCount})</option>
+            <option value="all">All Roles</option>
+            <option value="admin">Super Admins ({superAdminCount})</option>
+            <option value="campus_admin">Campus Admins ({campusAdminCount})</option>
+            <option value="employee">Employees ({employeeOnlyCount})</option>
           </select>
 
           {/* Status Filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-8.5 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
+            className="h-8 px-2.5 text-xs rounded-md border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
           >
-            <option value="all">All Verification Status</option>
-            <option value="pending">⏳ Pending Review</option>
-            <option value="approved">✓ Approved</option>
-            <option value="rejected">✕ Rejected</option>
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending Review</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
           </select>
 
           {/* Campus Filter (For Super Admin) */}
@@ -336,9 +347,9 @@ export default function AdminEmployeesPage() {
             <select
               value={campusFilter}
               onChange={(e) => setCampusFilter(e.target.value)}
-              className="h-8.5 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
+              className="h-8 px-2.5 text-xs rounded-md border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
             >
-              <option value="all">📍 All Campuses</option>
+              <option value="all">All Campuses</option>
               {campuses.map((c) => (
                 <option key={c.campusId} value={c.campusId}>
                   {c.campusId} - {c.name}
@@ -349,170 +360,172 @@ export default function AdminEmployeesPage() {
         </div>
 
         <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
           <Input
             placeholder="Search by name, ID, email, company..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 h-8.5 text-xs"
+            className="pl-8 h-8 text-xs rounded-md"
           />
         </div>
       </div>
 
-      {/* Employees Table */}
-      <Card className="border-slate-200 bg-white shadow-sm overflow-hidden">
+      {/* Employees Table - Highly Legible, Structured & Compact */}
+      <Card className="border-slate-200 bg-white shadow-xs overflow-hidden">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="py-16 flex flex-col items-center justify-center">
               <CarLoader size="lg" message="Loading employee directory..." />
             </div>
           ) : filteredEmployees.length === 0 ? (
-            <div className="text-center py-16 text-slate-500 text-sm">
-              <Users className="mx-auto h-10 w-10 text-slate-300 mb-2" />
+            <div className="text-center py-16 text-slate-500 text-xs">
+              <Users className="mx-auto h-8 w-8 text-slate-300 mb-1.5" />
               No records found matching your filters.
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] uppercase tracking-wider text-slate-500">
-                    <th className="py-3 px-4 font-semibold">User / Profile</th>
-                    <th className="py-3 px-4 font-semibold">Employee ID</th>
-                    <th className="py-3 px-4 font-semibold">Role & Access Tier</th>
-                    <th className="py-3 px-4 font-semibold">Campus & Company</th>
-                    <th className="py-3 px-4 font-semibold">Vehicles</th>
-                    <th className="py-3 px-4 font-semibold">Status</th>
-                    <th className="py-3 px-4 font-semibold text-right">Actions</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Employee</th>
+                    <th className="py-2.5 px-3.5 font-semibold">ID</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Role & Access</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Company & Campus</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Fleet</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Status</th>
+                    <th className="py-2.5 px-3.5 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredEmployees.map((emp) => (
                     <tr key={emp._id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 text-purple-800 font-bold text-xs shrink-0">
+                      {/* Employee Info */}
+                      <td className="py-2.5 px-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-purple-800 font-bold text-xs shrink-0">
                             {getInitials(emp.name)}
                           </div>
                           <div>
-                            <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                            <div className="font-semibold text-slate-900 flex items-center gap-1">
                               {emp.name}
                               {emp.role === "admin" && (
-                                <span title="Super Admin">
-                                  <Crown className="h-3.5 w-3.5 text-amber-500" />
-                                </span>
+                                <Crown className="h-3 w-3 text-purple-600 shrink-0" />
                               )}
                             </div>
-                            <div className="text-xs text-slate-500">{emp.email}</div>
+                            <div className="text-[11px] text-slate-500">{emp.email}</div>
                           </div>
                         </div>
                       </td>
 
-                      <td className="py-3 px-4">
-                        <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                      {/* Employee ID */}
+                      <td className="py-2.5 px-3.5">
+                        <span className="font-mono text-[11px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                           {emp.employeeId}
                         </span>
                       </td>
 
-                      <td className="py-3 px-4">
+                      {/* Role & Access Tier */}
+                      <td className="py-2.5 px-3.5">
                         {emp.role === "admin" ? (
-                          <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px] font-bold">
-                            👑 Super Admin
+                          <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold py-0 px-1.5 gap-1">
+                            <Crown className="h-2.5 w-2.5" /> Super Admin
                           </Badge>
                         ) : emp.role === "campus_admin" ? (
                           <div className="space-y-0.5">
-                            <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px] font-bold">
-                              🏢 Campus Admin
+                            <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-semibold py-0 px-1.5 gap-1">
+                              <Building2 className="h-2.5 w-2.5" /> Campus Admin
                             </Badge>
                             {emp.campusId && (
-                              <div className="font-mono text-[10px] text-blue-600 font-semibold">
+                              <div className="font-mono text-[10px] text-blue-600 font-semibold pl-0.5">
                                 {emp.campusId}
                               </div>
                             )}
                           </div>
                         ) : (
-                          <Badge variant="outline" className="text-slate-600 text-[10px] font-medium">
-                            👤 Employee
+                          <Badge variant="outline" className="text-slate-600 text-[10px] font-medium py-0 px-1.5 gap-1">
+                            <Users className="h-2.5 w-2.5" /> Employee
                           </Badge>
                         )}
                       </td>
 
-                      <td className="py-3 px-4">
-                        <div className="text-xs font-semibold text-slate-900">{emp.companyName || "—"}</div>
+                      {/* Company & Physical Campus */}
+                      <td className="py-2.5 px-3.5">
+                        <div className="font-semibold text-slate-900 text-xs">{emp.companyName || "—"}</div>
                         <div className="text-[11px] text-slate-500 flex items-center gap-1">
                           <span className="font-mono font-bold text-purple-700">{emp.campusId || "—"}</span>
-                          {emp.campusName && <span>({emp.campusName})</span>}
+                          {emp.campusName && <span className="text-slate-400">({emp.campusName})</span>}
                         </div>
                       </td>
 
-                      <td className="py-3 px-4">
-                        <Badge variant="outline" className="text-slate-700 text-xs">
+                      {/* Vehicles */}
+                      <td className="py-2.5 px-3.5">
+                        <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                          <Car className="h-3 w-3 text-slate-400" />
                           {emp.vehicleCount} {emp.vehicleCount === 1 ? "vehicle" : "vehicles"}
-                        </Badge>
+                        </span>
                       </td>
 
-                      <td className="py-3 px-4">
+                      {/* Status */}
+                      <td className="py-2.5 px-3.5">
                         {emp.verificationStatus === "approved" ? (
-                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold">
-                            ✓ Approved
-                          </Badge>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <Check className="h-3 w-3" /> Approved
+                          </span>
                         ) : emp.verificationStatus === "rejected" ? (
-                          <Badge variant="destructive" className="text-[10px]">
-                            ✕ Rejected
-                          </Badge>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                            <X className="h-3 w-3" /> Rejected
+                          </span>
                         ) : (
-                          <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-semibold">
-                            ⏳ Pending
-                          </Badge>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            <Clock className="h-3 w-3" /> Pending
+                          </span>
                         )}
                       </td>
 
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Super Admin Role Control Modal Trigger */}
+                      {/* Actions */}
+                      <td className="py-2.5 px-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Super Admin Role Management Button */}
                           {isSuperAdmin && emp.role !== "admin" && (
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => openRoleModal(emp)}
-                              className="h-7 px-2 text-xs text-purple-700 border-purple-200 hover:bg-purple-50 gap-1"
-                              title="Change Role & Access Tier"
+                              className="h-6.5 text-[11px] px-2 border-purple-200 text-purple-700 hover:bg-purple-50 gap-1 rounded"
                             >
                               <Edit2 className="h-3 w-3" />
                               Role
                             </Button>
                           )}
 
-                          {/* Verification Buttons */}
-                          {emp.role !== "admin" && (
-                            <>
-                              {emp.verificationStatus !== "approved" && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleVerify(emp._id, "approve")}
-                                  disabled={actionLoadingId === emp._id}
-                                  className="h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1 font-semibold"
-                                >
-                                  {actionLoadingId === emp._id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <Check className="h-3.5 w-3.5" />
-                                  )}
-                                  Approve
-                                </Button>
+                          {/* Quick Verification Actions */}
+                          {emp.verificationStatus !== "approved" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleVerify(emp._id, "approve")}
+                              disabled={actionLoadingId === emp._id}
+                              className="h-6.5 text-[11px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white gap-0.5 rounded font-semibold"
+                            >
+                              {actionLoadingId === emp._id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3" />
                               )}
-                              {emp.verificationStatus !== "rejected" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleVerify(emp._id, "reject")}
-                                  disabled={actionLoadingId === emp._id}
-                                  className="h-7 px-2 border-rose-200 text-rose-700 hover:bg-rose-50 text-xs gap-1"
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                  Reject
-                                </Button>
-                              )}
-                            </>
+                              Approve
+                            </Button>
+                          )}
+
+                          {emp.verificationStatus !== "rejected" && emp.role !== "admin" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleVerify(emp._id, "reject")}
+                              disabled={actionLoadingId === emp._id}
+                              className="h-6.5 text-[11px] px-2 border-rose-200 text-rose-700 hover:bg-rose-50 gap-0.5 rounded"
+                            >
+                              <X className="h-3 w-3" />
+                              Reject
+                            </Button>
                           )}
                         </div>
                       </td>
@@ -525,76 +538,76 @@ export default function AdminEmployeesPage() {
         </CardContent>
       </Card>
 
-      {/* SUPER ADMIN: ROLE & PRIVILEGES MODAL */}
+      {/* SUPER ADMIN ROLE & PRIVILEGES MODAL */}
       {roleModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in-50">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-purple-50/50">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-purple-600" /> Manage Role & Privileges
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Update access tier for <strong>{roleModalUser.name}</strong> ({roleModalUser.email})
-                </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in-50">
+          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-purple-600" />
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Manage Role & Access Tier</h2>
+                  <p className="text-[11px] text-slate-500">{roleModalUser.name} ({roleModalUser.email})</p>
+                </div>
               </div>
               <button
                 onClick={() => setRoleModalUser(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="text-slate-400 hover:text-slate-600 rounded-md p-1"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveRole} className="p-5 space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-slate-700">Select Access Tier</Label>
+            <form onSubmit={handleSaveRole} className="space-y-3.5 text-xs">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Select Access Role</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setTargetRole("campus_admin")}
-                    className={`p-3 rounded-xl border text-left text-xs transition-all ${
+                    className={`p-3 rounded-lg border text-left transition-all ${
                       targetRole === "campus_admin"
-                        ? "border-blue-500 bg-blue-50/80 text-blue-900 font-bold ring-2 ring-blue-200"
+                        ? "border-purple-600 bg-purple-50/70 text-purple-900 ring-1 ring-purple-600"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
-                    <ShieldCheck className="h-4 w-4 text-blue-600 mb-1" />
-                    <div>Campus Admin</div>
-                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">
-                      Manages a designated campus
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <Building2 className="h-4 w-4 text-purple-600" />
+                      Campus Admin
                     </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Manages a specific physical campus and verifies its commuters.
+                    </p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setTargetRole("employee")}
-                    className={`p-3 rounded-xl border text-left text-xs transition-all ${
+                    className={`p-3 rounded-lg border text-left transition-all ${
                       targetRole === "employee"
-                        ? "border-purple-500 bg-purple-50/80 text-purple-900 font-bold ring-2 ring-purple-200"
+                        ? "border-purple-600 bg-purple-50/70 text-purple-900 ring-1 ring-purple-600"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
-                    <Users className="h-4 w-4 text-purple-600 mb-1" />
-                    <div>Regular Employee</div>
-                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">
-                      Standard commuter profile
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <Users className="h-4 w-4 text-slate-600" />
+                      Regular Employee
                     </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Standard commuter privileges with no administrator rights.
+                    </p>
                   </button>
                 </div>
               </div>
 
               {targetRole === "campus_admin" && (
-                <div className="space-y-1.5 bg-blue-50/60 p-3 rounded-xl border border-blue-100">
-                  <Label htmlFor="campusSelect" className="text-xs font-semibold text-blue-900">
-                    Assign Physical Campus
-                  </Label>
+                <div className="space-y-1.5 animate-in fade-in-50">
+                  <Label className="text-xs font-semibold text-slate-700">Assign Physical Campus</Label>
                   <select
-                    id="campusSelect"
                     value={targetCampusId}
                     onChange={(e) => setTargetCampusId(e.target.value)}
-                    className="w-full h-9 px-3 text-xs rounded-lg border border-blue-200 bg-white text-slate-800 font-medium focus:outline-blue-600"
                     required
+                    className="w-full h-8.5 px-3 text-xs rounded-md border border-slate-200 bg-white text-slate-800 font-medium focus:outline-purple-600"
                   >
                     {campuses.map((c) => (
                       <option key={c.campusId} value={c.campusId}>
@@ -602,9 +615,9 @@ export default function AdminEmployeesPage() {
                       </option>
                     ))}
                   </select>
-                  <span className="text-[10px] text-slate-500 block">
-                    This user will be granted administrator authority for this campus.
-                  </span>
+                  <p className="text-[11px] text-slate-400">
+                    This user will become the designated administrator for this physical campus.
+                  </p>
                 </div>
               )}
 
@@ -612,18 +625,20 @@ export default function AdminEmployeesPage() {
                 <Button
                   type="button"
                   variant="outline"
+                  size="sm"
                   onClick={() => setRoleModalUser(null)}
-                  className="h-8.5 text-xs"
+                  className="h-8 text-xs"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmittingRole}
-                  className="h-8.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5"
+                  size="sm"
+                  className="h-8 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5"
                 >
                   {isSubmittingRole ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                  Save Access Tier
+                  Update Role
                 </Button>
               </div>
             </form>

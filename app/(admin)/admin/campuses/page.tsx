@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
   Building2,
-  Building,
   Plus,
   MapPin,
   Users,
@@ -25,6 +24,7 @@ import {
   Edit2,
   Crown,
   UserX,
+  Building,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -151,21 +151,12 @@ export default function AdminCampusesPage() {
         return;
       }
 
-      setSuccessMessage(`Campus "${data.campus.name}" (${data.campus.campusId}) created successfully!`);
+      setSuccessMessage(data.message || "Campus created successfully!");
       setIsAddCampusOpen(false);
-      setNewCampus({
-        campusId: "",
-        name: "",
-        address: "",
-        city: "",
-        state: "",
-        adminEmail: "",
-        companiesInput: "",
-      });
       await fetchCampuses();
     } catch (err) {
-      console.error("Error adding campus:", err);
-      setErrorMessage("Network error while creating campus.");
+      console.error("Error creating campus:", err);
+      setErrorMessage("Failed to create campus. Check network connection.");
     } finally {
       setIsSubmittingCampus(false);
     }
@@ -192,53 +183,29 @@ export default function AdminCampusesPage() {
       const data = await res.json();
 
       if (res.ok) {
-        setSuccessMessage(data.message);
+        setCampuses((prev) =>
+          prev.map((c) =>
+            c.campusId === assignAdminCampus.campusId
+              ? { ...c, adminEmail: assignAdminEmail.trim().toLowerCase() || undefined }
+              : c
+          )
+        );
+        setSuccessMessage(data.message || "Campus admin allocated successfully!");
         setAssignAdminCampus(null);
-        await fetchCampuses();
       } else {
-        setErrorMessage(data.error || "Failed to assign Campus Admin.");
+        setErrorMessage(data.error || "Failed to assign campus administrator.");
       }
     } catch (err) {
       console.error("Error assigning admin:", err);
-      setErrorMessage("Network error while assigning Campus Admin.");
+      setErrorMessage("Network error while assigning campus admin.");
     } finally {
       setIsSubmittingAdmin(false);
     }
   };
 
-  const handleRevokeAdmin = async (campusId: string, campusName: string) => {
-    if (!confirm(`Are you sure you want to unassign/revoke the Campus Admin from ${campusName}?`)) return;
-
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    try {
-      const res = await fetch(`/api/admin/campuses/${campusId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "assign_admin",
-          adminEmail: "",
-        }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setSuccessMessage(data.message);
-        await fetchCampuses();
-      } else {
-        setErrorMessage(data.error || "Failed to revoke Campus Admin.");
-      }
-    } catch (err) {
-      console.error("Error revoking admin:", err);
-      setErrorMessage("Network error while revoking Campus Admin.");
-    }
-  };
-
-  const handleCompanySubmit = async (campusId: string) => {
-    const compName = companyInputs[campusId]?.trim();
-    if (!compName) return;
+  const handleAddOrRequestCompany = async (campusId: string) => {
+    const inputName = (companyInputs[campusId] || "").trim();
+    if (!inputName) return;
 
     setCompanyActionLoadingId(`${campusId}-add`);
     setErrorMessage(null);
@@ -251,7 +218,7 @@ export default function AdminCampusesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
-          companyName: compName,
+          companyName: inputName,
         }),
       });
 
@@ -272,11 +239,11 @@ export default function AdminCampusesPage() {
         setCompanyInputs((prev) => ({ ...prev, [campusId]: "" }));
         setSuccessMessage(data.message);
       } else {
-        setErrorMessage(data.error || "Failed to process company addition.");
+        setErrorMessage(data.error || "Failed to add company.");
       }
     } catch (err) {
       console.error("Error adding company:", err);
-      setErrorMessage("Failed to process company addition.");
+      setErrorMessage("Failed to add company.");
     } finally {
       setCompanyActionLoadingId(null);
     }
@@ -432,7 +399,6 @@ export default function AdminCampusesPage() {
   const assignedAdminsCount = campuses.filter((c) => Boolean(c.adminEmail)).length;
   const uniqueCities = Array.from(new Set(campuses.map((c) => c.city).filter(Boolean)));
 
-  // Collect all pending company requests across all campuses (for Super Admin banner)
   const allPendingRequests = campuses.flatMap((c) =>
     (c.pendingCompanies || []).map((p) => ({
       ...p,
@@ -456,41 +422,41 @@ export default function AdminCampusesPage() {
 
   if (isLoading) {
     return (
-      <div className="py-24 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200 shadow-sm">
+      <div className="py-20 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 shadow-xs">
         <CarLoader size="page" message="Loading Campus & Company governance hub..." />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-300">
+    <div className="space-y-4 animate-in fade-in-50 duration-300">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <Link href="/admin" className="text-xs text-slate-500 hover:text-purple-600 flex items-center gap-1">
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to Admin Overview
+            <Link href="/admin" className="text-xs text-slate-500 hover:text-purple-600 flex items-center gap-1 font-medium">
+              <ArrowLeft className="h-3 w-3" /> Back to Overview
             </Link>
           </div>
           <div className="flex items-center gap-2 mt-1">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              <Building2 className="h-6 w-6 text-purple-600" />
-              Campus & Admin Governance Hub
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-purple-600" />
+              Campus & Admin Hub
             </h1>
             {isSuperAdmin ? (
-              <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs font-bold">
-                👑 Super Admin Console
+              <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-semibold">
+                Super Admin Console
               </Badge>
             ) : (
-              <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs font-bold">
-                🏢 Campus Admin ({session?.user?.campusId})
+              <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold">
+                Campus Admin ({session?.user?.campusId})
               </Badge>
             )}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
             {isSuperAdmin
-              ? "Super Admin Access: Unrestricted governance across all physical campuses, Campus Admin assignments, and operating company approvals."
-              : "Campus Admin Access: Manage operating companies and commuters strictly for your assigned campus."}
+              ? "Governance across all campuses, campus admins, and company addition approvals."
+              : "Manage operating companies and commuters for your assigned campus."}
           </p>
         </div>
 
@@ -514,9 +480,10 @@ export default function AdminCampusesPage() {
                 });
                 setIsAddCampusOpen(true);
               }}
-              className="h-9 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-sm gap-1.5"
+              size="sm"
+              className="h-8.5 px-3.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-xs gap-1.5"
             >
-              <Plus className="h-4 w-4" /> Add New Campus
+              <Plus className="h-3.5 w-3.5" /> Add Campus
             </Button>
           )}
         </div>
@@ -524,60 +491,58 @@ export default function AdminCampusesPage() {
 
       {/* Alert Messages */}
       {successMessage && (
-        <div className="flex items-center gap-2.5 rounded-lg bg-emerald-50 p-3.5 text-xs text-emerald-800 border border-emerald-200 animate-in fade-in-50">
-          <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" />
-          <span className="font-semibold">{successMessage}</span>
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800 border border-emerald-200 animate-in fade-in-50">
+          <CheckCircle className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+          <span className="font-medium">{successMessage}</span>
         </div>
       )}
 
       {errorMessage && (
-        <div className="flex items-start gap-2.5 rounded-lg bg-rose-50 p-3.5 text-xs text-rose-800 border border-rose-200 animate-in fade-in-50">
-          <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+        <div className="flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-800 border border-rose-200 animate-in fade-in-50">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-600 mt-0.5" />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {/* SUPER ADMIN: PENDING COMPANY APPROVALS BANNER */}
       {isSuperAdmin && allPendingRequests.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/70 shadow-sm overflow-hidden animate-in fade-in-50">
-          <CardHeader className="pb-2.5 pt-3.5 px-4 bg-amber-100/60 border-b border-amber-200/80">
+        <Card className="border-amber-200 bg-amber-50/60 shadow-xs overflow-hidden">
+          <CardHeader className="py-2.5 px-3.5 bg-amber-100/60 border-b border-amber-200/80">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-amber-700" />
-                <span className="font-bold text-xs text-amber-900 uppercase tracking-wider">
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-amber-700" />
+                <span className="font-bold text-xs text-amber-900">
                   Pending Company Addition Requests ({allPendingRequests.length})
                 </span>
               </div>
-              <Badge className="bg-amber-600 text-white text-[10px]">Action Required</Badge>
+              <Badge className="bg-amber-600 text-white text-[10px] py-0 px-1.5">Action Required</Badge>
             </div>
           </CardHeader>
-          <CardContent className="p-4 space-y-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <CardContent className="p-3 space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {allPendingRequests.map((req) => (
                 <div
                   key={`${req.campusId}-${req.name}`}
-                  className="bg-white p-3 rounded-xl border border-amber-200 shadow-xs flex items-center justify-between gap-3"
+                  className="bg-white p-2.5 rounded-lg border border-amber-200 shadow-xs flex items-center justify-between gap-2"
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5">
                       <span className="font-bold text-xs text-slate-900">{req.name}</span>
-                      <span className="font-mono text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-semibold">
+                      <span className="font-mono text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.2 rounded border border-purple-200 font-semibold">
                         {req.campusId}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-500 flex items-center gap-1">
-                      <span>Campus: <strong>{req.campusName}</strong></span>
-                      <span>•</span>
-                      <span>By: {req.requestedBy}</span>
+                    <div className="text-[11px] text-slate-500">
+                      Campus: <strong>{req.campusName}</strong> • By: {req.requestedBy}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     <Button
                       size="sm"
                       onClick={() => handleApproveCompany(req.campusId, req.name)}
                       disabled={companyActionLoadingId === `${req.campusId}-approve-${req.name}`}
-                      className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1 font-semibold"
+                      className="h-6.5 px-2 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white gap-1 font-semibold"
                     >
                       {companyActionLoadingId === `${req.campusId}-approve-${req.name}` ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -591,7 +556,7 @@ export default function AdminCampusesPage() {
                       variant="outline"
                       onClick={() => handleRejectCompany(req.campusId, req.name)}
                       disabled={companyActionLoadingId === `${req.campusId}-reject-${req.name}`}
-                      className="h-7 px-2.5 text-xs border-rose-300 text-rose-700 hover:bg-rose-50"
+                      className="h-6.5 px-2 text-[11px] border-rose-300 text-rose-700 hover:bg-rose-50"
                     >
                       Reject
                     </Button>
@@ -603,91 +568,89 @@ export default function AdminCampusesPage() {
         </Card>
       )}
 
-      {/* Top Metrics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-slate-200 bg-white shadow-xs p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Physical Campuses</span>
-            <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
-              <Building2 className="h-4 w-4" />
-            </div>
+      {/* Top Metrics Cards - Compact & High Density */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-medium text-slate-400 block">Physical Campuses</span>
+            <div className="text-lg font-bold text-slate-900">{totalCampuses}</div>
           </div>
-          <div className="text-2xl font-bold text-slate-900 mt-2">{totalCampuses}</div>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">Tech complexes</span>
-        </Card>
+          <div className="p-2 bg-purple-50 rounded-md text-purple-600">
+            <Building2 className="h-4 w-4" />
+          </div>
+        </div>
 
-        <Card className="border-slate-200 bg-white shadow-xs p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Campus Admins</span>
-            <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-              <ShieldCheck className="h-4 w-4" />
-            </div>
+        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-medium text-blue-600 block">Campus Admins</span>
+            <div className="text-lg font-bold text-blue-900">{assignedAdminsCount} / {totalCampuses}</div>
           </div>
-          <div className="text-2xl font-bold text-blue-900 mt-2">{assignedAdminsCount} / {totalCampuses}</div>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">Allocated administrators</span>
-        </Card>
+          <div className="p-2 bg-blue-50 rounded-md text-blue-600">
+            <ShieldCheck className="h-4 w-4" />
+          </div>
+        </div>
 
-        <Card className="border-slate-200 bg-white shadow-xs p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Operating Companies</span>
-            <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
-              <Briefcase className="h-4 w-4" />
-            </div>
+        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-medium text-slate-400 block">Operating Companies</span>
+            <div className="text-lg font-bold text-slate-900">{totalCompaniesCount}</div>
           </div>
-          <div className="text-2xl font-bold text-slate-900 mt-2">{totalCompaniesCount}</div>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">Across all campuses</span>
-        </Card>
+          <div className="p-2 bg-purple-50 rounded-md text-purple-600">
+            <Briefcase className="h-4 w-4" />
+          </div>
+        </div>
 
-        <Card className="border-slate-200 bg-white shadow-xs p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Total Commuters</span>
-            <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
-              <Users className="h-4 w-4" />
-            </div>
+        <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-medium text-emerald-600 block">Total Commuters</span>
+            <div className="text-lg font-bold text-emerald-900">{totalEmployeesCount}</div>
           </div>
-          <div className="text-2xl font-bold text-slate-900 mt-2">{totalEmployeesCount}</div>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">Active registered users</span>
-        </Card>
+          <div className="p-2 bg-emerald-50 rounded-md text-emerald-600">
+            <Users className="h-4 w-4" />
+          </div>
+        </div>
       </div>
 
-      {/* Tabs Navigation (Campuses vs Campus Admins Directory) */}
+      {/* Tabs Navigation */}
       {isSuperAdmin && (
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2">
           <button
             onClick={() => setActiveTab("campuses")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
               activeTab === "campuses"
                 ? "bg-purple-600 text-white shadow-xs"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            🏢 Campuses & Operating Companies ({campuses.length})
+            <Building2 className="h-3.5 w-3.5" />
+            Campuses & Companies ({campuses.length})
           </button>
           <button
             onClick={() => setActiveTab("admins")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+            className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 ${
               activeTab === "admins"
                 ? "bg-purple-600 text-white shadow-xs"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
-            🛡️ Campus Administrators Directory ({assignedAdminsCount})
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Campus Admins Directory ({assignedAdminsCount})
           </button>
         </div>
       )}
 
       {/* VIEW 1: CAMPUSES & COMPANIES */}
       {activeTab === "campuses" && (
-        <>
+        <div className="space-y-3">
           {/* Filter & Search Bar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
+                className="h-8 px-2.5 text-xs rounded-md border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-xs"
               >
-                <option value="all">📍 All Cities ({campuses.length})</option>
+                <option value="all">All Cities ({campuses.length})</option>
                 {uniqueCities.map((city) => (
                   <option key={city} value={city}>
                     {city}
@@ -697,47 +660,47 @@ export default function AdminCampusesPage() {
             </div>
 
             <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
               <Input
                 placeholder="Search campus, city, company, admin..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9 text-xs"
+                className="pl-8 h-8 text-xs rounded-md"
               />
             </div>
           </div>
 
-          {/* Campus Cards List */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Campus Cards List - Sleek & Compact */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
             {filteredCampuses.map((campus) => (
-              <Card key={campus._id} className="border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col justify-between">
+              <Card key={campus._id} className="border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col justify-between">
                 <div>
                   {/* Campus Card Header */}
-                  <CardHeader className="bg-slate-50/70 border-b border-slate-100 pb-3">
+                  <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-2.5 px-3.5">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold px-2 py-0.5 bg-purple-100 text-purple-800 rounded-md border border-purple-200">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-[11px] font-bold px-1.5 py-0.2 bg-purple-50 text-purple-700 rounded border border-purple-200">
                             {campus.campusId}
                           </span>
-                          <CardTitle className="text-base font-bold text-slate-900">{campus.name}</CardTitle>
+                          <CardTitle className="text-sm font-bold text-slate-900">{campus.name}</CardTitle>
                         </div>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                          <MapPin className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                          <MapPin className="h-3 w-3 text-emerald-600 shrink-0" />
                           <span>{campus.address}</span>
                           <span className="text-slate-300">•</span>
-                          <strong className="text-slate-700 font-semibold">{campus.city}, {campus.state}</strong>
+                          <strong className="text-slate-700">{campus.city}, {campus.state}</strong>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold">
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0 px-1.5">
                           Active
                         </Badge>
                         {isSuperAdmin && (
                           <button
                             onClick={() => handleDeleteCampus(campus.campusId, campus.name)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
                             title="Delete Campus"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -747,14 +710,16 @@ export default function AdminCampusesPage() {
                     </div>
 
                     {/* Campus Admin Badge & Allocation */}
-                    <div className="mt-2.5 p-2 bg-purple-50/80 rounded-lg border border-purple-100 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <ShieldCheck className="h-4 w-4 text-purple-700 shrink-0" />
-                        <span className="text-slate-600 font-medium">Campus Admin:</span>
+                    <div className="mt-2 p-1.5 bg-purple-50/60 rounded border border-purple-100 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 text-slate-700 truncate">
+                        <ShieldCheck className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                        <span className="text-[11px] font-medium text-slate-600">Admin:</span>
                         {campus.adminEmail ? (
-                          <strong className="text-purple-900 font-semibold">{campus.adminEmail}</strong>
+                          <span className="font-semibold text-[11px] text-purple-900 truncate">
+                            {campus.adminEmail}
+                          </span>
                         ) : (
-                          <span className="text-slate-400 italic">No admin assigned</span>
+                          <span className="italic text-[11px] text-slate-400">No admin assigned</span>
                         )}
                       </div>
 
@@ -764,235 +729,225 @@ export default function AdminCampusesPage() {
                             setAssignAdminCampus(campus);
                             setAssignAdminEmail(campus.adminEmail || "");
                           }}
-                          className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-1 hover:underline ml-2 shrink-0"
+                          className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-0.5 ml-2 shrink-0"
                         >
                           <Edit2 className="h-3 w-3" />
-                          {campus.adminEmail ? "Reassign" : "Assign Admin"}
+                          {campus.adminEmail ? "Reassign" : "Assign"}
                         </button>
                       )}
                     </div>
-
-                    {/* Campus Sub-Metrics */}
-                    <div className="flex items-center gap-3 pt-2 text-[11px] text-slate-500">
-                      <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-slate-200/60 font-medium">
-                        <Briefcase className="h-3 w-3 text-blue-500" />
-                        <span><strong>{campus.companies.length}</strong> Operating Companies</span>
-                      </div>
-                      <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-slate-200/60 font-medium">
-                        <Users className="h-3 w-3 text-emerald-600" />
-                        <span><strong>{campus.employeeCount || 0}</strong> Commuters</span>
-                      </div>
-                    </div>
                   </CardHeader>
 
-                  {/* Operating Companies Section */}
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                        <Building className="h-3.5 w-3.5 text-slate-400" />
-                        Operating Companies ({campus.companies.length})
-                      </span>
-                    </div>
+                  {/* Campus Summary Pills */}
+                  <div className="px-3.5 py-1.5 bg-slate-50/40 border-b border-slate-100 flex items-center gap-2 text-[11px] text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <Briefcase className="h-3 w-3 text-purple-600" />
+                      <strong>{campus.companies.length}</strong> Operating Companies
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Users className="h-3 w-3 text-emerald-600" />
+                      <strong>{campus.employeeCount || 0}</strong> Commuters
+                    </span>
+                  </div>
 
-                    {/* Active Companies Tags */}
-                    <div className="flex flex-wrap gap-2 min-h-[48px] p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                      {campus.companies.length === 0 ? (
-                        <span className="text-xs text-slate-400 italic py-1">No companies added yet. Add below.</span>
-                      ) : (
-                        campus.companies.map((company) => (
-                          <div
-                            key={company}
-                            className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs text-xs font-semibold text-slate-800 animate-in fade-in-50"
+                  {/* Companies Section */}
+                  <CardContent className="p-3 space-y-2.5">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                        Operating Companies ({campus.companies.length})
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {campus.companies.map((comp) => (
+                          <span
+                            key={comp}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200"
                           >
-                            <span>{company}</span>
+                            {comp}
                             {isSuperAdmin && (
                               <button
-                                onClick={() => handleRemoveCompany(campus.campusId, company)}
-                                disabled={companyActionLoadingId === `${campus.campusId}-remove-${company}`}
-                                className="text-slate-400 hover:text-rose-600 transition-colors p-0.5 rounded-full hover:bg-slate-100"
-                                title={`Remove ${company}`}
+                                onClick={() => handleRemoveCompany(campus.campusId, comp)}
+                                className="text-slate-400 hover:text-rose-600 ml-0.5"
+                                title="Remove company"
                               >
                                 <X className="h-3 w-3" />
                               </button>
                             )}
-                          </div>
-                        ))
-                      )}
+                          </span>
+                        ))}
+                      </div>
                     </div>
 
-                    {/* Pending Approval Companies inside this Campus */}
+                    {/* Pending Requests for this campus */}
                     {campus.pendingCompanies && campus.pendingCompanies.length > 0 && (
-                      <div className="space-y-1.5 pt-1">
-                        <span className="text-[11px] font-bold text-amber-800 flex items-center gap-1">
-                          <Clock className="h-3 w-3 text-amber-600" /> Pending Super Admin Approval:
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {campus.pendingCompanies.map((p) => (
-                            <div
-                              key={p.name}
-                              className="flex items-center gap-1.5 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-xs text-amber-900 font-medium"
-                            >
-                              <span>{p.name}</span>
-                              {isSuperAdmin && (
-                                <button
-                                  onClick={() => handleApproveCompany(campus.campusId, p.name)}
-                                  className="text-emerald-700 hover:text-emerald-900 font-bold ml-1"
-                                  title="Approve"
-                                >
-                                  ✓
-                                </button>
-                              )}
-                            </div>
-                          ))}
+                      <div className="p-2 bg-amber-50/80 rounded border border-amber-200/70 space-y-1 text-xs">
+                        <div className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> Awaiting Super Admin Approval
                         </div>
+                        {campus.pendingCompanies.map((pending) => (
+                          <div
+                            key={pending.name}
+                            className="flex items-center justify-between gap-1 text-[11px] text-slate-700 bg-white px-2 py-1 rounded border border-amber-200"
+                          >
+                            <span className="font-semibold">{pending.name}</span>
+                            {isSuperAdmin ? (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleApproveCompany(campus.campusId, pending.name)}
+                                  className="px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[10px] font-bold"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleRejectCompany(campus.campusId, pending.name)}
+                                  className="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-amber-700 font-medium">Pending...</span>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
-
-                    {/* Add / Request Company Input */}
-                    <div className="flex items-center gap-2 pt-1">
-                      <Input
-                        placeholder={
-                          isSuperAdmin
-                            ? `Add company to ${campus.name}...`
-                            : `Request company addition for ${campus.name}...`
-                        }
-                        value={companyInputs[campus.campusId] || ""}
-                        onChange={(e) =>
-                          setCompanyInputs((prev) => ({ ...prev, [campus.campusId]: e.target.value }))
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleCompanySubmit(campus.campusId);
-                          }
-                        }}
-                        className="h-8 text-xs rounded-lg"
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => handleCompanySubmit(campus.campusId)}
-                        disabled={
-                          !companyInputs[campus.campusId]?.trim() ||
-                          companyActionLoadingId === `${campus.campusId}-add`
-                        }
-                        className="h-8 px-3 text-xs bg-slate-900 hover:bg-slate-800 text-white shrink-0 rounded-lg gap-1 font-semibold"
-                      >
-                        {companyActionLoadingId === `${campus.campusId}-add` ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Plus className="h-3.5 w-3.5" />
-                        )}
-                        {isSuperAdmin ? "Add Company" : "Request Company"}
-                      </Button>
-                    </div>
                   </CardContent>
                 </div>
 
-                {/* Footer: View Campus Employees Link */}
-                <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Campus Code: <strong className="font-mono text-slate-700">{campus.campusId}</strong></span>
-                  <Link
-                    href={`/admin/employees?campus=${campus.campusId}`}
-                    className="font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-1 transition-colors"
+                {/* Inline Add / Request Company Footer */}
+                <div className="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center gap-1.5">
+                  <Input
+                    placeholder={isSuperAdmin ? "Add operating company name..." : "Request operating company name..."}
+                    value={companyInputs[campus.campusId] || ""}
+                    onChange={(e) =>
+                      setCompanyInputs((prev) => ({ ...prev, [campus.campusId]: e.target.value }))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddOrRequestCompany(campus.campusId);
+                      }
+                    }}
+                    className="h-7 text-xs bg-white rounded"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => handleAddOrRequestCompany(campus.campusId)}
+                    disabled={
+                      !(companyInputs[campus.campusId] || "").trim() ||
+                      companyActionLoadingId === `${campus.campusId}-add`
+                    }
+                    className="h-7 px-2.5 text-xs bg-purple-600 hover:bg-purple-700 text-white shrink-0 font-semibold gap-1 rounded"
                   >
-                    View Employees <ChevronRight className="h-3.5 w-3.5" />
-                  </Link>
+                    {companyActionLoadingId === `${campus.campusId}-add` ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Plus className="h-3 w-3" />
+                    )}
+                    {isSuperAdmin ? "Add" : "Request"}
+                  </Button>
                 </div>
               </Card>
             ))}
-
-            {filteredCampuses.length === 0 && (
-              <div className="col-span-full py-16 text-center bg-white rounded-xl border border-slate-200 shadow-xs">
-                <Building2 className="mx-auto h-10 w-10 text-slate-300" />
-                <h3 className="mt-3 text-sm font-bold text-slate-800">No campuses matched your search</h3>
-                <p className="mt-1 text-xs text-slate-500">Try refining your search terms or add a new campus above.</p>
-              </div>
-            )}
           </div>
-        </>
+        </div>
       )}
 
-      {/* VIEW 2: CAMPUS ADMINISTRATORS DIRECTORY (Super Admin Only) */}
-      {isSuperAdmin && activeTab === "admins" && (
-        <Card className="border-slate-200 bg-white shadow-sm overflow-hidden animate-in fade-in-50">
-          <CardHeader className="bg-slate-50/70 border-b border-slate-100 pb-3">
-            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-purple-600" />
-              Campus Administrators Governance Directory
-            </CardTitle>
-            <p className="text-xs text-slate-500">
-              Manage, reassign, or revoke designated administrators for every physical campus in the system.
-            </p>
+      {/* VIEW 2: CAMPUS ADMINS DIRECTORY */}
+      {activeTab === "admins" && isSuperAdmin && (
+        <Card className="border-slate-200 bg-white shadow-xs overflow-hidden">
+          <CardHeader className="py-2.5 px-3.5 bg-slate-50/70 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-purple-600" />
+                  Campus Administrators Governance Directory
+                </CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Designate individual administrators for each campus.
+                </p>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] uppercase tracking-wider text-slate-500">
-                    <th className="py-3 px-4 font-semibold">Campus Code</th>
-                    <th className="py-3 px-4 font-semibold">Campus Name</th>
-                    <th className="py-3 px-4 font-semibold">Location</th>
-                    <th className="py-3 px-4 font-semibold">Designated Admin (Email)</th>
-                    <th className="py-3 px-4 font-semibold">Allocation Status</th>
-                    <th className="py-3 px-4 font-semibold text-right">Admin Actions</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Campus Code</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Campus Name</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Location</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Allocated Campus Admin</th>
+                    <th className="py-2.5 px-3.5 font-semibold">Status</th>
+                    <th className="py-2.5 px-3.5 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {campuses.map((c) => (
-                    <tr key={c._id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3 px-4">
-                        <span className="font-mono text-xs font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                          {c.campusId}
-                        </span>
+                  {campuses.map((campus) => (
+                    <tr key={campus.campusId} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-2.5 px-3.5 font-mono font-bold text-purple-700">
+                        {campus.campusId}
                       </td>
-                      <td className="py-3 px-4 font-bold text-slate-900 text-xs">
-                        {c.name}
+                      <td className="py-2.5 px-3.5 font-semibold text-slate-900">
+                        {campus.name}
                       </td>
-                      <td className="py-3 px-4 text-xs text-slate-600">
-                        {c.city}, {c.state}
+                      <td className="py-2.5 px-3.5 text-slate-500">
+                        {campus.city}, {campus.state}
                       </td>
-                      <td className="py-3 px-4">
-                        {c.adminEmail ? (
-                          <div className="flex items-center gap-1.5">
-                            <Mail className="h-3.5 w-3.5 text-purple-600 shrink-0" />
-                            <span className="font-semibold text-xs text-purple-950">{c.adminEmail}</span>
+                      <td className="py-2.5 px-3.5">
+                        {campus.adminEmail ? (
+                          <div className="flex items-center gap-1.5 text-slate-900 font-medium">
+                            <Mail className="h-3 w-3 text-purple-600" />
+                            <span>{campus.adminEmail}</span>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-400 italic">No Admin Designated</span>
+                          <span className="italic text-slate-400">Not Assigned</span>
                         )}
                       </td>
-                      <td className="py-3 px-4">
-                        {c.adminEmail ? (
-                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold">
-                            ✓ Assigned
+                      <td className="py-2.5 px-3.5">
+                        {campus.adminEmail ? (
+                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0 px-1.5">
+                            Active Admin
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-300 text-[10px] font-semibold">
-                            ⚠️ Unassigned
+                          <Badge variant="outline" className="text-amber-700 border-amber-200 text-[10px] py-0 px-1.5">
+                            Pending Assignment
                           </Badge>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-2.5 px-3.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              setAssignAdminCampus(c);
-                              setAssignAdminEmail(c.adminEmail || "");
+                              setAssignAdminCampus(campus);
+                              setAssignAdminEmail(campus.adminEmail || "");
                             }}
-                            className="h-7 px-2 text-xs text-purple-700 border-purple-200 hover:bg-purple-50 gap-1 font-semibold"
+                            className="h-6.5 text-[11px] px-2 border-purple-200 text-purple-700 hover:bg-purple-50 gap-1 rounded"
                           >
                             <Edit2 className="h-3 w-3" />
-                            {c.adminEmail ? "Reassign" : "Assign Admin"}
+                            {campus.adminEmail ? "Reassign" : "Assign"}
                           </Button>
-                          {c.adminEmail && (
+                          {campus.adminEmail && (
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleRevokeAdmin(c.campusId, c.name)}
-                              className="h-7 px-2 text-xs text-rose-700 border-rose-200 hover:bg-rose-50 gap-1"
-                              title="Revoke Admin Access"
+                              onClick={async () => {
+                                if (!confirm(`Revoke campus admin privileges for ${campus.name}?`)) return;
+                                try {
+                                  await fetch(`/api/admin/campuses/${campus.campusId}`, {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ action: "assign_admin", adminEmail: "" }),
+                                  });
+                                  await fetchCampuses();
+                                } catch (e) {
+                                  console.error("Revoke error:", e);
+                                }
+                              }}
+                              className="h-6.5 text-[11px] px-2 border-rose-200 text-rose-700 hover:bg-rose-50 gap-1 rounded"
                             >
                               <UserX className="h-3 w-3" />
                               Revoke
@@ -1009,149 +964,118 @@ export default function AdminCampusesPage() {
         </Card>
       )}
 
-      {/* SUPER ADMIN: ADD NEW CAMPUS MODAL */}
+      {/* MODAL: ADD NEW CAMPUS (Super Admin) */}
       {isAddCampusOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in-50">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-purple-50/50">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-purple-600" /> Add Physical Campus
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Create a physical campus, allocate a Campus Admin email, and set operating companies
-                </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in-50">
+          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-purple-600" />
+                <h2 className="text-base font-bold text-slate-900">Add New Campus</h2>
               </div>
               <button
                 onClick={() => setIsAddCampusOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="text-slate-400 hover:text-slate-600 rounded-md p-1"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateCampus} className="p-5 space-y-3.5">
+            <form onSubmit={handleCreateCampus} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="campusId" className="text-xs font-semibold text-slate-700">
-                    Campus ID (Format: CAMP001)
-                  </Label>
+                  <Label className="text-xs font-semibold text-slate-700">Campus Code</Label>
                   <Input
-                    id="campusId"
+                    required
                     value={newCampus.campusId}
                     onChange={(e) => setNewCampus({ ...newCampus, campusId: e.target.value.toUpperCase() })}
                     placeholder="e.g. CAMP004"
-                    className="h-8.5 font-mono uppercase text-xs"
-                    required
+                    className="font-mono uppercase h-8 text-xs"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="name" className="text-xs font-semibold text-slate-700">
-                    Campus Name
-                  </Label>
+                  <Label className="text-xs font-semibold text-slate-700">Campus Name</Label>
                   <Input
-                    id="name"
+                    required
                     value={newCampus.name}
                     onChange={(e) => setNewCampus({ ...newCampus, name: e.target.value })}
-                    placeholder="e.g. DLF Cyber City"
-                    className="h-8.5 text-xs"
-                    required
+                    placeholder="e.g. Silicon Oasis"
+                    className="h-8 text-xs"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-slate-700">Street Address</Label>
+                <Input
+                  value={newCampus.address}
+                  onChange={(e) => setNewCampus({ ...newCampus, address: e.target.value })}
+                  placeholder="e.g. Plot 12, Phase 3, Electronic City"
+                  className="h-8 text-xs"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="city" className="text-xs font-semibold text-slate-700">
-                    City
-                  </Label>
+                  <Label className="text-xs font-semibold text-slate-700">City</Label>
                   <Input
-                    id="city"
+                    required
                     value={newCampus.city}
                     onChange={(e) => setNewCampus({ ...newCampus, city: e.target.value })}
-                    placeholder="e.g. Gurgaon"
-                    className="h-8.5 text-xs"
-                    required
+                    placeholder="e.g. Bangalore"
+                    className="h-8 text-xs"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="state" className="text-xs font-semibold text-slate-700">
-                    State
-                  </Label>
+                  <Label className="text-xs font-semibold text-slate-700">State</Label>
                   <Input
-                    id="state"
+                    required
                     value={newCampus.state}
                     onChange={(e) => setNewCampus({ ...newCampus, state: e.target.value })}
-                    placeholder="e.g. Haryana"
-                    className="h-8.5 text-xs"
-                    required
+                    placeholder="e.g. Karnataka"
+                    className="h-8 text-xs"
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="address" className="text-xs font-semibold text-slate-700">
-                  Address / Landmark
-                </Label>
+                <Label className="text-xs font-semibold text-slate-700">Campus Admin Email</Label>
                 <Input
-                  id="address"
-                  value={newCampus.address}
-                  onChange={(e) => setNewCampus({ ...newCampus, address: e.target.value })}
-                  placeholder="e.g. Sector 24, DLF Phase 2"
-                  className="h-8.5 text-xs"
-                />
-              </div>
-
-              {/* Campus Admin Email Allocation */}
-              <div className="space-y-1 bg-purple-50/60 p-2.5 rounded-xl border border-purple-100">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="adminEmail" className="text-xs font-semibold text-purple-900 flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 text-purple-600" />
-                    Designate Campus Admin (Email)
-                  </Label>
-                  <span className="text-[10px] text-purple-700 font-medium">Auto-upgrades on login</span>
-                </div>
-                <Input
-                  id="adminEmail"
                   type="email"
                   value={newCampus.adminEmail}
                   onChange={(e) => setNewCampus({ ...newCampus, adminEmail: e.target.value })}
-                  placeholder="e.g. manager.chennai@techpark.com"
-                  className="h-8.5 text-xs bg-white"
+                  placeholder="e.g. campusadmin@company.com"
+                  className="h-8 text-xs"
                 />
-                <span className="text-[10px] text-slate-500 block">
-                  This person will receive admin privileges scoped to manage this campus and its commuters.
-                </span>
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="companiesInput" className="text-xs font-semibold text-slate-700">
-                  Initial Operating Companies (Comma separated)
-                </Label>
+                <Label className="text-xs font-semibold text-slate-700">Operating Companies (Comma-separated)</Label>
                 <Input
-                  id="companiesInput"
                   value={newCampus.companiesInput}
                   onChange={(e) => setNewCampus({ ...newCampus, companiesInput: e.target.value })}
-                  placeholder="e.g. IBM, Cognizant, Dell Technologies"
-                  className="h-8.5 text-xs"
+                  placeholder="e.g. ABC Technologies, TCS, Infosys"
+                  className="h-8 text-xs"
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <Button
                   type="button"
                   variant="outline"
+                  size="sm"
                   onClick={() => setIsAddCampusOpen(false)}
-                  className="h-8.5 text-xs"
+                  className="h-8 text-xs"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmittingCampus}
-                  className="h-8.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5"
+                  size="sm"
+                  className="h-8 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5"
                 >
                   {isSubmittingCampus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                   Create Campus
@@ -1162,62 +1086,58 @@ export default function AdminCampusesPage() {
         </div>
       )}
 
-      {/* SUPER ADMIN: ASSIGN / REASSIGN CAMPUS ADMIN MODAL */}
+      {/* MODAL: ASSIGN CAMPUS ADMIN (Super Admin) */}
       {assignAdminCampus && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in-50">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-purple-50/50">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-purple-600" /> Allocate Campus Admin
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Assign or change the administrator for <strong>{assignAdminCampus.name}</strong> ({assignAdminCampus.campusId})
-                </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in-50">
+          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-purple-600" />
+                <h2 className="text-base font-bold text-slate-900">Assign Campus Administrator</h2>
               </div>
               <button
                 onClick={() => setAssignAdminCampus(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="text-slate-400 hover:text-slate-600 rounded-md p-1"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleAssignAdmin} className="p-5 space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="assignEmail" className="text-xs font-semibold text-slate-700">
-                  Campus Admin Email
-                </Label>
+            <div className="p-2.5 bg-purple-50 rounded-lg border border-purple-100 text-xs text-purple-900">
+              Allocating campus admin for <strong>{assignAdminCampus.name}</strong> ({assignAdminCampus.campusId}).
+            </div>
+
+            <form onSubmit={handleAssignAdmin} className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-slate-700">Administrator Corporate Email</Label>
                 <Input
-                  id="assignEmail"
                   type="email"
+                  required
                   value={assignAdminEmail}
                   onChange={(e) => setAssignAdminEmail(e.target.value)}
-                  placeholder="e.g. manager.chennai@techpark.com"
-                  className="h-9 text-xs"
-                  required
+                  placeholder="e.g. admin.chennai@propark.corporate"
+                  className="h-8 text-xs"
                 />
-                <span className="text-[11px] text-slate-500 block">
-                  When this user logs in with this email, they will automatically manage {assignAdminCampus.name}.
-                </span>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <Button
                   type="button"
                   variant="outline"
+                  size="sm"
                   onClick={() => setAssignAdminCampus(null)}
-                  className="h-8.5 text-xs"
+                  className="h-8 text-xs"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmittingAdmin}
-                  className="h-8.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5"
+                  size="sm"
+                  className="h-8 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5"
                 >
                   {isSubmittingAdmin ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                  Save Admin Allocation
+                  Save Allocation
                 </Button>
               </div>
             </form>
