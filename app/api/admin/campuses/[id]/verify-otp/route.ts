@@ -37,11 +37,23 @@ export async function POST(
 
     await connectToDatabase();
 
-    const query = mongoose.Types.ObjectId.isValid(id)
-      ? { _id: id }
-      : { campusId: id.toUpperCase().trim() };
+    const idParam = decodeURIComponent(id || "").trim();
+    const isObjId = mongoose.Types.ObjectId.isValid(idParam) && idParam.length === 24;
 
-    const campus = await Campus.findOne(query);
+    const query = isObjId
+      ? { $or: [{ _id: new mongoose.Types.ObjectId(idParam) }, { campusId: new RegExp(`^${idParam}$`, "i") }] }
+      : { campusId: new RegExp(`^${idParam}$`, "i") };
+
+    let campus = await Campus.findOne(query);
+    if (!campus) {
+      campus = await Campus.findOne({
+        $or: [
+          { campusId: idParam.toUpperCase() },
+          { name: new RegExp(`^${idParam}$`, "i") },
+        ],
+      });
+    }
+
     if (!campus) {
       return NextResponse.json(
         { success: false, error: "Campus not found." },

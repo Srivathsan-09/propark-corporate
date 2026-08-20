@@ -28,11 +28,23 @@ export async function PATCH(
 
     await connectToDatabase();
 
-    const query = mongoose.Types.ObjectId.isValid(id)
-      ? { _id: id }
-      : { campusId: id.toUpperCase().trim() };
+    const idParam = decodeURIComponent(id || "").trim();
+    const isObjId = mongoose.Types.ObjectId.isValid(idParam) && idParam.length === 24;
 
-    const campus = await Campus.findOne(query);
+    const query = isObjId
+      ? { $or: [{ _id: new mongoose.Types.ObjectId(idParam) }, { campusId: new RegExp(`^${idParam}$`, "i") }] }
+      : { campusId: new RegExp(`^${idParam}$`, "i") };
+
+    let campus = await Campus.findOne(query);
+    if (!campus) {
+      campus = await Campus.findOne({
+        $or: [
+          { campusId: idParam.toUpperCase() },
+          { name: new RegExp(`^${idParam}$`, "i") },
+        ],
+      });
+    }
+
     if (!campus) {
       return NextResponse.json(
         { success: false, error: "Campus not found." },
@@ -290,24 +302,46 @@ export async function DELETE(
     const { id } = params;
     await connectToDatabase();
 
-    const query = mongoose.Types.ObjectId.isValid(id)
-      ? { _id: id }
-      : { campusId: id.toUpperCase().trim() };
+    const idParam = decodeURIComponent(id || "").trim();
+    const isObjId = mongoose.Types.ObjectId.isValid(idParam) && idParam.length === 24;
 
-    const deleted = await Campus.findOneAndDelete(query);
+    const query = isObjId
+      ? { $or: [{ _id: new mongoose.Types.ObjectId(idParam) }, { campusId: new RegExp(`^${idParam}$`, "i") }] }
+      : { campusId: new RegExp(`^${idParam}$`, "i") };
+
+    let deleted = await Campus.findOneAndDelete(query);
+    if (!deleted) {
+      // Also try direct campusId match or name match
+      deleted = await Campus.findOneAndDelete({
+        $or: [
+          { campusId: idParam.toUpperCase() },
+          { name: new RegExp(`^${idParam}$`, "i") },
+        ],
+      });
+    }
+
     if (!deleted) {
       return NextResponse.json(
-        { success: false, error: "Campus not found for deletion." },
+        { success: false, error: `Campus "${idParam}" not found for deletion.` },
         { status: 404 }
       );
     }
 
+    const targetCampusId = deleted.campusId;
+
     // Delete all companies associated with this campus
-    await Company.deleteMany({ campusId: deleted.campusId });
+    await Company.deleteMany({ campusId: new RegExp(`^${targetCampusId}$`, "i") });
+
+    // Unlink users from this deleted campus
+    await User.updateMany(
+      { campusId: new RegExp(`^${targetCampusId}$`, "i") },
+      { $set: { campusId: "", campusName: "", role: "employee" } }
+    );
 
     return NextResponse.json({
       success: true,
       message: `Campus "${deleted.name}" (${deleted.campusId}) deleted successfully.`,
+      campusId: deleted.campusId,
     });
   } catch (error: unknown) {
     console.error("Admin Campus DELETE error:", error);
