@@ -292,7 +292,25 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user || session.user.role !== "admin") {
+    // Primary auth check from session
+    let userRole: string | undefined = session?.user?.role;
+    let userEmail: string | undefined = session?.user?.email || undefined;
+
+    // Fallback: if session role isn't "admin", re-check directly from DB
+    if (userRole !== "admin" && userEmail) {
+      try {
+        await connectToDatabase();
+        const dbUser = await User.findOne({ email: userEmail.toLowerCase().trim() }).select("role");
+        if (dbUser) {
+          userRole = dbUser.role;
+        }
+      } catch (dbErr) {
+        console.error("DELETE fallback DB role check failed:", dbErr);
+      }
+    }
+
+    if (!userRole || userRole !== "admin") {
+      console.warn(`DELETE campus blocked — role="${userRole}" email="${userEmail}"`);
       return NextResponse.json(
         { success: false, error: "Only Super Administrators can delete campuses." },
         { status: 403 }
@@ -303,6 +321,8 @@ export async function DELETE(
     await connectToDatabase();
 
     const idParam = decodeURIComponent(id || "").trim();
+    console.log(`DELETE campus requested for id="${idParam}" by "${userEmail}"`);
+
     const isObjId = mongoose.Types.ObjectId.isValid(idParam) && idParam.length === 24;
 
     const query = isObjId
@@ -311,7 +331,7 @@ export async function DELETE(
 
     let deleted = await Campus.findOneAndDelete(query);
     if (!deleted) {
-      // Also try direct campusId match or name match
+      // Also try direct exact match
       deleted = await Campus.findOneAndDelete({
         $or: [
           { campusId: idParam.toUpperCase() },
@@ -321,16 +341,20 @@ export async function DELETE(
     }
 
     if (!deleted) {
+      console.warn(`DELETE campus: campus "${idParam}" not found in DB`);
       return NextResponse.json(
         { success: false, error: `Campus "${idParam}" not found for deletion.` },
         { status: 404 }
       );
     }
 
+    console.log(`DELETE campus: successfully deleted "${deleted.name}" (${deleted.campusId})`);
+
     const targetCampusId = deleted.campusId;
 
     // Delete all companies associated with this campus
-    await Company.deleteMany({ campusId: new RegExp(`^${targetCampusId}$`, "i") });
+    const companyDel = await Company.deleteMany({ campusId: new RegExp(`^${targetCampusId}$`, "i") });
+    console.log(`DELETE campus: removed ${companyDel.deletedCount} companies for campus ${targetCampusId}`);
 
     // Unlink users from this deleted campus
     await User.updateMany(

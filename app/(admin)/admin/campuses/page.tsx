@@ -457,17 +457,18 @@ export default function AdminCampusesPage() {
           });
 
           const data = await res.json();
+          console.log(`DELETE campus [${res.status}]:`, data);
 
-          if (res.ok) {
+          if (res.ok && data.success) {
             setCampuses((prev) => prev.filter((c) => c.campusId !== campusId && c._id !== campusId));
             setSuccessMessage(data.message || `Campus "${campusName}" deleted successfully.`);
             await fetchCampuses();
           } else {
-            setErrorMessage(data.error || "Failed to delete campus.");
+            setErrorMessage(`Error ${res.status}: ${data.error || "Failed to delete campus."}`);
           }
         } catch (err) {
           console.error("Error deleting campus:", err);
-          setErrorMessage("Failed to delete campus.");
+          setErrorMessage("Network error — failed to delete campus.");
         }
       },
     });
