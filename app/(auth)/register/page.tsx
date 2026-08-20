@@ -315,7 +315,7 @@ export default function RegisterPage() {
                   id="campusId"
                   name="campusId"
                   type="text"
-                  placeholder="CAMP-ABC-001"
+                  placeholder="e.g. CAMP001"
                   value={formData.campusId}
                   onChange={handleChange}
                   disabled={isLoading || isGoogleLoading}
@@ -341,7 +341,7 @@ export default function RegisterPage() {
                   id="employeeId"
                   name="employeeId"
                   type="text"
-                  placeholder="EMP-9042"
+                  placeholder="e.g. EMP-001"
                   value={formData.employeeId}
                   onChange={handleChange}
                   disabled={isLoading || isGoogleLoading}

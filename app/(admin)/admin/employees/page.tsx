@@ -232,8 +232,8 @@ export default function AdminEmployeesPage() {
                         <div className="font-semibold text-slate-900">{emp.companyName || "ABC Technologies"}</div>
                         <div className="text-emerald-700 font-medium text-[11px] flex items-center gap-1">
                           <span>{emp.campusName || "Tech Park Chennai"}</span>
-                          {emp.campusCompanyId && (
-                            <span className="font-mono text-[10px] text-slate-400">({emp.campusCompanyId})</span>
+                          {emp.campusId && (
+                            <span className="font-mono text-[10px] text-slate-400">({emp.campusId})</span>
                           )}
                         </div>
                         <div className="text-slate-500 text-[10px]">{emp.department}</div>

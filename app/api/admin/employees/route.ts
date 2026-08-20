@@ -20,10 +20,10 @@ export async function GET() {
 
     await connectToDatabase();
 
-    // Fetch all registered employees
+    // Fetch all registered employees sorted in ascending order (EMP-001, EMP-002...)
     const employees = await User.find()
       .select("-passwordHash")
-      .sort({ createdAt: -1 })
+      .sort({ employeeId: 1, createdAt: 1 })
       .lean();
 
     // Fetch vehicle counts per user

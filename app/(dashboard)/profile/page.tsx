@@ -298,7 +298,7 @@ export default function ProfilePage() {
                     <span>{profile?.campusName || "Tech Park Chennai"}</span>
                   </div>
                   <div className="font-mono text-[11px] text-slate-500 pl-5">
-                    Campus ID: <strong className="text-emerald-700">{profile?.campusCompanyId || "CAMP-ABC-001"}</strong>
+                    Campus ID: <strong className="text-emerald-700">{profile?.campusId || "CAMP001"}</strong>
                   </div>
                 </div>
               </div>

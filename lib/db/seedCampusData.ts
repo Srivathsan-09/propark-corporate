@@ -1,30 +1,29 @@
 import mongoose from "mongoose";
 import Campus from "@/models/Campus";
-import CampusCompany from "@/models/CampusCompany";
+import User from "@/models/User";
 
 export async function ensureCampusMasterData() {
   try {
-    // Drop standalone 'companies' collection if it exists in Atlas to keep only 2 collections
+    // Drop redundant collections if they exist in Atlas
     if (mongoose.connection.db) {
       try {
-        const collections = await mongoose.connection.db.listCollections({ name: "companies" }).toArray();
-        if (collections.length > 0) {
+        const collections = await mongoose.connection.db.listCollections().toArray();
+        const colNames = collections.map((c) => c.name);
+
+        if (colNames.includes("campuscompanies")) {
+          await mongoose.connection.db.dropCollection("campuscompanies");
+          console.log("🧹 [Cleanup] Dropped legacy 'campuscompanies' collection.");
+        }
+        if (colNames.includes("companies")) {
           await mongoose.connection.db.dropCollection("companies");
-          console.log("🧹 [Cleanup] Removed redundant 'companies' collection from Atlas.");
+          console.log("🧹 [Cleanup] Dropped legacy 'companies' collection.");
         }
       } catch (dropErr) {
         // Non-fatal if already dropped
       }
     }
 
-    const campusCount = await Campus.countDocuments();
-    if (campusCount > 0) {
-      return; // Already initialized
-    }
-
-    console.log("🌱 [Seed] Populating Master Campuses and Campus Companies in MongoDB Atlas...");
-
-    // 1. Master Physical Campuses
+    // 1. Seed Master Physical Campuses with their operating companies
     const campusesData = [
       {
         campusId: "CAMP001",
@@ -32,6 +31,13 @@ export async function ensureCampusMasterData() {
         address: "OMR IT Expressway, Sholinganallur",
         city: "Chennai",
         state: "Tamil Nadu",
+        companies: [
+          "ABC Technologies",
+          "XYZ Solutions",
+          "LML Private Ltd",
+          "Tech Mahindra",
+          "Infosys",
+        ],
         status: "active" as const,
       },
       {
@@ -40,6 +46,12 @@ export async function ensureCampusMasterData() {
         address: "EPIP Zone, Whitefield",
         city: "Bangalore",
         state: "Karnataka",
+        companies: [
+          "ABC Technologies",
+          "TCS",
+          "Infosys",
+          "Wipro",
+        ],
         status: "active" as const,
       },
       {
@@ -48,6 +60,11 @@ export async function ensureCampusMasterData() {
         address: "Hitec City, Madhapur",
         city: "Hyderabad",
         state: "Telangana",
+        companies: [
+          "ABC Technologies",
+          "Microsoft",
+          "Google India",
+        ],
         status: "active" as const,
       },
     ];
@@ -60,120 +77,25 @@ export async function ensureCampusMasterData() {
       );
     }
 
-    // 3. Campus-Company Memberships (The Unique Campus IDs)
-    const campusCompaniesData = [
-      // CAMPUS 1 (Tech Park Chennai)
-      {
-        campusCompanyId: "CAMP-ABC-001",
-        campusId: "CAMP001",
-        companyId: "COMP001",
-        companyName: "ABC Technologies",
-        campusName: "Tech Park Chennai",
-        status: "active" as const,
-      },
-      {
-        campusCompanyId: "CAMP-XYZ-001",
-        campusId: "CAMP001",
-        companyId: "COMP002",
-        companyName: "XYZ Solutions",
-        campusName: "Tech Park Chennai",
-        status: "active" as const,
-      },
-      {
-        campusCompanyId: "CAMP-LML-001",
-        campusId: "CAMP001",
-        companyId: "COMP003",
-        companyName: "LML Private Ltd",
-        campusName: "Tech Park Chennai",
-        status: "active" as const,
-      },
-      {
-        campusCompanyId: "CAMP-TM-001",
-        campusId: "CAMP001",
-        companyId: "COMP004",
-        companyName: "Tech Mahindra",
-        campusName: "Tech Park Chennai",
-        status: "active" as const,
-      },
-      {
-        campusCompanyId: "CAMP-INF-002",
-        campusId: "CAMP001",
-        companyId: "COMP005",
-        companyName: "Infosys",
-        campusName: "Tech Park Chennai",
-        status: "active" as const,
-      },
+    // 2. Ensure existing employee accounts follow ascending EMP-001, EMP-002... format
+    try {
+      const nonAdminUsers = await User.find({ role: { $ne: "admin" } })
+        .sort({ createdAt: 1 })
+        .select("_id employeeId");
 
-      // CAMPUS 2 (Business Hub Bangalore)
-      {
-        campusCompanyId: "CAMP-ABC-002",
-        campusId: "CAMP002",
-        companyId: "COMP001",
-        companyName: "ABC Technologies",
-        campusName: "Business Hub Bangalore",
-        status: "active" as const,
-      },
-      {
-        campusCompanyId: "CAMP-TCS-001",
-        campusId: "CAMP002",
-        companyId: "COMP006",
-        companyName: "TCS",
-        campusName: "Business Hub Bangalore",
-        status: "active" as const,
-      },
-      {
-        campusCompanyId: "CAMP-INF-001",
-        campusId: "CAMP002",
-        companyId: "COMP005",
-        companyName: "Infosys",
-        campusName: "Business Hub Bangalore",
-        status: "active" as const,
-      },
-      {
-        campusCompanyId: "CAMP-WIP-001",
-        campusId: "CAMP002",
-        companyId: "COMP007",
-        companyName: "Wipro",
-        campusName: "Business Hub Bangalore",
-        status: "active" as const,
-      },
-
-      // CAMPUS 3 (Cyber City Hyderabad)
-      {
-        campusCompanyId: "CAMP-ABC-003",
-        campusId: "CAMP003",
-        companyId: "COMP001",
-        companyName: "ABC Technologies",
-        campusName: "Cyber City Hyderabad",
-        status: "active" as const,
-      },
-      {
-        campusCompanyId: "CAMP-MSFT-001",
-        campusId: "CAMP003",
-        companyId: "COMP008",
-        companyName: "Microsoft",
-        campusName: "Cyber City Hyderabad",
-        status: "active" as const,
-      },
-      {
-        campusCompanyId: "CAMP-GOOG-001",
-        campusId: "CAMP003",
-        companyId: "COMP009",
-        companyName: "Google India",
-        campusName: "Cyber City Hyderabad",
-        status: "active" as const,
-      },
-    ];
-
-    for (const cc of campusCompaniesData) {
-      await CampusCompany.updateOne(
-        { campusCompanyId: cc.campusCompanyId },
-        { $set: cc },
-        { upsert: true }
-      );
+      let index = 1;
+      for (const u of nonAdminUsers) {
+        const formattedId = `EMP-${String(index).padStart(3, "0")}`;
+        if (u.employeeId !== formattedId && (!u.employeeId || u.employeeId.startsWith("EMP-") || u.employeeId.startsWith("EMP"))) {
+          await User.updateOne({ _id: u._id }, { $set: { employeeId: formattedId } });
+        }
+        index++;
+      }
+    } catch (empErr) {
+      console.error("Employee ID formatting sync error:", empErr);
     }
 
-    console.log("✅ [Seed] Master Campuses, Companies, and Campus IDs seeded successfully.");
+    console.log("✅ [Seed] Master Campuses & Companies initialized successfully.");
   } catch (error) {
     console.error("⚠️ [Seed] Error initializing campus master data:", error);
   }

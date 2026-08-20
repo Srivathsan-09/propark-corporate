@@ -86,9 +86,9 @@ export const authOptions: NextAuthOptions = {
           const isAdminUser = ADMIN_EMAILS.includes(normalizedEmail);
 
           if (!dbUser) {
-            // Generate a unique Company ID for first-time Google sign-ins
-            const randomCode = Math.floor(1000 + Math.random() * 9000);
-            const employeeId = isAdminUser ? "ADM-VATHSAN" : `EMP-G${randomCode}`;
+            // Generate sequential Employee ID in ascending order: EMP-001, EMP-002...
+            const { getNextEmployeeId } = await import("@/lib/db/employeeSequence");
+            const employeeId = isAdminUser ? "ADM-VATHSAN" : await getNextEmployeeId();
 
             dbUser = await User.create({
               name: isAdminUser ? "Vathsan" : user.name || "Corporate Employee",
@@ -96,9 +96,7 @@ export const authOptions: NextAuthOptions = {
               employeeId,
               department: isAdminUser ? "Executive Management" : "Engineering",
               companyName: "ABC Technologies",
-              campusCompanyId: "CAMP-ABC-001",
               campusId: "CAMP001",
-              companyId: "COMP001",
               campusName: "Tech Park Chennai",
               phone: "",
               role: isAdminUser ? "admin" : "employee",

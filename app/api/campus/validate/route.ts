@@ -1,6 +1,5 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db/mongodb";
-import CampusCompany from "@/models/CampusCompany";
 import Campus from "@/models/Campus";
 
 export const dynamic = "force-dynamic";
@@ -13,19 +12,17 @@ export async function GET(req: NextRequest) {
     await connectToDatabase();
 
     if (!campusId) {
-      // Return all active campuses and company memberships for reference
+      // Return all active campuses with their companies
       const campuses = await Campus.find({ status: "active" }).lean();
-      const campusCompanies = await CampusCompany.find({ status: "active" }).lean();
       return NextResponse.json({
         success: true,
         campuses,
-        campusCompanies,
       });
     }
 
     const normalized = campusId.toUpperCase().trim();
-    const match = await CampusCompany.findOne({
-      campusCompanyId: normalized,
+    const match = await Campus.findOne({
+      campusId: normalized,
       status: "active",
     }).lean();
 
@@ -34,7 +31,7 @@ export async function GET(req: NextRequest) {
         {
           success: false,
           valid: false,
-          error: `Campus ID "${normalized}" is not recognized in CommuteX.`,
+          error: `Campus ID "${normalized}" is not recognized in CommuteX. Available: CAMP001, CAMP002, CAMP003.`,
         },
         { status: 404 }
       );
@@ -43,7 +40,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       valid: true,
-      campusCompany: match,
+      campus: match,
     });
   } catch (error: unknown) {
     console.error("Campus validation error:", error);

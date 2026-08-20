@@ -1,4 +1,4 @@
-﻿import mongoose, { Document, Model, Schema } from "mongoose";
+import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface ICampus extends Document {
   _id: mongoose.Types.ObjectId;
@@ -7,6 +7,7 @@ export interface ICampus extends Document {
   address: string;
   city: string;
   state: string;
+  companies: string[];
   status: "active" | "inactive";
   createdAt: Date;
   updatedAt: Date;
@@ -43,6 +44,10 @@ const CampusSchema = new Schema<ICampus>(
       type: String,
       required: [true, "State is required"],
       trim: true,
+    },
+    companies: {
+      type: [String],
+      default: [],
     },
     status: {
       type: String,

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import User from "@/models/User";
 import { registerSchema } from "@/validations/auth.schema";
+import { formatEmployeeId } from "@/lib/db/employeeSequence";
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,40 +29,42 @@ export async function POST(req: NextRequest) {
     await connectToDatabase();
 
     const normalizedEmail = email.toLowerCase().trim();
-    const normalizedEmpId = employeeId.toUpperCase().trim();
-    const normalizedCampusCompanyId = campusId.toUpperCase().trim();
+    const normalizedCampusId = campusId.toUpperCase().trim();
+    const formattedEmpId = formatEmployeeId(employeeId);
 
-    // 3. Import Campus Models & Validate Campus ID & Company Membership
-    const CampusCompany = (await import("@/models/CampusCompany")).default;
-    const campusCompany = await CampusCompany.findOne({
-      campusCompanyId: normalizedCampusCompanyId,
+    // 3. Import Campus Model & Validate Campus ID & Company Membership
+    const Campus = (await import("@/models/Campus")).default;
+    const campus = await Campus.findOne({
+      campusId: normalizedCampusId,
       status: "active",
     });
 
-    if (!campusCompany) {
+    if (!campus) {
       return NextResponse.json(
         {
           success: false,
-          error: `Invalid Campus ID "${normalizedCampusCompanyId}". Please verify and enter a valid registered CommuteX Campus ID (e.g. CAMP-ABC-001).`,
+          error: `Invalid Campus ID "${normalizedCampusId}". Please enter a valid registered Campus ID (e.g. CAMP001, CAMP002, CAMP003).`,
         },
         { status: 400 }
       );
     }
 
-    // Verify company name matches the Campus ID
+    // Verify company name is registered at this campus
     const enteredCompClean = companyName.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const registeredCompClean = campusCompany.companyName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const matchedCompany = campus.companies.find((comp: string) => {
+      const registeredCompClean = comp.toLowerCase().replace(/[^a-z0-9]/g, "");
+      return (
+        registeredCompClean.includes(enteredCompClean) ||
+        enteredCompClean.includes(registeredCompClean) ||
+        registeredCompClean === enteredCompClean
+      );
+    });
 
-    const isCompanyMatch =
-      enteredCompClean.includes(registeredCompClean) ||
-      registeredCompClean.includes(enteredCompClean) ||
-      enteredCompClean === registeredCompClean;
-
-    if (!isCompanyMatch) {
+    if (!matchedCompany) {
       return NextResponse.json(
         {
           success: false,
-          error: `Campus ID "${normalizedCampusCompanyId}" belongs to "${campusCompany.companyName}", not "${companyName}". Please enter the correct Campus ID for your company.`,
+          error: `Company "${companyName}" does not operate at ${campus.name} (${campus.campusId}). Registered companies: ${campus.companies.join(", ")}.`,
         },
         { status: 400 }
       );
@@ -81,12 +84,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Check duplicate Company ID / Employee ID
-    const existingEmpId = await User.findOne({ employeeId: normalizedEmpId });
+    const existingEmpId = await User.findOne({ employeeId: formattedEmpId });
     if (existingEmpId) {
       return NextResponse.json(
         {
           success: false,
-          error: "An account is already registered with this Company Employee ID.",
+          error: `Employee ID "${formattedEmpId}" is already registered. Please enter your unique ID.`,
           accountExists: true,
         },
         { status: 409 }
@@ -100,15 +103,13 @@ export async function POST(req: NextRequest) {
     // 7. Create User with physical Campus & Company associations
     const newUser = await User.create({
       name,
-      employeeId: normalizedEmpId,
+      employeeId: formattedEmpId,
       email: normalizedEmail,
       phone,
       department,
-      companyName: campusCompany.companyName,
-      campusCompanyId: campusCompany.campusCompanyId,
-      campusId: campusCompany.campusId,
-      companyId: campusCompany.companyId,
-      campusName: campusCompany.campusName,
+      companyName: matchedCompany,
+      campusId: campus.campusId,
+      campusName: campus.name,
       passwordHash,
       role: "employee",
       verificationStatus: "pending",
@@ -119,14 +120,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        message: `Registration successful for ${campusCompany.campusName}! Your account has been submitted for campus admin verification.`,
+        message: `Registration successful for ${campus.name}! Your account has been submitted for campus admin verification.`,
         user: {
           id: newUser._id.toString(),
           name: newUser.name,
           employeeId: newUser.employeeId,
           email: newUser.email,
           companyName: newUser.companyName,
-          campusCompanyId: newUser.campusCompanyId,
+          campusId: newUser.campusId,
           campusName: newUser.campusName,
           department: newUser.department,
           role: newUser.role,
@@ -140,7 +141,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: "An unexpected error occurred during registration. Please try again later.",
+        error: "Failed to register user. Please try again.",
       },
       { status: 500 }
     );
