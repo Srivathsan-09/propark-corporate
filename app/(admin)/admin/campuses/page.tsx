@@ -25,6 +25,7 @@ import {
   Crown,
   UserX,
   Building,
+  AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +88,16 @@ export default function AdminCampusesPage() {
   // Inline Company Add / Request State per campus
   const [companyInputs, setCompanyInputs] = useState<Record<string, string>>({});
   const [companyActionLoadingId, setCompanyActionLoadingId] = useState<string | null>(null);
+
+  // Confirmation Modal State (Custom dialog box)
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: "destructive" | "primary";
+    onConfirm: () => Promise<void> | void;
+    isLoading?: boolean;
+  } | null>(null);
 
   // Alerts
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -290,106 +301,124 @@ export default function AdminCampusesPage() {
     }
   };
 
-  const handleRejectCompany = async (campusId: string, companyName: string) => {
-    if (!confirm(`Are you sure you want to reject the request for "${companyName}" in campus ${campusId}?`)) return;
+  const handleRejectCompany = (campusId: string, companyName: string) => {
+    setConfirmModal({
+      title: "Reject Company Request?",
+      message: `Are you sure you want to reject the addition request for "${companyName}" in campus ${campusId}?`,
+      confirmText: "Reject Request",
+      variant: "destructive",
+      onConfirm: async () => {
+        setCompanyActionLoadingId(`${campusId}-reject-${companyName}`);
+        setErrorMessage(null);
+        setSuccessMessage(null);
 
-    setCompanyActionLoadingId(`${campusId}-reject-${companyName}`);
-    setErrorMessage(null);
-    setSuccessMessage(null);
+        try {
+          const res = await fetch(`/api/admin/campuses/${campusId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "reject_company",
+              companyName,
+            }),
+          });
 
-    try {
-      const res = await fetch(`/api/admin/campuses/${campusId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "reject_company",
-          companyName,
-        }),
-      });
+          const data = await res.json();
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setCampuses((prev) =>
-          prev.map((c) =>
-            c.campusId === campusId
-              ? {
-                  ...c,
-                  pendingCompanies: data.campus.pendingCompanies,
-                }
-              : c
-          )
-        );
-        setSuccessMessage(`Rejected request for "${companyName}".`);
-      } else {
-        setErrorMessage(data.error || "Failed to reject company.");
-      }
-    } catch (err) {
-      console.error("Error rejecting company:", err);
-      setErrorMessage("Failed to reject company.");
-    } finally {
-      setCompanyActionLoadingId(null);
-    }
+          if (res.ok) {
+            setCampuses((prev) =>
+              prev.map((c) =>
+                c.campusId === campusId
+                  ? {
+                      ...c,
+                      pendingCompanies: data.campus.pendingCompanies,
+                    }
+                  : c
+              )
+            );
+            setSuccessMessage(`Rejected request for "${companyName}".`);
+          } else {
+            setErrorMessage(data.error || "Failed to reject company.");
+          }
+        } catch (err) {
+          console.error("Error rejecting company:", err);
+          setErrorMessage("Failed to reject company.");
+        } finally {
+          setCompanyActionLoadingId(null);
+        }
+      },
+    });
   };
 
-  const handleRemoveCompany = async (campusId: string, companyName: string) => {
-    if (!confirm(`Are you sure you want to remove "${companyName}" from campus ${campusId}?`)) return;
+  const handleRemoveCompany = (campusId: string, companyName: string) => {
+    setConfirmModal({
+      title: "Remove Company?",
+      message: `Are you sure you want to remove "${companyName}" from campus ${campusId}? Commuters registered under this company will need to update their profiles.`,
+      confirmText: "Remove Company",
+      variant: "destructive",
+      onConfirm: async () => {
+        setCompanyActionLoadingId(`${campusId}-remove-${companyName}`);
+        setErrorMessage(null);
+        setSuccessMessage(null);
 
-    setCompanyActionLoadingId(`${campusId}-remove-${companyName}`);
-    setErrorMessage(null);
-    setSuccessMessage(null);
+        try {
+          const res = await fetch(`/api/admin/campuses/${campusId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "remove_company",
+              companyName,
+            }),
+          });
 
-    try {
-      const res = await fetch(`/api/admin/campuses/${campusId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "remove_company",
-          companyName,
-        }),
-      });
+          const data = await res.json();
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setCampuses((prev) =>
-          prev.map((c) => (c.campusId === campusId ? { ...c, companies: data.campus.companies } : c))
-        );
-        setSuccessMessage(`Removed "${companyName}" from ${campusId}.`);
-      } else {
-        setErrorMessage(data.error || "Failed to remove company.");
-      }
-    } catch (err) {
-      console.error("Error removing company:", err);
-      setErrorMessage("Failed to remove company.");
-    } finally {
-      setCompanyActionLoadingId(null);
-    }
+          if (res.ok) {
+            setCampuses((prev) =>
+              prev.map((c) => (c.campusId === campusId ? { ...c, companies: data.campus.companies } : c))
+            );
+            setSuccessMessage(`Removed "${companyName}" from ${campusId}.`);
+          } else {
+            setErrorMessage(data.error || "Failed to remove company.");
+          }
+        } catch (err) {
+          console.error("Error removing company:", err);
+          setErrorMessage("Failed to remove company.");
+        } finally {
+          setCompanyActionLoadingId(null);
+        }
+      },
+    });
   };
 
-  const handleDeleteCampus = async (campusId: string, campusName: string) => {
-    if (!confirm(`Are you sure you want to delete "${campusName}" (${campusId})? This cannot be undone.`)) return;
+  const handleDeleteCampus = (campusId: string, campusName: string) => {
+    setConfirmModal({
+      title: "Delete Campus?",
+      message: `Are you sure you want to delete "${campusName}" (${campusId})? All operating company associations and campus commuters will be unlinked. This cannot be undone.`,
+      confirmText: "Delete Campus",
+      variant: "destructive",
+      onConfirm: async () => {
+        setErrorMessage(null);
+        setSuccessMessage(null);
 
-    setErrorMessage(null);
-    setSuccessMessage(null);
+        try {
+          const res = await fetch(`/api/admin/campuses/${campusId}`, {
+            method: "DELETE",
+          });
 
-    try {
-      const res = await fetch(`/api/admin/campuses/${campusId}`, {
-        method: "DELETE",
-      });
+          const data = await res.json();
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setCampuses((prev) => prev.filter((c) => c.campusId !== campusId));
-        setSuccessMessage(data.message || `Campus ${campusName} deleted successfully.`);
-      } else {
-        setErrorMessage(data.error || "Failed to delete campus.");
-      }
-    } catch (err) {
-      console.error("Error deleting campus:", err);
-      setErrorMessage("Failed to delete campus.");
-    }
+          if (res.ok) {
+            setCampuses((prev) => prev.filter((c) => c.campusId !== campusId));
+            setSuccessMessage(data.message || `Campus ${campusName} deleted successfully.`);
+          } else {
+            setErrorMessage(data.error || "Failed to delete campus.");
+          }
+        } catch (err) {
+          console.error("Error deleting campus:", err);
+          setErrorMessage("Failed to delete campus.");
+        }
+      },
+    });
   };
 
   // Metrics
@@ -934,18 +963,27 @@ export default function AdminCampusesPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={async () => {
-                                if (!confirm(`Revoke campus admin privileges for ${campus.name}?`)) return;
-                                try {
-                                  await fetch(`/api/admin/campuses/${campus.campusId}`, {
-                                    method: "PATCH",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ action: "assign_admin", adminEmail: "" }),
-                                  });
-                                  await fetchCampuses();
-                                } catch (e) {
-                                  console.error("Revoke error:", e);
-                                }
+                              onClick={() => {
+                                setConfirmModal({
+                                  title: "Revoke Campus Administrator?",
+                                  message: `Are you sure you want to revoke campus admin privileges for "${campus.name}" (${campus.campusId})?`,
+                                  confirmText: "Revoke Privileges",
+                                  variant: "destructive",
+                                  onConfirm: async () => {
+                                    try {
+                                      await fetch(`/api/admin/campuses/${campus.campusId}`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ action: "assign_admin", adminEmail: "" }),
+                                      });
+                                      await fetchCampuses();
+                                      setSuccessMessage(`Revoked campus admin privileges for ${campus.name}.`);
+                                    } catch (e) {
+                                      console.error("Revoke error:", e);
+                                      setErrorMessage("Failed to revoke administrator.");
+                                    }
+                                  },
+                                });
                               }}
                               className="h-6.5 text-[11px] px-2 border-rose-200 text-rose-700 hover:bg-rose-50 gap-1 rounded"
                             >
@@ -1141,6 +1179,73 @@ export default function AdminCampusesPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM CONFIRMATION DIALOG BOX (Replaces browser popups) */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-50 duration-200">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-3.5">
+              <div
+                className={`p-2.5 rounded-xl shrink-0 ${
+                  confirmModal.variant === "destructive"
+                    ? "bg-rose-50 text-rose-600 border border-rose-100"
+                    : "bg-purple-50 text-purple-600 border border-purple-100"
+                }`}
+              >
+                {confirmModal.variant === "destructive" ? (
+                  <AlertTriangle className="h-6 w-6" />
+                ) : (
+                  <ShieldCheck className="h-6 w-6" />
+                )}
+              </div>
+              <div className="space-y-1 flex-1">
+                <h3 className="text-base font-bold text-slate-900">{confirmModal.title}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">{confirmModal.message}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={confirmModal.isLoading}
+                onClick={() => setConfirmModal(null)}
+                className="h-8.5 px-3.5 text-xs font-semibold rounded-lg text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={confirmModal.isLoading}
+                onClick={async () => {
+                  if (confirmModal.onConfirm) {
+                    setConfirmModal((prev) => (prev ? { ...prev, isLoading: true } : null));
+                    try {
+                      await confirmModal.onConfirm();
+                    } finally {
+                      setConfirmModal(null);
+                    }
+                  }
+                }}
+                className={`h-8.5 px-4 text-xs font-semibold rounded-lg text-white shadow-xs gap-1.5 ${
+                  confirmModal.variant === "destructive"
+                    ? "bg-rose-600 hover:bg-rose-700"
+                    : "bg-purple-600 hover:bg-purple-700"
+                }`}
+              >
+                {confirmModal.isLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                {confirmModal.confirmText || "Confirm"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
