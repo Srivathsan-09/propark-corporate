@@ -13,6 +13,7 @@ import {
   X,
   Loader2,
   Clock,
+  Building2,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +29,7 @@ interface IEmployee {
   email: string;
   phone: string;
   department: string;
-  role: "employee" | "admin";
+  role: "employee" | "admin" | "campus_admin";
   verificationStatus: "pending" | "approved" | "rejected";
   isApproved: boolean;
   vehicleCount: number;
@@ -134,6 +135,11 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Link href="/admin/campuses">
+            <Button variant="outline" size="sm" className="text-xs font-semibold rounded-xl gap-1.5">
+              <Building2 className="h-3.5 w-3.5" /> Campuses
+            </Button>
+          </Link>
           <Link href="/admin/employees">
             <Button variant="outline" size="sm" className="text-xs font-semibold rounded-xl gap-1.5">
               <Users className="h-3.5 w-3.5" /> Employees

@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
   Building2,
   Building,
@@ -16,15 +17,25 @@ import {
   ArrowLeft,
   Briefcase,
   X,
-  Sparkles,
+  ShieldCheck,
+  Clock,
+  Check,
   ChevronRight,
+  Mail,
+  Edit2,
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CarLoader } from "@/components/common/CarLoader";
+
+interface IPendingCompany {
+  name: string;
+  requestedBy: string;
+  requestedAt: string;
+}
 
 interface ICampus {
   _id: string;
@@ -33,19 +44,26 @@ interface ICampus {
   address: string;
   city: string;
   state: string;
+  adminEmail?: string;
   companies: string[];
+  pendingCompanies?: IPendingCompany[];
   status: "active" | "inactive";
   employeeCount?: number;
   companiesCount?: number;
+  pendingCount?: number;
 }
 
 export default function AdminCampusesPage() {
+  const { data: session } = useSession();
+  const isSuperAdmin = session?.user?.role === "admin";
+  const isCampusAdmin = session?.user?.role === "campus_admin";
+
   const [campuses, setCampuses] = useState<ICampus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCity, setSelectedCity] = useState("all");
 
-  // Modal State for Adding Campus
+  // Modal State for Adding Campus (Super Admin only)
   const [isAddCampusOpen, setIsAddCampusOpen] = useState(false);
   const [newCampus, setNewCampus] = useState({
     campusId: "",
@@ -53,12 +71,17 @@ export default function AdminCampusesPage() {
     address: "",
     city: "",
     state: "",
+    adminEmail: "",
     companiesInput: "",
   });
   const [isSubmittingCampus, setIsSubmittingCampus] = useState(false);
 
-  // Inline Company Add State per campus
-  const [addingCompanyForId, setAddingCompanyForId] = useState<string | null>(null);
+  // Modal State for Assigning Campus Admin (Super Admin only)
+  const [assignAdminCampus, setAssignAdminCampus] = useState<ICampus | null>(null);
+  const [assignAdminEmail, setAssignAdminEmail] = useState("");
+  const [isSubmittingAdmin, setIsSubmittingAdmin] = useState(false);
+
+  // Inline Company Add / Request State per campus
   const [companyInputs, setCompanyInputs] = useState<Record<string, string>>({});
   const [companyActionLoadingId, setCompanyActionLoadingId] = useState<string | null>(null);
 
@@ -112,6 +135,7 @@ export default function AdminCampusesPage() {
           address: newCampus.address.trim(),
           city: newCampus.city.trim(),
           state: newCampus.state.trim(),
+          adminEmail: newCampus.adminEmail.trim().toLowerCase(),
           companies: companiesArray,
         }),
       });
@@ -132,6 +156,7 @@ export default function AdminCampusesPage() {
         address: "",
         city: "",
         state: "",
+        adminEmail: "",
         companiesInput: "",
       });
       await fetchCampuses();
@@ -143,7 +168,42 @@ export default function AdminCampusesPage() {
     }
   };
 
-  const handleAddCompany = async (campusId: string) => {
+  const handleAssignAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignAdminCampus) return;
+
+    setIsSubmittingAdmin(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/campuses/${assignAdminCampus.campusId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "assign_admin",
+          adminEmail: assignAdminEmail.trim().toLowerCase(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSuccessMessage(data.message);
+        setAssignAdminCampus(null);
+        await fetchCampuses();
+      } else {
+        setErrorMessage(data.error || "Failed to assign Campus Admin.");
+      }
+    } catch (err) {
+      console.error("Error assigning admin:", err);
+      setErrorMessage("Network error while assigning Campus Admin.");
+    } finally {
+      setIsSubmittingAdmin(false);
+    }
+  };
+
+  const handleCompanySubmit = async (campusId: string) => {
     const compName = companyInputs[campusId]?.trim();
     if (!compName) return;
 
@@ -152,11 +212,12 @@ export default function AdminCampusesPage() {
     setSuccessMessage(null);
 
     try {
+      const action = isSuperAdmin ? "add_company" : "request_company";
       const res = await fetch(`/api/admin/campuses/${campusId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "add_company",
+          action,
           companyName: compName,
         }),
       });
@@ -165,16 +226,107 @@ export default function AdminCampusesPage() {
 
       if (res.ok) {
         setCampuses((prev) =>
-          prev.map((c) => (c.campusId === campusId ? { ...c, companies: data.campus.companies } : c))
+          prev.map((c) =>
+            c.campusId === campusId
+              ? {
+                  ...c,
+                  companies: data.campus.companies,
+                  pendingCompanies: data.campus.pendingCompanies,
+                }
+              : c
+          )
         );
         setCompanyInputs((prev) => ({ ...prev, [campusId]: "" }));
-        setSuccessMessage(`Added "${compName}" to ${campusId}!`);
+        setSuccessMessage(data.message);
       } else {
-        setErrorMessage(data.error || "Failed to add company.");
+        setErrorMessage(data.error || "Failed to process company addition.");
       }
     } catch (err) {
       console.error("Error adding company:", err);
-      setErrorMessage("Failed to add company.");
+      setErrorMessage("Failed to process company addition.");
+    } finally {
+      setCompanyActionLoadingId(null);
+    }
+  };
+
+  const handleApproveCompany = async (campusId: string, companyName: string) => {
+    setCompanyActionLoadingId(`${campusId}-approve-${companyName}`);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/campuses/${campusId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "approve_company",
+          companyName,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setCampuses((prev) =>
+          prev.map((c) =>
+            c.campusId === campusId
+              ? {
+                  ...c,
+                  companies: data.campus.companies,
+                  pendingCompanies: data.campus.pendingCompanies,
+                }
+              : c
+          )
+        );
+        setSuccessMessage(`Approved "${companyName}" for ${campusId}!`);
+      } else {
+        setErrorMessage(data.error || "Failed to approve company.");
+      }
+    } catch (err) {
+      console.error("Error approving company:", err);
+      setErrorMessage("Failed to approve company.");
+    } finally {
+      setCompanyActionLoadingId(null);
+    }
+  };
+
+  const handleRejectCompany = async (campusId: string, companyName: string) => {
+    if (!confirm(`Are you sure you want to reject the request for "${companyName}" in campus ${campusId}?`)) return;
+
+    setCompanyActionLoadingId(`${campusId}-reject-${companyName}`);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/campuses/${campusId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reject_company",
+          companyName,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setCampuses((prev) =>
+          prev.map((c) =>
+            c.campusId === campusId
+              ? {
+                  ...c,
+                  pendingCompanies: data.campus.pendingCompanies,
+                }
+              : c
+          )
+        );
+        setSuccessMessage(`Rejected request for "${companyName}".`);
+      } else {
+        setErrorMessage(data.error || "Failed to reject company.");
+      }
+    } catch (err) {
+      console.error("Error rejecting company:", err);
+      setErrorMessage("Failed to reject company.");
     } finally {
       setCompanyActionLoadingId(null);
     }
@@ -246,11 +398,21 @@ export default function AdminCampusesPage() {
   const totalEmployeesCount = campuses.reduce((acc, c) => acc + (c.employeeCount || 0), 0);
   const uniqueCities = Array.from(new Set(campuses.map((c) => c.city).filter(Boolean)));
 
+  // Collect all pending company requests across all campuses (for Super Admin banner)
+  const allPendingRequests = campuses.flatMap((c) =>
+    (c.pendingCompanies || []).map((p) => ({
+      ...p,
+      campusId: c.campusId,
+      campusName: c.name,
+    }))
+  );
+
   const filteredCampuses = campuses.filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.campusId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.adminEmail && c.adminEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
       c.companies.some((comp) => comp.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesCity = selectedCity === "all" || c.city === selectedCity;
@@ -261,7 +423,7 @@ export default function AdminCampusesPage() {
   if (isLoading) {
     return (
       <div className="py-24 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <CarLoader size="page" message="Loading Campus & Company directory..." />
+        <CarLoader size="page" message="Loading Campus & Company governance hub..." />
       </div>
     );
   }
@@ -276,37 +438,52 @@ export default function AdminCampusesPage() {
               <ArrowLeft className="h-3.5 w-3.5" /> Back to Admin Overview
             </Link>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1 flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-purple-600" />
-            Campus & Company Directory
-          </h1>
-          <p className="text-xs text-slate-500">
-            Configure physical business complexes and manage operating corporate enterprises inside each campus
+          <div className="flex items-center gap-2 mt-1">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+              <Building2 className="h-6 w-6 text-purple-600" />
+              Campus & Company Governance Hub
+            </h1>
+            {isSuperAdmin ? (
+              <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs font-semibold">
+                Super Admin Console
+              </Badge>
+            ) : (
+              <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs font-semibold">
+                Campus Admin ({session?.user?.campusId})
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isSuperAdmin
+              ? "Super Admin control: Manage physical complexes, allocate Campus Admins, and approve operating companies."
+              : "Campus Admin control: Manage operating companies and commuters for your assigned campus."}
           </p>
         </div>
 
-        <Button
-          onClick={() => {
-            // Suggest next campus ID: CAMP001 -> CAMP004
-            const maxNum = campuses.reduce((acc, c) => {
-              const match = c.campusId.match(/^CAMP(\d+)$/i);
-              return match ? Math.max(acc, parseInt(match[1], 10)) : acc;
-            }, 0);
-            const nextId = `CAMP${String(maxNum + 1).padStart(3, "0")}`;
-            setNewCampus({
-              campusId: nextId,
-              name: "",
-              address: "",
-              city: "",
-              state: "",
-              companiesInput: "",
-            });
-            setIsAddCampusOpen(true);
-          }}
-          className="h-9 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-sm gap-1.5"
-        >
-          <Plus className="h-4 w-4" /> Add New Campus
-        </Button>
+        {isSuperAdmin && (
+          <Button
+            onClick={() => {
+              const maxNum = campuses.reduce((acc, c) => {
+                const match = c.campusId.match(/^CAMP(\d+)$/i);
+                return match ? Math.max(acc, parseInt(match[1], 10)) : acc;
+              }, 0);
+              const nextId = `CAMP${String(maxNum + 1).padStart(3, "0")}`;
+              setNewCampus({
+                campusId: nextId,
+                name: "",
+                address: "",
+                city: "",
+                state: "",
+                adminEmail: "",
+                companiesInput: "",
+              });
+              setIsAddCampusOpen(true);
+            }}
+            className="h-9 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg shadow-sm gap-1.5"
+          >
+            <Plus className="h-4 w-4" /> Add New Campus
+          </Button>
+        )}
       </div>
 
       {/* Alert Messages */}
@@ -322,6 +499,72 @@ export default function AdminCampusesPage() {
           <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
           <span>{errorMessage}</span>
         </div>
+      )}
+
+      {/* SUPER ADMIN: PENDING COMPANY APPROVALS BANNER */}
+      {isSuperAdmin && allPendingRequests.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/70 shadow-sm overflow-hidden animate-in fade-in-50">
+          <CardHeader className="pb-2.5 pt-3.5 px-4 bg-amber-100/60 border-b border-amber-200/80">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-700" />
+                <span className="font-bold text-xs text-amber-900 uppercase tracking-wider">
+                  Pending Company Addition Requests ({allPendingRequests.length})
+                </span>
+              </div>
+              <Badge className="bg-amber-600 text-white text-[10px]">Action Required</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {allPendingRequests.map((req) => (
+                <div
+                  key={`${req.campusId}-${req.name}`}
+                  className="bg-white p-3 rounded-xl border border-amber-200 shadow-xs flex items-center justify-between gap-3"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-slate-900">{req.name}</span>
+                      <span className="font-mono text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-semibold">
+                        {req.campusId}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 flex items-center gap-1">
+                      <span>Campus: <strong>{req.campusName}</strong></span>
+                      <span>•</span>
+                      <span>By: {req.requestedBy}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={() => handleApproveCompany(req.campusId, req.name)}
+                      disabled={companyActionLoadingId === `${req.campusId}-approve-${req.name}`}
+                      className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1 font-semibold"
+                    >
+                      {companyActionLoadingId === `${req.campusId}-approve-${req.name}` ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )}
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRejectCompany(req.campusId, req.name)}
+                      disabled={companyActionLoadingId === `${req.campusId}-reject-${req.name}`}
+                      className="h-7 px-2.5 text-xs border-rose-300 text-rose-700 hover:bg-rose-50"
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Top Metrics Cards */}
@@ -361,13 +604,13 @@ export default function AdminCampusesPage() {
 
         <Card className="border-slate-200 bg-white shadow-xs p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Cities Covered</span>
+            <span className="text-xs font-medium text-slate-500">Pending Approvals</span>
             <div className="p-2 bg-amber-50 rounded-lg text-amber-600">
-              <MapPin className="h-4 w-4" />
+              <Clock className="h-4 w-4" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-slate-900 mt-2">{uniqueCities.length}</div>
-          <span className="text-[11px] text-slate-400 mt-0.5 block">{uniqueCities.join(", ")}</span>
+          <div className="text-2xl font-bold text-slate-900 mt-2">{allPendingRequests.length}</div>
+          <span className="text-[11px] text-slate-400 mt-0.5 block">Company addition requests</span>
         </Card>
       </div>
 
@@ -391,7 +634,7 @@ export default function AdminCampusesPage() {
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <Input
-            placeholder="Search campus, city, or company..."
+            placeholder="Search campus, city, company, admin..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9 h-9 text-xs"
@@ -424,16 +667,44 @@ export default function AdminCampusesPage() {
 
                   <div className="flex items-center gap-1.5">
                     <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold">
-                      Active Campus
+                      Active
                     </Badge>
-                    <button
-                      onClick={() => handleDeleteCampus(campus.campusId, campus.name)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-                      title="Delete Campus"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => handleDeleteCampus(campus.campusId, campus.name)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                        title="Delete Campus"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
+                </div>
+
+                {/* Campus Admin Badge & Allocation */}
+                <div className="mt-2.5 p-2 bg-purple-50/80 rounded-lg border border-purple-100 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="h-4 w-4 text-purple-700 shrink-0" />
+                    <span className="text-slate-600 font-medium">Campus Admin:</span>
+                    {campus.adminEmail ? (
+                      <strong className="text-purple-900 font-semibold">{campus.adminEmail}</strong>
+                    ) : (
+                      <span className="text-slate-400 italic">No admin assigned</span>
+                    )}
+                  </div>
+
+                  {isSuperAdmin && (
+                    <button
+                      onClick={() => {
+                        setAssignAdminCampus(campus);
+                        setAssignAdminEmail(campus.adminEmail || "");
+                      }}
+                      className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-1 hover:underline ml-2 shrink-0"
+                    >
+                      <Edit2 className="h-3 w-3" />
+                      {campus.adminEmail ? "Reassign" : "Assign Admin"}
+                    </button>
+                  )}
                 </div>
 
                 {/* Campus Sub-Metrics */}
@@ -444,7 +715,7 @@ export default function AdminCampusesPage() {
                   </div>
                   <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-slate-200/60 font-medium">
                     <Users className="h-3 w-3 text-emerald-600" />
-                    <span><strong>{campus.employeeCount || 0}</strong> Registered Commuters</span>
+                    <span><strong>{campus.employeeCount || 0}</strong> Commuters</span>
                   </div>
                 </div>
               </CardHeader>
@@ -454,11 +725,11 @@ export default function AdminCampusesPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                     <Building className="h-3.5 w-3.5 text-slate-400" />
-                    Companies Operating Inside ({campus.companies.length})
+                    Operating Companies ({campus.companies.length})
                   </span>
                 </div>
 
-                {/* Companies Tags */}
+                {/* Active Companies Tags */}
                 <div className="flex flex-wrap gap-2 min-h-[48px] p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                   {campus.companies.length === 0 ? (
                     <span className="text-xs text-slate-400 italic py-1">No companies added yet. Add below.</span>
@@ -469,23 +740,57 @@ export default function AdminCampusesPage() {
                         className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs text-xs font-semibold text-slate-800 animate-in fade-in-50"
                       >
                         <span>{company}</span>
-                        <button
-                          onClick={() => handleRemoveCompany(campus.campusId, company)}
-                          disabled={companyActionLoadingId === `${campus.campusId}-remove-${company}`}
-                          className="text-slate-400 hover:text-rose-600 transition-colors p-0.5 rounded-full hover:bg-slate-100"
-                          title={`Remove ${company}`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => handleRemoveCompany(campus.campusId, company)}
+                            disabled={companyActionLoadingId === `${campus.campusId}-remove-${company}`}
+                            className="text-slate-400 hover:text-rose-600 transition-colors p-0.5 rounded-full hover:bg-slate-100"
+                            title={`Remove ${company}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
                       </div>
                     ))
                   )}
                 </div>
 
-                {/* Quick Add Company to this Campus */}
+                {/* Pending Approval Companies inside this Campus */}
+                {campus.pendingCompanies && campus.pendingCompanies.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] font-bold text-amber-800 flex items-center gap-1">
+                      <Clock className="h-3 w-3 text-amber-600" /> Pending Super Admin Approval:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {campus.pendingCompanies.map((p) => (
+                        <div
+                          key={p.name}
+                          className="flex items-center gap-1.5 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-xs text-amber-900 font-medium"
+                        >
+                          <span>{p.name}</span>
+                          {isSuperAdmin && (
+                            <button
+                              onClick={() => handleApproveCompany(campus.campusId, p.name)}
+                              className="text-emerald-700 hover:text-emerald-900 font-bold ml-1"
+                              title="Approve"
+                            >
+                              ✓
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add / Request Company Input */}
                 <div className="flex items-center gap-2 pt-1">
                   <Input
-                    placeholder={`Add company to ${campus.name}...`}
+                    placeholder={
+                      isSuperAdmin
+                        ? `Add company to ${campus.name}...`
+                        : `Request company addition for ${campus.name}...`
+                    }
                     value={companyInputs[campus.campusId] || ""}
                     onChange={(e) =>
                       setCompanyInputs((prev) => ({ ...prev, [campus.campusId]: e.target.value }))
@@ -493,14 +798,14 @@ export default function AdminCampusesPage() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        handleAddCompany(campus.campusId);
+                        handleCompanySubmit(campus.campusId);
                       }
                     }}
                     className="h-8 text-xs rounded-lg"
                   />
                   <Button
                     type="button"
-                    onClick={() => handleAddCompany(campus.campusId)}
+                    onClick={() => handleCompanySubmit(campus.campusId)}
                     disabled={
                       !companyInputs[campus.campusId]?.trim() ||
                       companyActionLoadingId === `${campus.campusId}-add`
@@ -512,7 +817,7 @@ export default function AdminCampusesPage() {
                     ) : (
                       <Plus className="h-3.5 w-3.5" />
                     )}
-                    Add Company
+                    {isSuperAdmin ? "Add Company" : "Request Company"}
                   </Button>
                 </div>
               </CardContent>
@@ -540,7 +845,7 @@ export default function AdminCampusesPage() {
         )}
       </div>
 
-      {/* ADD NEW CAMPUS MODAL */}
+      {/* SUPER ADMIN: ADD NEW CAMPUS MODAL */}
       {isAddCampusOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in-50">
           <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
@@ -550,7 +855,7 @@ export default function AdminCampusesPage() {
                   <Building2 className="h-5 w-5 text-purple-600" /> Add Physical Campus
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Create a new corporate campus and define the companies operating inside
+                  Create a physical campus, allocate a Campus Admin email, and set operating companies
                 </p>
               </div>
               <button
@@ -565,7 +870,7 @@ export default function AdminCampusesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="campusId" className="text-xs font-semibold text-slate-700">
-                    Campus ID (Unique)
+                    Campus ID (Format: CAMP001)
                   </Label>
                   <Input
                     id="campusId"
@@ -635,6 +940,28 @@ export default function AdminCampusesPage() {
                 />
               </div>
 
+              {/* Campus Admin Email Allocation */}
+              <div className="space-y-1 bg-purple-50/60 p-2.5 rounded-xl border border-purple-100">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="adminEmail" className="text-xs font-semibold text-purple-900 flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 text-purple-600" />
+                    Designate Campus Admin (Email)
+                  </Label>
+                  <span className="text-[10px] text-purple-700 font-medium">Auto-upgrades on login</span>
+                </div>
+                <Input
+                  id="adminEmail"
+                  type="email"
+                  value={newCampus.adminEmail}
+                  onChange={(e) => setNewCampus({ ...newCampus, adminEmail: e.target.value })}
+                  placeholder="e.g. manager.chennai@techpark.com"
+                  className="h-8.5 text-xs bg-white"
+                />
+                <span className="text-[10px] text-slate-500 block">
+                  This person will receive admin privileges scoped to manage this campus and its commuters.
+                </span>
+              </div>
+
               <div className="space-y-1">
                 <Label htmlFor="companiesInput" className="text-xs font-semibold text-slate-700">
                   Initial Operating Companies (Comma separated)
@@ -646,7 +973,6 @@ export default function AdminCampusesPage() {
                   placeholder="e.g. IBM, Cognizant, Dell Technologies"
                   className="h-8.5 text-xs"
                 />
-                <span className="text-[10px] text-slate-400">You can also add more companies later at any time.</span>
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
@@ -665,6 +991,69 @@ export default function AdminCampusesPage() {
                 >
                   {isSubmittingCampus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
                   Create Campus
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* SUPER ADMIN: ASSIGN / REASSIGN CAMPUS ADMIN MODAL */}
+      {assignAdminCampus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in-50">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-purple-50/50">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-purple-600" /> Allocate Campus Admin
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Assign or change the administrator for <strong>{assignAdminCampus.name}</strong> ({assignAdminCampus.campusId})
+                </p>
+              </div>
+              <button
+                onClick={() => setAssignAdminCampus(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAssignAdmin} className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="assignEmail" className="text-xs font-semibold text-slate-700">
+                  Campus Admin Email
+                </Label>
+                <Input
+                  id="assignEmail"
+                  type="email"
+                  value={assignAdminEmail}
+                  onChange={(e) => setAssignAdminEmail(e.target.value)}
+                  placeholder="e.g. manager.chennai@techpark.com"
+                  className="h-9 text-xs"
+                  required
+                />
+                <span className="text-[11px] text-slate-500 block">
+                  When this user logs in with this email, they will automatically manage {assignAdminCampus.name}.
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAssignAdminCampus(null)}
+                  className="h-8.5 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmittingAdmin}
+                  className="h-8.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5"
+                >
+                  {isSubmittingAdmin ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  Save Admin Allocation
                 </Button>
               </div>
             </form>

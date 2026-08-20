@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Campus from "@/models/Campus";
+import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export async function PATCH(
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user || session.user.role !== "admin") {
+    if (!session || !session.user || (session.user.role !== "admin" && session.user.role !== "campus_admin")) {
       return NextResponse.json(
         { success: false, error: "Access denied. Administrator privileges required." },
         { status: 403 }
@@ -38,13 +39,166 @@ export async function PATCH(
       );
     }
 
-    // Support adding a company, removing a company, or updating full fields
-    if (body.action === "add_company" && body.companyName) {
+    const isSuperAdmin = session.user.role === "admin";
+    const isThisCampusAdmin =
+      session.user.role === "campus_admin" &&
+      (session.user.campusId === campus.campusId || session.user.email?.toLowerCase() === campus.adminEmail?.toLowerCase());
+
+    if (!isSuperAdmin && !isThisCampusAdmin) {
+      return NextResponse.json(
+        { success: false, error: "You are not authorized to modify this campus." },
+        { status: 403 }
+      );
+    }
+
+    // 1. Assign / Reassign Campus Admin (Super Admin only)
+    if (body.action === "assign_admin") {
+      if (!isSuperAdmin) {
+        return NextResponse.json(
+          { success: false, error: "Only Super Admin can assign Campus Admins." },
+          { status: 403 }
+        );
+      }
+
+      const rawEmail = body.adminEmail ? body.adminEmail.toLowerCase().trim() : "";
+      campus.adminEmail = rawEmail || undefined;
+      await campus.save();
+
+      if (rawEmail) {
+        await User.updateOne(
+          { email: rawEmail },
+          {
+            $set: {
+              role: "campus_admin",
+              campusId: campus.campusId,
+              campusName: campus.name,
+              isApproved: true,
+              verificationStatus: "approved",
+            },
+          }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: rawEmail ? `Assigned "${rawEmail}" as Campus Admin for ${campus.name}.` : `Unassigned Campus Admin from ${campus.name}.`,
+        campus,
+      });
+    }
+
+    // 2. Request new company (Campus Admin requests Super Admin approval)
+    if (body.action === "request_company" && body.companyName) {
       const trimmed = body.companyName.trim();
+
+      if (campus.companies.includes(trimmed)) {
+        return NextResponse.json(
+          { success: false, error: `Company "${trimmed}" is already active in ${campus.name}.` },
+          { status: 400 }
+        );
+      }
+
+      const alreadyPending = campus.pendingCompanies?.some((p) => p.name.toLowerCase() === trimmed.toLowerCase());
+      if (alreadyPending) {
+        return NextResponse.json(
+          { success: false, error: `Company "${trimmed}" is already pending Super Admin approval.` },
+          { status: 400 }
+        );
+      }
+
+      if (!campus.pendingCompanies) campus.pendingCompanies = [];
+      campus.pendingCompanies.push({
+        name: trimmed,
+        requestedBy: session.user.email || "Campus Admin",
+        requestedAt: new Date(),
+      });
+
+      await campus.save();
+
+      return NextResponse.json({
+        success: true,
+        message: `Request to add "${trimmed}" submitted! Waiting for Super Admin approval.`,
+        campus,
+      });
+    }
+
+    // 3. Approve company addition (Super Admin only)
+    if (body.action === "approve_company" && body.companyName) {
+      if (!isSuperAdmin) {
+        return NextResponse.json(
+          { success: false, error: "Only Super Admin can approve company additions." },
+          { status: 403 }
+        );
+      }
+
+      const trimmed = body.companyName.trim();
+      campus.pendingCompanies = (campus.pendingCompanies || []).filter((p) => p.name !== trimmed);
+
       if (!campus.companies.includes(trimmed)) {
         campus.companies.push(trimmed);
-        await campus.save();
       }
+
+      await campus.save();
+
+      return NextResponse.json({
+        success: true,
+        message: `Approved "${trimmed}" for ${campus.name}!`,
+        campus,
+      });
+    }
+
+    // 4. Reject company addition (Super Admin only)
+    if (body.action === "reject_company" && body.companyName) {
+      if (!isSuperAdmin) {
+        return NextResponse.json(
+          { success: false, error: "Only Super Admin can reject company additions." },
+          { status: 403 }
+        );
+      }
+
+      const trimmed = body.companyName.trim();
+      campus.pendingCompanies = (campus.pendingCompanies || []).filter((p) => p.name !== trimmed);
+      await campus.save();
+
+      return NextResponse.json({
+        success: true,
+        message: `Rejected company request for "${trimmed}".`,
+        campus,
+      });
+    }
+
+    // 5. Direct Add Company (Super Admin directly adds company, or Campus Admin if direct add is permitted)
+    if (body.action === "add_company" && body.companyName) {
+      const trimmed = body.companyName.trim();
+
+      if (!isSuperAdmin) {
+        // If Campus Admin tries to add directly, route it as a request to pending
+        if (campus.companies.includes(trimmed)) {
+          return NextResponse.json(
+            { success: false, error: `Company "${trimmed}" is already active in ${campus.name}.` },
+            { status: 400 }
+          );
+        }
+        if (!campus.pendingCompanies) campus.pendingCompanies = [];
+        campus.pendingCompanies.push({
+          name: trimmed,
+          requestedBy: session.user.email || "Campus Admin",
+          requestedAt: new Date(),
+        });
+        await campus.save();
+        return NextResponse.json({
+          success: true,
+          message: `Company "${trimmed}" requested. Awaiting Super Admin approval.`,
+          campus,
+        });
+      }
+
+      // Super Admin direct addition
+      if (!campus.companies.includes(trimmed)) {
+        campus.companies.push(trimmed);
+      }
+      campus.pendingCompanies = (campus.pendingCompanies || []).filter((p) => p.name !== trimmed);
+      await campus.save();
+
       return NextResponse.json({
         success: true,
         message: `Company "${trimmed}" added to ${campus.name}.`,
@@ -52,6 +206,7 @@ export async function PATCH(
       });
     }
 
+    // 6. Remove Company
     if (body.action === "remove_company" && body.companyName) {
       const trimmed = body.companyName.trim();
       campus.companies = campus.companies.filter((c) => c !== trimmed);
@@ -63,17 +218,20 @@ export async function PATCH(
       });
     }
 
-    // Full field updates
-    if (body.name) campus.name = body.name.trim();
-    if (body.address) campus.address = body.address.trim();
-    if (body.city) campus.city = body.city.trim();
-    if (body.state) campus.state = body.state.trim();
-    if (body.status) campus.status = body.status;
-    if (Array.isArray(body.companies)) {
-      campus.companies = body.companies.map((c: string) => c.trim()).filter(Boolean);
-    }
+    // 7. Full update
+    if (isSuperAdmin) {
+      if (body.name) campus.name = body.name.trim();
+      if (body.address) campus.address = body.address.trim();
+      if (body.city) campus.city = body.city.trim();
+      if (body.state) campus.state = body.state.trim();
+      if (body.status) campus.status = body.status;
+      if (body.adminEmail !== undefined) campus.adminEmail = body.adminEmail ? body.adminEmail.toLowerCase().trim() : undefined;
+      if (Array.isArray(body.companies)) {
+        campus.companies = body.companies.map((c: string) => c.trim()).filter(Boolean);
+      }
 
-    await campus.save();
+      await campus.save();
+    }
 
     return NextResponse.json({
       success: true,
@@ -98,7 +256,7 @@ export async function DELETE(
 
     if (!session || !session.user || session.user.role !== "admin") {
       return NextResponse.json(
-        { success: false, error: "Access denied. Administrator privileges required." },
+        { success: false, error: "Only Super Administrators can delete campuses." },
         { status: 403 }
       );
     }

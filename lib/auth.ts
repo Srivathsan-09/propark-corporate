@@ -85,23 +85,31 @@ export const authOptions: NextAuthOptions = {
           const ADMIN_EMAILS = ["srimana2006@gmail.com", "admin@propark.corporate.com"];
           const isAdminUser = ADMIN_EMAILS.includes(normalizedEmail);
 
+          const Campus = (await import("@/models/Campus")).default;
+          const managedCampus = await Campus.findOne({ adminEmail: normalizedEmail });
+          const isCampusAdmin = Boolean(managedCampus);
+
           if (!dbUser) {
             // Generate sequential Employee ID in ascending order: EMP-001, EMP-002...
             const { getNextEmployeeId } = await import("@/lib/db/employeeSequence");
-            const employeeId = isAdminUser ? "ADM-VATHSAN" : await getNextEmployeeId();
+            const employeeId = isAdminUser
+              ? "ADM-VATHSAN"
+              : isCampusAdmin
+              ? `ADM-${managedCampus?.campusId}`
+              : await getNextEmployeeId();
 
             dbUser = await User.create({
-              name: isAdminUser ? "Vathsan" : user.name || "Corporate Employee",
+              name: isAdminUser ? "Vathsan" : user.name || "Corporate User",
               email: normalizedEmail,
               employeeId,
-              department: isAdminUser ? "Executive Management" : "Engineering",
-              companyName: "ABC Technologies",
-              campusId: "CAMP001",
-              campusName: "Tech Park Chennai",
+              department: isAdminUser ? "Executive Management" : isCampusAdmin ? "Campus Administration" : "Engineering",
+              companyName: isCampusAdmin && managedCampus?.companies[0] ? managedCampus.companies[0] : "ABC Technologies",
+              campusId: managedCampus?.campusId || "CAMP001",
+              campusName: managedCampus?.name || "Tech Park Chennai",
               phone: "",
-              role: isAdminUser ? "admin" : "employee",
-              verificationStatus: isAdminUser ? "approved" : "pending",
-              isApproved: isAdminUser ? true : false,
+              role: isAdminUser ? "admin" : isCampusAdmin ? "campus_admin" : "employee",
+              verificationStatus: isAdminUser || isCampusAdmin ? "approved" : "pending",
+              isApproved: isAdminUser || isCampusAdmin ? true : false,
               profileImage: user.image || "",
             });
           } else {
@@ -111,6 +119,12 @@ export const authOptions: NextAuthOptions = {
             if (isAdminUser) {
               dbUser.name = "Vathsan";
               dbUser.role = "admin";
+              dbUser.verificationStatus = "approved";
+              dbUser.isApproved = true;
+            } else if (isCampusAdmin && managedCampus) {
+              dbUser.role = "campus_admin";
+              dbUser.campusId = managedCampus.campusId;
+              dbUser.campusName = managedCampus.name;
               dbUser.verificationStatus = "approved";
               dbUser.isApproved = true;
             }
@@ -124,12 +138,10 @@ export const authOptions: NextAuthOptions = {
           user.department = dbUser.department;
           user.phone = dbUser.phone;
           user.companyName = dbUser.companyName;
-          user.campusCompanyId = dbUser.campusCompanyId;
           user.campusId = dbUser.campusId;
-          user.companyId = dbUser.companyId;
           user.campusName = dbUser.campusName;
-          user.verificationStatus = dbUser.verificationStatus || (isAdminUser ? "approved" : "pending");
-          user.isApproved = dbUser.isApproved ?? isAdminUser;
+          user.verificationStatus = dbUser.verificationStatus || (isAdminUser || isCampusAdmin ? "approved" : "pending");
+          user.isApproved = dbUser.isApproved ?? (isAdminUser || isCampusAdmin);
 
           return true;
         } catch (error) {

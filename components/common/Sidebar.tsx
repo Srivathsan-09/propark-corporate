@@ -31,7 +31,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const isAdmin = session?.user?.role === "admin";
+  const isSuperAdmin = session?.user?.role === "admin";
+  const isCampusAdmin = session?.user?.role === "campus_admin";
+  const isAdmin = isSuperAdmin || isCampusAdmin;
 
   // Navigation specifically for Platform / Campus Admins
   const adminNavItems = [
@@ -141,9 +143,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
               {isAdmin ? "Admin Console" : "Corporate Commute"}
             </span>
-            {isAdmin && (
+            {isSuperAdmin && (
               <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-[10px] py-0 px-1.5 font-semibold">
-                Admin Mode
+                Super Admin
+              </Badge>
+            )}
+            {isCampusAdmin && (
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-[10px] py-0 px-1.5 font-semibold">
+                Campus Admin
               </Badge>
             )}
           </div>

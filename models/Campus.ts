@@ -1,5 +1,11 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
+export interface IPendingCompany {
+  name: string;
+  requestedBy: string; // Email or name of the campus admin
+  requestedAt: Date;
+}
+
 export interface ICampus extends Document {
   _id: mongoose.Types.ObjectId;
   campusId: string;
@@ -7,11 +13,22 @@ export interface ICampus extends Document {
   address: string;
   city: string;
   state: string;
+  adminEmail?: string;
   companies: string[];
+  pendingCompanies: IPendingCompany[];
   status: "active" | "inactive";
   createdAt: Date;
   updatedAt: Date;
 }
+
+const PendingCompanySchema = new Schema<IPendingCompany>(
+  {
+    name: { type: String, required: true, trim: true },
+    requestedBy: { type: String, required: true, trim: true },
+    requestedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
 
 const CampusSchema = new Schema<ICampus>(
   {
@@ -45,8 +62,18 @@ const CampusSchema = new Schema<ICampus>(
       required: [true, "State is required"],
       trim: true,
     },
+    adminEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
     companies: {
       type: [String],
+      default: [],
+    },
+    pendingCompanies: {
+      type: [PendingCompanySchema],
       default: [],
     },
     status: {

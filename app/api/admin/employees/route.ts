@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user || session.user.role !== "admin") {
+    if (!session || !session.user || (session.user.role !== "admin" && session.user.role !== "campus_admin")) {
       return NextResponse.json(
         { success: false, error: "Access denied. Administrator privileges required." },
         { status: 403 }
@@ -20,8 +20,11 @@ export async function GET() {
 
     await connectToDatabase();
 
-    // Fetch all registered employees sorted in ascending order (EMP-001, EMP-002...)
-    const employees = await User.find()
+    const isSuperAdmin = session.user.role === "admin";
+    const query = isSuperAdmin ? {} : { campusId: session.user.campusId };
+
+    // Fetch registered employees sorted in ascending order (EMP-001, EMP-002...)
+    const employees = await User.find(query)
       .select("-passwordHash")
       .sort({ employeeId: 1, createdAt: 1 })
       .lean();

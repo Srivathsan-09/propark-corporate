@@ -20,7 +20,7 @@ export interface IUser extends Document {
   companyId?: string;       // Corporate Entity (e.g. "COMP001")
   campusName?: string;      // Physical Campus Name (e.g. "Tech Park Chennai")
   passwordHash: string;
-  role: "employee" | "admin";
+  role: "employee" | "admin" | "campus_admin";
   verificationStatus: "pending" | "approved" | "rejected";
   isApproved: boolean;
   rejectionReason?: string;
@@ -106,7 +106,7 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ["employee", "admin"],
+      enum: ["employee", "admin", "campus_admin"],
       default: "employee",
     },
     verificationStatus: {

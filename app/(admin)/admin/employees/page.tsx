@@ -22,7 +22,7 @@ interface IEmployee {
   campusCompanyId?: string;
   campusId?: string;
   campusName?: string;
-  role: "employee" | "admin";
+  role: "employee" | "admin" | "campus_admin";
   verificationStatus: "pending" | "approved" | "rejected";
   isApproved: boolean;
   homeLocation?: string;

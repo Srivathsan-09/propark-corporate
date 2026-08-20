@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user || session.user.role !== "admin") {
+    if (!session || !session.user || (session.user.role !== "admin" && session.user.role !== "campus_admin")) {
       return NextResponse.json(
         { success: false, error: "Access denied. Administrator privileges required." },
         { status: 403 }
@@ -20,7 +20,12 @@ export async function GET() {
 
     await connectToDatabase();
 
-    const campuses = await Campus.find().sort({ campusId: 1 }).lean();
+    const isSuperAdmin = session.user.role === "admin";
+    const userCampusId = session.user.campusId;
+
+    // Super Admin sees all campuses; Campus Admin sees their assigned campus
+    const query = isSuperAdmin ? {} : { campusId: userCampusId };
+    const campuses = await Campus.find(query).sort({ campusId: 1 }).lean();
 
     // Enrich with employee count per campus
     const employeeCounts = await User.aggregate([
@@ -33,10 +38,12 @@ export async function GET() {
       ...c,
       employeeCount: countMap.get(c.campusId) || 0,
       companiesCount: c.companies ? c.companies.length : 0,
+      pendingCount: c.pendingCompanies ? c.pendingCompanies.length : 0,
     }));
 
     return NextResponse.json({
       success: true,
+      isSuperAdmin,
       campuses: enrichedCampuses,
     });
   } catch (error: unknown) {
@@ -54,13 +61,13 @@ export async function POST(req: NextRequest) {
 
     if (!session || !session.user || session.user.role !== "admin") {
       return NextResponse.json(
-        { success: false, error: "Access denied. Administrator privileges required." },
+        { success: false, error: "Only Super Administrators can create new campuses." },
         { status: 403 }
       );
     }
 
     const body = await req.json();
-    const { campusId, name, address, city, state, companies } = body;
+    const { campusId, name, address, city, state, adminEmail, companies } = body;
 
     if (!campusId || !name || !city || !state) {
       return NextResponse.json(
@@ -72,6 +79,7 @@ export async function POST(req: NextRequest) {
     await connectToDatabase();
 
     const normalizedCampusId = campusId.toUpperCase().trim();
+    const normalizedAdminEmail = adminEmail ? adminEmail.toLowerCase().trim() : "";
 
     const existing = await Campus.findOne({ campusId: normalizedCampusId });
     if (existing) {
@@ -92,9 +100,27 @@ export async function POST(req: NextRequest) {
       address: address?.trim() || `${city}, ${state}`,
       city: city.trim(),
       state: state.trim(),
+      adminEmail: normalizedAdminEmail || undefined,
       companies: cleanedCompanies,
+      pendingCompanies: [],
       status: "active",
     });
+
+    // If an existing user matches adminEmail, upgrade them to Campus Admin
+    if (normalizedAdminEmail) {
+      await User.updateOne(
+        { email: normalizedAdminEmail },
+        {
+          $set: {
+            role: "campus_admin",
+            campusId: newCampus.campusId,
+            campusName: newCampus.name,
+            isApproved: true,
+            verificationStatus: "approved",
+          },
+        }
+      );
+    }
 
     return NextResponse.json(
       {
