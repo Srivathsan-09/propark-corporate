@@ -17,6 +17,7 @@ import {
   Users,
   Route,
   BarChart3,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Overview & Analytics",
       href: "/admin",
       icon: LayoutDashboard,
+    },
+    {
+      title: "Campus",
+      href: "/admin/campuses",
+      icon: Building2,
     },
     {
       title: "Registered Employees",
