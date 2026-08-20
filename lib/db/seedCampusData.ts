@@ -1,15 +1,28 @@
-﻿import Campus from "@/models/Campus";
-import Company from "@/models/Company";
+import mongoose from "mongoose";
+import Campus from "@/models/Campus";
 import CampusCompany from "@/models/CampusCompany";
 
 export async function ensureCampusMasterData() {
   try {
+    // Drop standalone 'companies' collection if it exists in Atlas to keep only 2 collections
+    if (mongoose.connection.db) {
+      try {
+        const collections = await mongoose.connection.db.listCollections({ name: "companies" }).toArray();
+        if (collections.length > 0) {
+          await mongoose.connection.db.dropCollection("companies");
+          console.log("🧹 [Cleanup] Removed redundant 'companies' collection from Atlas.");
+        }
+      } catch (dropErr) {
+        // Non-fatal if already dropped
+      }
+    }
+
     const campusCount = await Campus.countDocuments();
     if (campusCount > 0) {
       return; // Already initialized
     }
 
-    console.log("🌱 [Seed] Populating Master Campuses and Company relationships in MongoDB Atlas...");
+    console.log("🌱 [Seed] Populating Master Campuses and Campus Companies in MongoDB Atlas...");
 
     // 1. Master Physical Campuses
     const campusesData = [
@@ -43,27 +56,6 @@ export async function ensureCampusMasterData() {
       await Campus.updateOne(
         { campusId: c.campusId },
         { $set: c },
-        { upsert: true }
-      );
-    }
-
-    // 2. Master Companies
-    const companiesData = [
-      { companyId: "COMP001", name: "ABC Technologies", domain: "abctech.com", status: "active" as const },
-      { companyId: "COMP002", name: "XYZ Solutions", domain: "xyzsolutions.com", status: "active" as const },
-      { companyId: "COMP003", name: "LML Private Ltd", domain: "lmlcorp.com", status: "active" as const },
-      { companyId: "COMP004", name: "Tech Mahindra", domain: "techmahindra.com", status: "active" as const },
-      { companyId: "COMP005", name: "Infosys", domain: "infosys.com", status: "active" as const },
-      { companyId: "COMP006", name: "TCS", domain: "tcs.com", status: "active" as const },
-      { companyId: "COMP007", name: "Wipro", domain: "wipro.com", status: "active" as const },
-      { companyId: "COMP008", name: "Microsoft", domain: "microsoft.com", status: "active" as const },
-      { companyId: "COMP009", name: "Google India", domain: "google.com", status: "active" as const },
-    ];
-
-    for (const comp of companiesData) {
-      await Company.updateOne(
-        { companyId: comp.companyId },
-        { $set: comp },
         { upsert: true }
       );
     }
