@@ -499,9 +499,9 @@ export default function AdminEmployeesPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => openRoleModal(emp)}
-                              className="h-6.5 text-[11px] px-2 border-purple-200 text-purple-700 hover:bg-purple-50 gap-1 rounded"
+                              className="h-8 text-xs px-3 border-purple-200 text-purple-700 hover:bg-purple-50 gap-1.5 rounded-lg font-semibold"
                             >
-                              <Edit2 className="h-3 w-3" />
+                              <Edit2 className="h-3.5 w-3.5" />
                               Role
                             </Button>
                           )}
@@ -512,12 +512,12 @@ export default function AdminEmployeesPage() {
                               size="sm"
                               onClick={() => handleVerify(emp._id, "approve")}
                               disabled={actionLoadingId === emp._id}
-                              className="h-6.5 text-[11px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white gap-0.5 rounded font-semibold"
+                              className="h-8 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white gap-1 rounded-lg font-semibold shadow-xs"
                             >
                               {actionLoadingId === emp._id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
-                                <Check className="h-3 w-3" />
+                                <Check className="h-3.5 w-3.5" />
                               )}
                               Approve
                             </Button>
@@ -529,9 +529,9 @@ export default function AdminEmployeesPage() {
                               variant="outline"
                               onClick={() => handleVerify(emp._id, "reject")}
                               disabled={actionLoadingId === emp._id}
-                              className="h-6.5 text-[11px] px-2 border-rose-200 text-rose-700 hover:bg-rose-50 gap-0.5 rounded"
+                              className="h-8 text-xs px-3 border-rose-200 text-rose-700 hover:bg-rose-50 gap-1 rounded-lg font-semibold"
                             >
-                              <X className="h-3 w-3" />
+                              <X className="h-3.5 w-3.5" />
                               Reject
                             </Button>
                           )}
@@ -548,34 +548,36 @@ export default function AdminEmployeesPage() {
 
       {/* SUPER ADMIN ROLE & PRIVILEGES MODAL */}
       {roleModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in-50">
-          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-purple-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-50">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl border border-slate-200 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900">Manage Role & Access Tier</h2>
-                  <p className="text-[11px] text-slate-500">{roleModalUser.name} ({roleModalUser.email})</p>
+                  <h2 className="text-lg font-bold text-slate-900">Manage Role & Access Tier</h2>
+                  <p className="text-xs text-slate-500">{roleModalUser.name} ({roleModalUser.email})</p>
                 </div>
               </div>
               <button
                 onClick={() => setRoleModalUser(null)}
-                className="text-slate-400 hover:text-slate-600 rounded-md p-1"
+                className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition-colors"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveRole} className="space-y-3.5 text-xs">
-              <div className="space-y-1.5">
+            <form onSubmit={handleSaveRole} className="space-y-4 text-xs">
+              <div className="space-y-2">
                 <Label className="text-xs font-semibold text-slate-700">Select Access Role</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setTargetRole("campus_admin")}
-                    className={`p-3 rounded-lg border text-left transition-all ${
+                    className={`p-3.5 rounded-xl border text-left transition-all ${
                       targetRole === "campus_admin"
-                        ? "border-purple-600 bg-purple-50/70 text-purple-900 ring-1 ring-purple-600"
+                        ? "border-purple-600 bg-purple-50 text-purple-900 ring-2 ring-purple-600"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
@@ -591,9 +593,9 @@ export default function AdminEmployeesPage() {
                   <button
                     type="button"
                     onClick={() => setTargetRole("employee")}
-                    className={`p-3 rounded-lg border text-left transition-all ${
+                    className={`p-3.5 rounded-xl border text-left transition-all ${
                       targetRole === "employee"
-                        ? "border-purple-600 bg-purple-50/70 text-purple-900 ring-1 ring-purple-600"
+                        ? "border-purple-600 bg-purple-50 text-purple-900 ring-2 ring-purple-600"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
@@ -609,13 +611,13 @@ export default function AdminEmployeesPage() {
               </div>
 
               {targetRole === "campus_admin" && (
-                <div className="space-y-1.5 animate-in fade-in-50">
+                <div className="space-y-2 animate-in fade-in-50">
                   <Label className="text-xs font-semibold text-slate-700">Assign Physical Campus</Label>
                   <select
                     value={targetCampusId}
                     onChange={(e) => setTargetCampusId(e.target.value)}
                     required
-                    className="w-full h-8.5 px-3 text-xs rounded-md border border-slate-200 bg-white text-slate-800 font-medium focus:outline-purple-600"
+                    className="w-full h-10 px-3 text-sm rounded-xl border border-slate-200 bg-white text-slate-800 font-medium focus:outline-purple-600"
                   >
                     {campuses.map((c) => (
                       <option key={c.campusId} value={c.campusId}>
@@ -629,23 +631,23 @@ export default function AdminEmployeesPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
+                  size="default"
                   onClick={() => setRoleModalUser(null)}
-                  className="h-8 text-xs"
+                  className="h-10 px-5 text-sm font-semibold rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmittingRole}
-                  size="sm"
-                  className="h-8 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5"
+                  size="default"
+                  className="h-10 px-6 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold gap-2 rounded-xl shadow-sm"
                 >
-                  {isSubmittingRole ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                  {isSubmittingRole ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                   Update Role
                 </Button>
               </div>

@@ -813,7 +813,7 @@ export default function AdminCampusesPage() {
                             setModalError(null);
                             setOtpDevCode(null);
                           }}
-                          className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-0.5 ml-2 shrink-0"
+                          className="text-xs font-semibold text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 px-2.5 py-1 rounded-lg flex items-center gap-1 ml-2 shrink-0 transition-colors"
                         >
                           <Edit2 className="h-3 w-3" />
                           {campus.adminEmail ? "Reassign" : "Assign"}
@@ -900,7 +900,7 @@ export default function AdminCampusesPage() {
                 </div>
 
                 {/* Inline Add Company Footer */}
-                <div className="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center gap-1.5">
+                <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
                   <Input
                     placeholder="Add operating company name..."
                     value={companyInputs[campus.campusId] || ""}
@@ -913,7 +913,7 @@ export default function AdminCampusesPage() {
                         handleAddOrRequestCompany(campus.campusId);
                       }
                     }}
-                    className="h-7 text-xs bg-white rounded"
+                    className="h-9 text-xs bg-white rounded-lg px-3 border-slate-200"
                   />
                   <Button
                     size="sm"
@@ -922,12 +922,12 @@ export default function AdminCampusesPage() {
                       !(companyInputs[campus.campusId] || "").trim() ||
                       companyActionLoadingId === `${campus.campusId}-add`
                     }
-                    className="h-7 px-2.5 text-xs bg-purple-600 hover:bg-purple-700 text-white shrink-0 font-semibold gap-1 rounded"
+                    className="h-9 px-4 text-xs bg-purple-600 hover:bg-purple-700 text-white shrink-0 font-semibold gap-1.5 rounded-lg shadow-xs"
                   >
                     {companyActionLoadingId === `${campus.campusId}-add` ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Plus className="h-3 w-3" />
+                      <Plus className="h-3.5 w-3.5" />
                     )}
                     Add
                   </Button>
@@ -1063,118 +1063,123 @@ export default function AdminCampusesPage() {
 
       {/* MODAL: ADD NEW CAMPUS (Super Admin) */}
       {isAddCampusOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in-50">
-          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-purple-600" />
-                <h2 className="text-base font-bold text-slate-900">Add New Campus</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-50">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-7 shadow-2xl border border-slate-200 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Add New Campus</h2>
+                  <p className="text-xs text-slate-500">Register a new physical campus and provision its operating companies.</p>
+                </div>
               </div>
               <button
                 onClick={() => setIsAddCampusOpen(false)}
-                className="text-slate-400 hover:text-slate-600 rounded-md p-1"
+                className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition-colors"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateCampus} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
+            <form onSubmit={handleCreateCampus} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-slate-700">Campus Code</Label>
                   <Input
                     required
                     value={newCampus.campusId}
                     onChange={(e) => setNewCampus({ ...newCampus, campusId: e.target.value.toUpperCase() })}
                     placeholder="e.g. CAMP004"
-                    className="font-mono uppercase h-8 text-xs"
+                    className="font-mono uppercase h-10 text-sm rounded-xl"
                   />
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-slate-700">Campus Name</Label>
                   <Input
                     required
                     value={newCampus.name}
                     onChange={(e) => setNewCampus({ ...newCampus, name: e.target.value })}
-                    placeholder="e.g. Silicon Oasis"
-                    className="h-8 text-xs"
+                    placeholder="e.g. Silicon Oasis Tech Park"
+                    className="h-10 text-sm rounded-xl"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-700">Street Address</Label>
                 <Input
                   value={newCampus.address}
                   onChange={(e) => setNewCampus({ ...newCampus, address: e.target.value })}
                   placeholder="e.g. Plot 12, Phase 3, Electronic City"
-                  className="h-8 text-xs"
+                  className="h-10 text-sm rounded-xl"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-slate-700">City</Label>
                   <Input
                     required
                     value={newCampus.city}
                     onChange={(e) => setNewCampus({ ...newCampus, city: e.target.value })}
                     placeholder="e.g. Bangalore"
-                    className="h-8 text-xs"
+                    className="h-10 text-sm rounded-xl"
                   />
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-slate-700">State</Label>
                   <Input
                     required
                     value={newCampus.state}
                     onChange={(e) => setNewCampus({ ...newCampus, state: e.target.value })}
                     placeholder="e.g. Karnataka"
-                    className="h-8 text-xs"
+                    className="h-10 text-sm rounded-xl"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Campus Admin Email</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Campus Admin Corporate Email (Optional)</Label>
                 <Input
                   type="email"
                   value={newCampus.adminEmail}
                   onChange={(e) => setNewCampus({ ...newCampus, adminEmail: e.target.value })}
                   placeholder="e.g. campusadmin@company.com"
-                  className="h-8 text-xs"
+                  className="h-10 text-sm rounded-xl"
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-700">Operating Companies (Comma-separated)</Label>
                 <Input
                   value={newCampus.companiesInput}
                   onChange={(e) => setNewCampus({ ...newCampus, companiesInput: e.target.value })}
-                  placeholder="e.g. ABC Technologies, TCS, Infosys"
-                  className="h-8 text-xs"
+                  placeholder="e.g. ABC Technologies, TCS, Infosys, Wipro"
+                  className="h-10 text-sm rounded-xl"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
+                  size="default"
                   onClick={() => setIsAddCampusOpen(false)}
-                  className="h-8 text-xs"
+                  className="h-10 px-5 text-sm font-semibold rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmittingCampus}
-                  size="sm"
-                  className="h-8 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5"
+                  size="default"
+                  className="h-10 px-6 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold gap-2 rounded-xl shadow-sm"
                 >
-                  {isSubmittingCampus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                  {isSubmittingCampus ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Create Campus
                 </Button>
               </div>
@@ -1186,49 +1191,56 @@ export default function AdminCampusesPage() {
       {/* MODAL: ASSIGN CAMPUS ADMIN (Super Admin - 2FA OTP) */}
       {assignAdminCampus && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-50">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-purple-600" />
-                <h2 className="text-base font-bold text-slate-900">
-                  {assignOtpStep === "email" ? "Assign Campus Administrator" : "Verify Security Code"}
-                </h2>
+          <div className="w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl border border-slate-200 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">
+                    {assignOtpStep === "email" ? "Assign Campus Administrator" : "Security Code Verification"}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    {assignOtpStep === "email" ? "Enter the administrator's corporate email address." : "Enter the verification code sent to the email."}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setAssignAdminCampus(null)}
-                className="text-slate-400 hover:text-slate-600 rounded-md p-1"
+                className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition-colors"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-2.5 bg-purple-50 rounded-lg border border-purple-100 text-xs text-purple-900">
-              Target Campus: <strong>{assignAdminCampus.name}</strong> ({assignAdminCampus.campusId})
+            <div className="p-3 bg-purple-50 rounded-xl border border-purple-100 text-xs text-purple-900">
+              Target Campus: <strong>{assignAdminCampus.name}</strong> (<span className="font-mono font-bold">{assignAdminCampus.campusId}</span>)
             </div>
 
             {modalError && (
-              <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-800 border border-rose-200 animate-in fade-in-50">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-600" />
-                <span>{modalError}</span>
+              <div className="flex items-center gap-2.5 rounded-xl bg-rose-50 px-3.5 py-2.5 text-xs text-rose-800 border border-rose-200 animate-in fade-in-50">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                <span className="font-medium">{modalError}</span>
               </div>
             )}
 
             {otpDevCode && (
-              <div className="p-2 bg-amber-50 rounded border border-amber-200 text-xs text-amber-900 flex items-center justify-between">
-                <span>Verification Code: <strong className="font-mono">{otpDevCode}</strong></span>
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-center justify-between">
+                <span>Verification Code: <strong className="font-mono text-sm tracking-wider">{otpDevCode}</strong></span>
                 <button
                   type="button"
                   onClick={() => setAssignOtpCode(otpDevCode)}
-                  className="text-[11px] text-purple-700 underline font-semibold"
+                  className="text-xs text-purple-700 underline font-bold hover:text-purple-900"
                 >
-                  Auto-fill
+                  Auto-fill Code
                 </button>
               </div>
             )}
 
             {assignOtpStep === "email" ? (
-              <form onSubmit={handleSendOtp} className="space-y-3.5 text-xs">
-                <div className="space-y-1">
+              <form onSubmit={handleSendOtp} className="space-y-4 text-xs">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-slate-700">Administrator Corporate Email</Label>
                   <Input
                     type="email"
@@ -1236,50 +1248,50 @@ export default function AdminCampusesPage() {
                     value={assignAdminEmail}
                     onChange={(e) => setAssignAdminEmail(e.target.value)}
                     placeholder="e.g. admin.chennai@propark.corporate"
-                    className="h-8.5 text-xs rounded-lg"
+                    className="h-10 text-sm rounded-xl"
                   />
                   <p className="text-[11px] text-slate-500">
-                    A 6-digit one-time authorization code will be sent to this email address.
+                    A 6-digit one-time authorization code will be sent to this email address to verify privileges.
                   </p>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
+                    size="default"
                     onClick={() => setAssignAdminCampus(null)}
-                    className="h-8 text-xs font-semibold"
+                    className="h-10 px-5 text-sm font-semibold rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
                     disabled={isSendingOtp || !assignAdminEmail.trim()}
-                    size="sm"
-                    className="h-8 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5 shadow-xs"
+                    size="default"
+                    className="h-10 px-6 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold gap-2 rounded-xl shadow-sm"
                   >
                     {isSendingOtp ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Send className="h-3.5 w-3.5" />
+                      <Send className="h-4 w-4" />
                     )}
                     Send Verification Code
                   </Button>
                 </div>
               </form>
             ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-3.5 text-xs">
-                <div className="space-y-1.5 text-center">
+              <form onSubmit={handleVerifyOtp} className="space-y-4 text-xs">
+                <div className="space-y-2 text-center">
                   <div className="text-xs text-slate-600">
-                    Enter the 6-digit code dispatched to:
+                    Enter the 6-digit verification code sent to:
                   </div>
-                  <div className="font-semibold text-xs text-purple-900 bg-purple-50 py-1 px-2.5 rounded inline-block border border-purple-200">
+                  <div className="font-semibold text-xs text-purple-900 bg-purple-50 py-1.5 px-3 rounded-lg inline-block border border-purple-200">
                     {assignAdminEmail}
                   </div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-slate-700 text-center block">
                     6-Digit Security OTP
                   </Label>
@@ -1291,11 +1303,11 @@ export default function AdminCampusesPage() {
                     value={assignOtpCode}
                     onChange={(e) => setAssignOtpCode(e.target.value.replace(/\D/g, ""))}
                     placeholder="• • • • • •"
-                    className="h-10 text-center font-mono text-lg tracking-[0.4em] font-bold rounded-lg border-purple-300 focus:ring-2 focus:ring-purple-500"
+                    className="h-12 text-center font-mono text-2xl tracking-[0.4em] font-bold rounded-xl border-purple-300 focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] pt-1">
+                <div className="flex items-center justify-between text-xs pt-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -1312,33 +1324,33 @@ export default function AdminCampusesPage() {
                     type="button"
                     disabled={resendCooldown > 0 || isSendingOtp}
                     onClick={() => handleSendOtp()}
-                    className="text-purple-600 hover:text-purple-800 font-semibold disabled:opacity-50 flex items-center gap-1"
+                    className="text-purple-600 hover:text-purple-800 font-semibold disabled:opacity-50 flex items-center gap-1.5"
                   >
-                    <RefreshCw className={`h-3 w-3 ${isSendingOtp ? "animate-spin" : ""}`} />
+                    <RefreshCw className={`h-3.5 w-3.5 ${isSendingOtp ? "animate-spin" : ""}`} />
                     {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Code"}
                   </button>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
+                    size="default"
                     onClick={() => setAssignAdminCampus(null)}
-                    className="h-8 text-xs font-semibold"
+                    className="h-10 px-5 text-sm font-semibold rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
                     disabled={isVerifyingOtp || assignOtpCode.length < 6}
-                    size="sm"
-                    className="h-8 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5 shadow-xs"
+                    size="default"
+                    className="h-10 px-6 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold gap-2 rounded-xl shadow-sm"
                   >
                     {isVerifyingOtp ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <CheckCircle className="h-3.5 w-3.5" />
+                      <CheckCircle className="h-4 w-4" />
                     )}
                     Verify & Assign Admin
                   </Button>
@@ -1349,44 +1361,44 @@ export default function AdminCampusesPage() {
         </div>
       )}
 
-      {/* CUSTOM CONFIRMATION DIALOG BOX (Replaces browser popups) */}
+      {/* CUSTOM CONFIRMATION DIALOG BOX (Professional High-End Design) */}
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-50 duration-200">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex items-start gap-3.5">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl border border-slate-200 space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-4">
               <div
-                className={`p-2.5 rounded-xl shrink-0 ${
+                className={`p-3 rounded-2xl shrink-0 ${
                   confirmModal.variant === "destructive"
                     ? "bg-rose-50 text-rose-600 border border-rose-100"
                     : "bg-purple-50 text-purple-600 border border-purple-100"
                 }`}
               >
                 {confirmModal.variant === "destructive" ? (
-                  <AlertTriangle className="h-6 w-6" />
+                  <AlertTriangle className="h-7 w-7" />
                 ) : (
-                  <ShieldCheck className="h-6 w-6" />
+                  <ShieldCheck className="h-7 w-7" />
                 )}
               </div>
-              <div className="space-y-1 flex-1">
-                <h3 className="text-base font-bold text-slate-900">{confirmModal.title}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{confirmModal.message}</p>
+              <div className="space-y-1.5 flex-1">
+                <h3 className="text-xl font-bold text-slate-900 tracking-tight">{confirmModal.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">{confirmModal.message}</p>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="default"
                 disabled={confirmModal.isLoading}
                 onClick={() => setConfirmModal(null)}
-                className="h-8.5 px-3.5 text-xs font-semibold rounded-lg text-slate-700 hover:bg-slate-50"
+                className="h-10 px-5 text-sm font-semibold rounded-xl border-slate-300 text-slate-700 bg-white hover:bg-slate-50 transition-all shadow-xs"
               >
                 Cancel
               </Button>
               <Button
                 type="button"
-                size="sm"
+                size="default"
                 disabled={confirmModal.isLoading}
                 onClick={async () => {
                   if (confirmModal.onConfirm) {
@@ -1398,16 +1410,16 @@ export default function AdminCampusesPage() {
                     }
                   }
                 }}
-                className={`h-8.5 px-4 text-xs font-semibold rounded-lg text-white shadow-xs gap-1.5 ${
+                className={`h-10 px-6 text-sm font-semibold rounded-xl text-white transition-all shadow-sm flex items-center gap-2 ${
                   confirmModal.variant === "destructive"
                     ? "bg-rose-600 hover:bg-rose-700"
                     : "bg-purple-600 hover:bg-purple-700"
                 }`}
               >
                 {confirmModal.isLoading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
                 )}
                 {confirmModal.confirmText || "Confirm"}
               </Button>
