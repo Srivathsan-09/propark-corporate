@@ -116,6 +116,14 @@ export default function AdminDashboardPage() {
 
   const pendingCount = employees.filter((e) => e.verificationStatus === "pending").length;
 
+  if (isLoading) {
+    return (
+      <div className="py-20 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 shadow-xs">
+        <CarLoader size="page" message="Loading admin telemetry & verification queue..." />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-300">
       {/* Header */}

@@ -213,6 +213,14 @@ export default function AdminEmployeesPage() {
   const campusAdminCount = employees.filter((e) => e.role === "campus_admin").length;
   const employeeOnlyCount = employees.filter((e) => e.role === "employee").length;
 
+  if (isLoading) {
+    return (
+      <div className="py-20 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 shadow-xs">
+        <CarLoader size="page" message="Loading corporate employee directory..." />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 animate-in fade-in-50 duration-300">
       {/* Header */}

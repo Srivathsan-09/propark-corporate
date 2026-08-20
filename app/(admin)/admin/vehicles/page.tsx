@@ -104,6 +104,14 @@ export default function AdminVehiclesPage() {
       (veh.owner?.name && veh.owner.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  if (isLoading) {
+    return (
+      <div className="py-20 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 shadow-xs">
+        <CarLoader size="page" message="Loading employee vehicles & fleet records..." />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

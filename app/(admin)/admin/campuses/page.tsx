@@ -26,6 +26,10 @@ import {
   UserX,
   Building,
   AlertTriangle,
+  KeyRound,
+  Send,
+  RefreshCw,
+  ArrowRight,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -80,10 +84,16 @@ export default function AdminCampusesPage() {
   });
   const [isSubmittingCampus, setIsSubmittingCampus] = useState(false);
 
-  // Modal State for Assigning Campus Admin (Super Admin only)
+  // Modal State for Assigning Campus Admin (Super Admin only - 2FA OTP)
   const [assignAdminCampus, setAssignAdminCampus] = useState<ICampus | null>(null);
   const [assignAdminEmail, setAssignAdminEmail] = useState("");
-  const [isSubmittingAdmin, setIsSubmittingAdmin] = useState(false);
+  const [assignOtpStep, setAssignOtpStep] = useState<"email" | "otp">("email");
+  const [assignOtpCode, setAssignOtpCode] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [otpDevCode, setOtpDevCode] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Inline Company Add / Request State per campus
   const [companyInputs, setCompanyInputs] = useState<Record<string, string>>({});
@@ -173,21 +183,61 @@ export default function AdminCampusesPage() {
     }
   };
 
-  const handleAssignAdmin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!assignAdminCampus) return;
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
-    setIsSubmittingAdmin(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
+  const handleSendOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!assignAdminCampus || !assignAdminEmail.trim()) return;
+
+    setIsSendingOtp(true);
+    setModalError(null);
+    setOtpDevCode(null);
 
     try {
-      const res = await fetch(`/api/admin/campuses/${assignAdminCampus.campusId}`, {
-        method: "PATCH",
+      const res = await fetch(`/api/admin/campuses/${assignAdminCampus.campusId}/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: assignAdminEmail.trim().toLowerCase() }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setAssignOtpStep("otp");
+        setResendCooldown(30);
+        if (data.devOtp) {
+          setOtpDevCode(data.devOtp);
+        }
+      } else {
+        setModalError(data.error || "Failed to send verification code.");
+      }
+    } catch (err) {
+      console.error("Send OTP error:", err);
+      setModalError("Network error while dispatching verification code.");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignAdminCampus || !assignAdminEmail.trim() || !assignOtpCode.trim()) return;
+
+    setIsVerifyingOtp(true);
+    setModalError(null);
+
+    try {
+      const res = await fetch(`/api/admin/campuses/${assignAdminCampus.campusId}/verify-otp`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "assign_admin",
-          adminEmail: assignAdminEmail.trim().toLowerCase(),
+          email: assignAdminEmail.trim().toLowerCase(),
+          otp: assignOtpCode.trim(),
         }),
       });
 
@@ -197,20 +247,22 @@ export default function AdminCampusesPage() {
         setCampuses((prev) =>
           prev.map((c) =>
             c.campusId === assignAdminCampus.campusId
-              ? { ...c, adminEmail: assignAdminEmail.trim().toLowerCase() || undefined }
+              ? { ...c, adminEmail: assignAdminEmail.trim().toLowerCase() }
               : c
           )
         );
-        setSuccessMessage(data.message || "Campus admin allocated successfully!");
+        setSuccessMessage(data.message || `Verified & Assigned "${assignAdminEmail}" as Campus Admin!`);
         setAssignAdminCampus(null);
+        setAssignOtpStep("email");
+        setAssignOtpCode("");
       } else {
-        setErrorMessage(data.error || "Failed to assign campus administrator.");
+        setModalError(data.error || "Invalid verification code.");
       }
     } catch (err) {
-      console.error("Error assigning admin:", err);
-      setErrorMessage("Network error while assigning campus admin.");
+      console.error("Verify OTP error:", err);
+      setModalError("Network error during OTP verification.");
     } finally {
-      setIsSubmittingAdmin(false);
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -223,12 +275,11 @@ export default function AdminCampusesPage() {
     setSuccessMessage(null);
 
     try {
-      const action = isSuperAdmin ? "add_company" : "request_company";
       const res = await fetch(`/api/admin/campuses/${campusId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action,
+          action: "add_company",
           companyName: inputName,
         }),
       });
@@ -757,6 +808,10 @@ export default function AdminCampusesPage() {
                           onClick={() => {
                             setAssignAdminCampus(campus);
                             setAssignAdminEmail(campus.adminEmail || "");
+                            setAssignOtpStep("email");
+                            setAssignOtpCode("");
+                            setModalError(null);
+                            setOtpDevCode(null);
                           }}
                           className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-0.5 ml-2 shrink-0"
                         >
@@ -793,7 +848,7 @@ export default function AdminCampusesPage() {
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200"
                           >
                             {comp}
-                            {isSuperAdmin && (
+                            {(isSuperAdmin || (isCampusAdmin && session?.user?.campusId === campus.campusId)) && (
                               <button
                                 onClick={() => handleRemoveCompany(campus.campusId, comp)}
                                 className="text-slate-400 hover:text-rose-600 ml-0.5"
@@ -844,10 +899,10 @@ export default function AdminCampusesPage() {
                   </CardContent>
                 </div>
 
-                {/* Inline Add / Request Company Footer */}
+                {/* Inline Add Company Footer */}
                 <div className="p-2.5 bg-slate-50 border-t border-slate-100 flex items-center gap-1.5">
                   <Input
-                    placeholder={isSuperAdmin ? "Add operating company name..." : "Request operating company name..."}
+                    placeholder="Add operating company name..."
                     value={companyInputs[campus.campusId] || ""}
                     onChange={(e) =>
                       setCompanyInputs((prev) => ({ ...prev, [campus.campusId]: e.target.value }))
@@ -874,7 +929,7 @@ export default function AdminCampusesPage() {
                     ) : (
                       <Plus className="h-3 w-3" />
                     )}
-                    {isSuperAdmin ? "Add" : "Request"}
+                    Add
                   </Button>
                 </div>
               </Card>
@@ -953,6 +1008,10 @@ export default function AdminCampusesPage() {
                             onClick={() => {
                               setAssignAdminCampus(campus);
                               setAssignAdminEmail(campus.adminEmail || "");
+                              setAssignOtpStep("email");
+                              setAssignOtpCode("");
+                              setModalError(null);
+                              setOtpDevCode(null);
                             }}
                             className="h-6.5 text-[11px] px-2 border-purple-200 text-purple-700 hover:bg-purple-50 gap-1 rounded"
                           >
@@ -1124,14 +1183,16 @@ export default function AdminCampusesPage() {
         </div>
       )}
 
-      {/* MODAL: ASSIGN CAMPUS ADMIN (Super Admin) */}
+      {/* MODAL: ASSIGN CAMPUS ADMIN (Super Admin - 2FA OTP) */}
       {assignAdminCampus && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in-50">
-          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl border border-slate-200 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-50">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-purple-600" />
-                <h2 className="text-base font-bold text-slate-900">Assign Campus Administrator</h2>
+                <h2 className="text-base font-bold text-slate-900">
+                  {assignOtpStep === "email" ? "Assign Campus Administrator" : "Verify Security Code"}
+                </h2>
               </div>
               <button
                 onClick={() => setAssignAdminCampus(null)}
@@ -1142,43 +1203,148 @@ export default function AdminCampusesPage() {
             </div>
 
             <div className="p-2.5 bg-purple-50 rounded-lg border border-purple-100 text-xs text-purple-900">
-              Allocating campus admin for <strong>{assignAdminCampus.name}</strong> ({assignAdminCampus.campusId}).
+              Target Campus: <strong>{assignAdminCampus.name}</strong> ({assignAdminCampus.campusId})
             </div>
 
-            <form onSubmit={handleAssignAdmin} className="space-y-3 text-xs">
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Administrator Corporate Email</Label>
-                <Input
-                  type="email"
-                  required
-                  value={assignAdminEmail}
-                  onChange={(e) => setAssignAdminEmail(e.target.value)}
-                  placeholder="e.g. admin.chennai@propark.corporate"
-                  className="h-8 text-xs"
-                />
+            {modalError && (
+              <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-800 border border-rose-200 animate-in fade-in-50">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-600" />
+                <span>{modalError}</span>
               </div>
+            )}
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <Button
+            {otpDevCode && (
+              <div className="p-2 bg-amber-50 rounded border border-amber-200 text-xs text-amber-900 flex items-center justify-between">
+                <span>Verification Code: <strong className="font-mono">{otpDevCode}</strong></span>
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAssignAdminCampus(null)}
-                  className="h-8 text-xs"
+                  onClick={() => setAssignOtpCode(otpDevCode)}
+                  className="text-[11px] text-purple-700 underline font-semibold"
                 >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmittingAdmin}
-                  size="sm"
-                  className="h-8 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5"
-                >
-                  {isSubmittingAdmin ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                  Save Allocation
-                </Button>
+                  Auto-fill
+                </button>
               </div>
-            </form>
+            )}
+
+            {assignOtpStep === "email" ? (
+              <form onSubmit={handleSendOtp} className="space-y-3.5 text-xs">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-slate-700">Administrator Corporate Email</Label>
+                  <Input
+                    type="email"
+                    required
+                    value={assignAdminEmail}
+                    onChange={(e) => setAssignAdminEmail(e.target.value)}
+                    placeholder="e.g. admin.chennai@propark.corporate"
+                    className="h-8.5 text-xs rounded-lg"
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    A 6-digit one-time authorization code will be sent to this email address.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAssignAdminCampus(null)}
+                    className="h-8 text-xs font-semibold"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSendingOtp || !assignAdminEmail.trim()}
+                    size="sm"
+                    className="h-8 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5 shadow-xs"
+                  >
+                    {isSendingOtp ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Send className="h-3.5 w-3.5" />
+                    )}
+                    Send Verification Code
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} className="space-y-3.5 text-xs">
+                <div className="space-y-1.5 text-center">
+                  <div className="text-xs text-slate-600">
+                    Enter the 6-digit code dispatched to:
+                  </div>
+                  <div className="font-semibold text-xs text-purple-900 bg-purple-50 py-1 px-2.5 rounded inline-block border border-purple-200">
+                    {assignAdminEmail}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-slate-700 text-center block">
+                    6-Digit Security OTP
+                  </Label>
+                  <Input
+                    type="text"
+                    required
+                    maxLength={6}
+                    autoFocus
+                    value={assignOtpCode}
+                    onChange={(e) => setAssignOtpCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="• • • • • •"
+                    className="h-10 text-center font-mono text-lg tracking-[0.4em] font-bold rounded-lg border-purple-300 focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssignOtpStep("email");
+                      setAssignOtpCode("");
+                      setModalError(null);
+                    }}
+                    className="text-slate-500 hover:text-purple-600 font-medium"
+                  >
+                    ← Change Email
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={resendCooldown > 0 || isSendingOtp}
+                    onClick={() => handleSendOtp()}
+                    className="text-purple-600 hover:text-purple-800 font-semibold disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${isSendingOtp ? "animate-spin" : ""}`} />
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Code"}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAssignAdminCampus(null)}
+                    className="h-8 text-xs font-semibold"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isVerifyingOtp || assignOtpCode.length < 6}
+                    size="sm"
+                    className="h-8 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5 shadow-xs"
+                  >
+                    {isVerifyingOtp ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-3.5 w-3.5" />
+                    )}
+                    Verify & Assign Admin
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

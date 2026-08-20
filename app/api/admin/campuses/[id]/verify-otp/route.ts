@@ -1,0 +1,99 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import mongoose from "mongoose";
+import { authOptions } from "@/lib/auth";
+import { connectToDatabase } from "@/lib/db/mongodb";
+import Campus from "@/models/Campus";
+import Otp from "@/models/Otp";
+import User from "@/models/User";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user || session.user.role !== "admin") {
+      return NextResponse.json(
+        { success: false, error: "Access denied. Super Admin privileges required." },
+        { status: 403 }
+      );
+    }
+
+    const { id } = params;
+    const body = await req.json();
+    const email = (body.email || "").toLowerCase().trim();
+    const otpCode = (body.otp || "").trim();
+
+    if (!email || !otpCode) {
+      return NextResponse.json(
+        { success: false, error: "Email and 6-digit OTP are required." },
+        { status: 400 }
+      );
+    }
+
+    await connectToDatabase();
+
+    const query = mongoose.Types.ObjectId.isValid(id)
+      ? { _id: id }
+      : { campusId: id.toUpperCase().trim() };
+
+    const campus = await Campus.findOne(query);
+    if (!campus) {
+      return NextResponse.json(
+        { success: false, error: "Campus not found." },
+        { status: 404 }
+      );
+    }
+
+    // Verify OTP record
+    const validOtpDoc = await Otp.findOne({
+      email,
+      otp: otpCode,
+      campusId: campus.campusId,
+      purpose: "campus_admin_assign",
+      verified: false,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!validOtpDoc) {
+      return NextResponse.json(
+        { success: false, error: "Invalid or expired verification code. Please request a new one." },
+        { status: 400 }
+      );
+    }
+
+    // Mark OTP as verified and delete it
+    await Otp.deleteOne({ _id: validOtpDoc._id });
+
+    // Update Campus document
+    campus.adminEmail = email;
+    await campus.save();
+
+    // If a user account already exists for this email, promote them to campus_admin
+    const userDoc = await User.findOne({ email });
+    if (userDoc) {
+      userDoc.role = "campus_admin";
+      userDoc.campusId = campus.campusId;
+      userDoc.campusName = campus.name;
+      userDoc.isApproved = true;
+      userDoc.verificationStatus = "approved";
+      await userDoc.save();
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Verified successfully! Assigned "${email}" as Campus Admin for ${campus.name}.`,
+      campus,
+    });
+  } catch (error: any) {
+    console.error("Verify OTP error:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to verify authorization code." },
+      { status: 500 }
+    );
+  }
+}

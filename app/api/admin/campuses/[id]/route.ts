@@ -181,36 +181,18 @@ export async function PATCH(
       });
     }
 
-    // 5. Direct Add Company (Super Admin directly adds company, or Campus Admin if direct add is permitted)
+    // 5. Add Company (Super Admin for all campuses, Campus Admin for their respective campus)
     if (body.action === "add_company" && body.companyName) {
       const trimmed = body.companyName.trim();
 
-      if (!isSuperAdmin) {
-        // If Campus Admin tries to add directly, route it as a request to pending
-        if (campus.companies.includes(trimmed)) {
-          return NextResponse.json(
-            { success: false, error: `Company "${trimmed}" is already active in ${campus.name}.` },
-            { status: 400 }
-          );
-        }
-        if (!campus.pendingCompanies) campus.pendingCompanies = [];
-        campus.pendingCompanies.push({
-          name: trimmed,
-          requestedBy: session.user.email || "Campus Admin",
-          requestedAt: new Date(),
-        });
-        await campus.save();
-        return NextResponse.json({
-          success: true,
-          message: `Company "${trimmed}" requested. Awaiting Super Admin approval.`,
-          campus,
-        });
+      if (campus.companies.includes(trimmed)) {
+        return NextResponse.json(
+          { success: false, error: `Company "${trimmed}" is already active in ${campus.name}.` },
+          { status: 400 }
+        );
       }
 
-      // Super Admin direct addition
-      if (!campus.companies.includes(trimmed)) {
-        campus.companies.push(trimmed);
-      }
+      campus.companies.push(trimmed);
       campus.pendingCompanies = (campus.pendingCompanies || []).filter((p) => p.name !== trimmed);
       await campus.save();
 
