@@ -61,9 +61,7 @@ export const authOptions: NextAuthOptions = {
           department: user.department,
           phone: user.phone,
           companyName: user.companyName || "ABC Technologies",
-          campusCompanyId: user.campusCompanyId || "CAMP-ABC-001",
           campusId: user.campusId || "CAMP001",
-          companyId: user.companyId || "COMP001",
           campusName: user.campusName || "Tech Park Chennai",
           role: user.role,
           verificationStatus: user.verificationStatus || (user.role === "admin" ? "approved" : "pending"),
@@ -161,9 +159,7 @@ export const authOptions: NextAuthOptions = {
         token.department = user.department;
         token.phone = user.phone;
         token.companyName = user.companyName;
-        token.campusCompanyId = user.campusCompanyId;
         token.campusId = user.campusId;
-        token.companyId = user.companyId;
         token.campusName = user.campusName;
         token.verificationStatus = user.verificationStatus;
         token.isApproved = user.isApproved;
@@ -181,9 +177,7 @@ export const authOptions: NextAuthOptions = {
             token.department = dbUser.department;
             token.phone = dbUser.phone;
             token.companyName = dbUser.companyName;
-            token.campusCompanyId = dbUser.campusCompanyId;
             token.campusId = dbUser.campusId;
-            token.companyId = dbUser.companyId;
             token.campusName = dbUser.campusName;
             token.verificationStatus = dbUser.verificationStatus || (dbUser.role === "admin" ? "approved" : "pending");
             token.isApproved = dbUser.isApproved ?? (dbUser.role === "admin");
@@ -199,7 +193,6 @@ export const authOptions: NextAuthOptions = {
         if (session.department) token.department = session.department;
         if (session.phone) token.phone = session.phone;
         if (session.companyName) token.companyName = session.companyName;
-        if (session.campusCompanyId) token.campusCompanyId = session.campusCompanyId;
         if (session.campusId) token.campusId = session.campusId;
         if (session.image) token.picture = session.image;
         if (session.verificationStatus) token.verificationStatus = session.verificationStatus;
@@ -212,14 +205,12 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = (token.id || token.sub) as string;
-        session.user.role = (token.role as "employee" | "admin") || "employee";
+        session.user.role = (token.role as "employee" | "admin" | "campus_admin") || "employee";
         session.user.employeeId = token.employeeId as string;
         session.user.department = token.department as string;
         session.user.phone = token.phone as string | undefined;
         session.user.companyName = token.companyName as string | undefined;
-        session.user.campusCompanyId = token.campusCompanyId as string | undefined;
         session.user.campusId = token.campusId as string | undefined;
-        session.user.companyId = token.companyId as string | undefined;
         session.user.campusName = token.campusName as string | undefined;
         session.user.verificationStatus = (token.verificationStatus as "pending" | "approved" | "rejected") || "pending";
         session.user.isApproved = Boolean(token.isApproved);
@@ -229,18 +220,17 @@ export const authOptions: NextAuthOptions = {
           try {
             await connectToDatabase();
             const liveUser = await User.findOne({ email: session.user.email.toLowerCase().trim() })
-              .select("isApproved verificationStatus role name employeeId companyName campusCompanyId campusId companyId campusName");
+              .select("isApproved verificationStatus role name employeeId companyName campusId campusName");
             if (liveUser) {
-              const isAdmin = liveUser.role === "admin" || session.user.email.toLowerCase().trim() === "srimana2006@gmail.com";
-              session.user.role = isAdmin ? "admin" : "employee";
-              session.user.isApproved = isAdmin || Boolean(liveUser.isApproved);
-              session.user.verificationStatus = isAdmin ? "approved" : (liveUser.verificationStatus || "pending");
+              const isSuper = session.user.email.toLowerCase().trim() === "srimana2006@gmail.com" || liveUser.role === "admin";
+              const isCampusAdm = liveUser.role === "campus_admin";
+              session.user.role = isSuper ? "admin" : isCampusAdm ? "campus_admin" : "employee";
+              session.user.isApproved = isSuper || isCampusAdm || Boolean(liveUser.isApproved);
+              session.user.verificationStatus = (isSuper || isCampusAdm) ? "approved" : (liveUser.verificationStatus || "pending");
               if (liveUser.name) session.user.name = liveUser.name;
               if (liveUser.employeeId) session.user.employeeId = liveUser.employeeId;
               if (liveUser.companyName) session.user.companyName = liveUser.companyName;
-              if (liveUser.campusCompanyId) session.user.campusCompanyId = liveUser.campusCompanyId;
               if (liveUser.campusId) session.user.campusId = liveUser.campusId;
-              if (liveUser.companyId) session.user.companyId = liveUser.companyId;
               if (liveUser.campusName) session.user.campusName = liveUser.campusName;
             }
           } catch (e) {

@@ -226,14 +226,13 @@ export async function POST(req: NextRequest) {
       stops: stops || [],
       notes: notes || "",
       campusId: dbUser.campusId || "CAMP001",
-      campusCompanyId: dbUser.campusCompanyId || "CAMP-ABC-001",
       status: "scheduled",
       acceptedPassengers: [],
     });
 
     // Populate for return
     const populatedRide = await Ride.findById(newRide._id)
-      .populate("driver", "name email employeeId companyName campusName campusCompanyId department phone profileImage")
+      .populate("driver", "name email employeeId companyName campusName department phone profileImage")
       .populate("vehicle", "vehicleModel vehicleType registrationNumber vehiclePhoto");
 
     // Broadcast Notification to campus colleagues in the SAME physical campus

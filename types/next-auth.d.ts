@@ -9,9 +9,7 @@ declare module "next-auth" {
       department: string;
       phone?: string;
       companyName?: string;
-      campusCompanyId?: string;
       campusId?: string;
-      companyId?: string;
       campusName?: string;
       verificationStatus: "pending" | "approved" | "rejected";
       isApproved: boolean;
@@ -25,9 +23,7 @@ declare module "next-auth" {
     department: string;
     phone?: string;
     companyName?: string;
-    campusCompanyId?: string;
     campusId?: string;
-    companyId?: string;
     campusName?: string;
     verificationStatus: "pending" | "approved" | "rejected";
     isApproved: boolean;
@@ -42,9 +38,7 @@ declare module "next-auth/jwt" {
     department?: string;
     phone?: string;
     companyName?: string;
-    campusCompanyId?: string;
     campusId?: string;
-    companyId?: string;
     campusName?: string;
     verificationStatus?: "pending" | "approved" | "rejected";
     isApproved?: boolean;

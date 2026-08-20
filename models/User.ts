@@ -15,9 +15,7 @@ export interface IUser extends Document {
   phone: string;
   department: string;
   companyName: string;
-  campusCompanyId?: string; // Unique Campus ID (e.g. "CAMP-ABC-001")
   campusId?: string;        // Physical Campus (e.g. "CAMP001")
-  companyId?: string;       // Corporate Entity (e.g. "COMP001")
   campusName?: string;      // Physical Campus Name (e.g. "Tech Park Chennai")
   passwordHash: string;
   role: "employee" | "admin" | "campus_admin";
@@ -72,23 +70,9 @@ const UserSchema = new Schema<IUser>(
       trim: true,
       index: true,
     },
-    campusCompanyId: {
-      type: String,
-      default: "CAMP-ABC-001",
-      uppercase: true,
-      trim: true,
-      index: true,
-    },
     campusId: {
       type: String,
       default: "CAMP001",
-      uppercase: true,
-      trim: true,
-      index: true,
-    },
-    companyId: {
-      type: String,
-      default: "COMP001",
       uppercase: true,
       trim: true,
       index: true,

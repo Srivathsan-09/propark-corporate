@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Campus from "@/models/Campus";
+import Company from "@/models/Company";
 import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +106,17 @@ export async function POST(req: NextRequest) {
       pendingCompanies: [],
       status: "active",
     });
+
+    // Also persist in the dedicated companies collection
+    if (cleanedCompanies.length > 0) {
+      const companyDocs = cleanedCompanies.map((comp: string) => ({
+        name: comp,
+        campusId: newCampus.campusId,
+        campusName: newCampus.name,
+        status: "active",
+      }));
+      await Company.insertMany(companyDocs, { ordered: false }).catch(() => {});
+    }
 
     // If an existing user matches adminEmail, upgrade them to Campus Admin
     if (normalizedAdminEmail) {

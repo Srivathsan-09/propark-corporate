@@ -1,9 +1,10 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Campus from "@/models/Campus";
+import Company from "@/models/Company";
 import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
@@ -139,6 +140,20 @@ export async function PATCH(
 
       await campus.save();
 
+      // Persist in Company collection
+      await Company.updateOne(
+        { campusId: campus.campusId, name: trimmed },
+        {
+          $set: {
+            campusId: campus.campusId,
+            campusName: campus.name,
+            name: trimmed,
+            status: "active",
+          },
+        },
+        { upsert: true }
+      );
+
       return NextResponse.json({
         success: true,
         message: `Approved "${trimmed}" for ${campus.name}!`,
@@ -199,6 +214,20 @@ export async function PATCH(
       campus.pendingCompanies = (campus.pendingCompanies || []).filter((p) => p.name !== trimmed);
       await campus.save();
 
+      // Persist in Company collection
+      await Company.updateOne(
+        { campusId: campus.campusId, name: trimmed },
+        {
+          $set: {
+            campusId: campus.campusId,
+            campusName: campus.name,
+            name: trimmed,
+            status: "active",
+          },
+        },
+        { upsert: true }
+      );
+
       return NextResponse.json({
         success: true,
         message: `Company "${trimmed}" added to ${campus.name}.`,
@@ -211,6 +240,10 @@ export async function PATCH(
       const trimmed = body.companyName.trim();
       campus.companies = campus.companies.filter((c) => c !== trimmed);
       await campus.save();
+
+      // Delete from Company collection
+      await Company.deleteOne({ campusId: campus.campusId, name: trimmed });
+
       return NextResponse.json({
         success: true,
         message: `Company "${trimmed}" removed from ${campus.name}.`,
@@ -228,6 +261,17 @@ export async function PATCH(
       if (body.adminEmail !== undefined) campus.adminEmail = body.adminEmail ? body.adminEmail.toLowerCase().trim() : undefined;
       if (Array.isArray(body.companies)) {
         campus.companies = body.companies.map((c: string) => c.trim()).filter(Boolean);
+        // Replace in Company collection
+        await Company.deleteMany({ campusId: campus.campusId });
+        if (campus.companies.length > 0) {
+          const docs = campus.companies.map((c: string) => ({
+            campusId: campus.campusId,
+            campusName: campus.name,
+            name: c,
+            status: "active",
+          }));
+          await Company.insertMany(docs, { ordered: false }).catch(() => {});
+        }
       }
 
       await campus.save();
@@ -275,6 +319,9 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    // Delete all companies associated with this campus
+    await Company.deleteMany({ campusId: deleted.campusId });
 
     return NextResponse.json({
       success: true,

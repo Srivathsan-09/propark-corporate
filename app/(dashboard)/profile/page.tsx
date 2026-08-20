@@ -38,10 +38,9 @@ interface UserProfileData {
   phone: string;
   department: string;
   companyName?: string;
-  campusCompanyId?: string;
   campusId?: string;
   campusName?: string;
-  role: "employee" | "admin";
+  role: "employee" | "admin" | "campus_admin";
   verificationStatus?: "pending" | "approved" | "rejected";
   isApproved?: boolean;
   profileImage?: string;
