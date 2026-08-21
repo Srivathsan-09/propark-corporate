@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { getToken } from "next-auth/jwt";
+import { decode } from "next-auth/jwt";
 import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
@@ -291,89 +291,126 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Use getToken — reads JWT directly from cookie, always reliable on Vercel
-    const token = await getToken({
-      req,
-      secret: process.env.NEXTAUTH_SECRET || "propark_corporate_mobility_platform_super_secret_2026_key",
-    });
+    const JWT_SECRET =
+      process.env.NEXTAUTH_SECRET ||
+      "propark_corporate_mobility_platform_super_secret_2026_key";
 
-    const tokenRole = token?.role as string | undefined;
-    const tokenEmail = token?.email as string | undefined;
+    // ── Layer 1: Read the JWT cookie directly (works in both dev + Vercel prod) ──
+    // Vercel HTTPS uses __Secure-next-auth.session-token
+    // Local dev uses next-auth.session-token
+    const jwtCookie =
+      req.cookies.get("__Secure-next-auth.session-token")?.value ||
+      req.cookies.get("next-auth.session-token")?.value;
 
-    console.log(`DELETE campus: token role="${tokenRole}" email="${tokenEmail}"`);
+    let userEmail: string | undefined;
+    let userRole: string | undefined;
 
-    // If JWT says not admin, do one final DB lookup as safety net
-    let effectiveRole = tokenRole;
-    if (effectiveRole !== "admin" && tokenEmail) {
-      await connectToDatabase();
-      const dbUser = await User.findOne({ email: tokenEmail.toLowerCase().trim() }).select("role");
-      if (dbUser?.role === "admin") {
-        effectiveRole = "admin";
-        console.log(`DELETE campus: DB override — email "${tokenEmail}" is admin`);
+    if (jwtCookie) {
+      try {
+        const decoded = await decode({ token: jwtCookie, secret: JWT_SECRET });
+        userEmail = decoded?.email as string | undefined;
+        userRole = decoded?.role as string | undefined;
+        console.log(`DELETE campus [JWT]: email="${userEmail}" role="${userRole}"`);
+      } catch (jwtErr) {
+        console.warn("DELETE campus: JWT decode failed:", jwtErr);
+      }
+    } else {
+      console.warn("DELETE campus: no JWT cookie found in request");
+    }
+
+    // ── Layer 2: If we have an email but role isn't "admin", check DB directly ──
+    await connectToDatabase();
+    if (userEmail && userRole !== "admin") {
+      const dbUser = await User.findOne({ email: userEmail.toLowerCase().trim() }).select("role");
+      userRole = dbUser?.role;
+      console.log(`DELETE campus [DB lookup]: email="${userEmail}" dbRole="${userRole}"`);
+    }
+
+    // ── Layer 3: Hardcoded super-admin email as ultimate fallback ──
+    const SUPER_ADMIN_EMAILS = ["srimana2006@gmail.com", "admin@propark.corporate.com"];
+    if (userRole !== "admin" && userEmail && SUPER_ADMIN_EMAILS.includes(userEmail.toLowerCase().trim())) {
+      userRole = "admin";
+      console.log(`DELETE campus [hardcoded]: email "${userEmail}" granted admin via hardcoded list`);
+    }
+
+    // ── Layer 4: Last resort — check session (may fail on cold starts but worth trying) ──
+    if (userRole !== "admin") {
+      try {
+        const session = await getServerSession(authOptions);
+        const sessionEmail = session?.user?.email;
+        const sessionRole = session?.user?.role;
+        console.log(`DELETE campus [session]: email="${sessionEmail}" role="${sessionRole}"`);
+        if (sessionRole === "admin") {
+          userRole = "admin";
+          userEmail = sessionEmail || userEmail;
+        }
+      } catch (sessErr) {
+        console.warn("DELETE campus: getServerSession failed:", sessErr);
       }
     }
 
-    if (effectiveRole !== "admin") {
-      console.warn(`DELETE campus BLOCKED — effectiveRole="${effectiveRole}" email="${tokenEmail}"`);
+    // ── Auth gate ──
+    if (userRole !== "admin") {
+      console.warn(`DELETE campus BLOCKED — final role="${userRole}" email="${userEmail}" | cookie=${jwtCookie ? "present" : "MISSING"}`);
       return NextResponse.json(
-        { success: false, error: "Only Super Administrators can delete campuses." },
+        { success: false, error: `Access denied. Role="${userRole ?? "none"}". Please sign out and sign back in, then try again.` },
         { status: 403 }
       );
     }
 
+    // ── Delete the campus ──
     const { id } = params;
-    await connectToDatabase();
-
     const idParam = decodeURIComponent(id || "").trim();
-    console.log(`DELETE campus: attempting to delete campusId="${idParam}"`);
+    console.log(`DELETE campus: authorized as "${userEmail}", deleting campusId="${idParam}"`);
 
-    // Try case-insensitive regex first
+    // Try case-insensitive regex
     let deleted = await Campus.findOneAndDelete({
       campusId: new RegExp(`^${idParam}$`, "i"),
     });
 
-    // Fallback: exact uppercase match
+    // Fallback: exact uppercase
     if (!deleted) {
       deleted = await Campus.findOneAndDelete({ campusId: idParam.toUpperCase() });
     }
 
-    // Fallback: ObjectId match
+    // Fallback: ObjectId
     if (!deleted && mongoose.Types.ObjectId.isValid(idParam) && idParam.length === 24) {
       deleted = await Campus.findOneAndDelete({ _id: new mongoose.Types.ObjectId(idParam) });
     }
 
     if (!deleted) {
-      console.warn(`DELETE campus: campusId="${idParam}" NOT FOUND in DB`);
+      console.warn(`DELETE campus: campusId="${idParam}" NOT FOUND in MongoDB`);
       return NextResponse.json(
-        { success: false, error: `Campus "${idParam}" not found. It may have already been deleted.` },
+        { success: false, error: `Campus "${idParam}" not found — it may have already been deleted.` },
         { status: 404 }
       );
     }
 
     const targetCampusId = deleted.campusId;
-    console.log(`DELETE campus: SUCCESS — deleted "${deleted.name}" (${targetCampusId})`);
+    console.log(`DELETE campus: ✅ PERMANENTLY DELETED "${deleted.name}" (${targetCampusId})`);
 
-    // Cascade: delete all associated companies
+    // Cascade: delete associated companies
     const { deletedCount: compCount } = await Company.deleteMany({
       campusId: new RegExp(`^${targetCampusId}$`, "i"),
     });
-    console.log(`DELETE campus: removed ${compCount} companies for ${targetCampusId}`);
 
-    // Cascade: unlink all users from this campus
+    // Cascade: unlink users
     await User.updateMany(
       { campusId: new RegExp(`^${targetCampusId}$`, "i") },
-      { $set: { campusId: "", campusName: "", role: "employee" } }
+      { $unset: { campusId: "", campusName: "" }, $set: { role: "employee" } }
     );
+
+    console.log(`DELETE campus: cascade — removed ${compCount} companies, unlinked users for ${targetCampusId}`);
 
     return NextResponse.json({
       success: true,
-      message: `Campus "${deleted.name}" (${targetCampusId}) has been permanently deleted.`,
+      message: `"${deleted.name}" has been permanently deleted from the system.`,
       campusId: targetCampusId,
     });
   } catch (error: unknown) {
-    console.error("Admin Campus DELETE error:", error);
+    console.error("Admin Campus DELETE unhandled error:", error);
     return NextResponse.json(
-      { success: false, error: "Server error while deleting campus. Please try again." },
+      { success: false, error: "Server error during deletion. Check Vercel logs." },
       { status: 500 }
     );
   }
