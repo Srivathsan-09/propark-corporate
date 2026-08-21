@@ -55,8 +55,6 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
 
   try {
     cached.conn = await cached.promise;
-    // Asynchronously bootstrap campus master data if not initialized
-    import("@/lib/db/seedCampusData").then((m) => m.ensureCampusMasterData()).catch(() => {});
   } catch (e) {
     cached.promise = null;
     throw e;
