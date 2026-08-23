@@ -3,8 +3,8 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface IOtp extends Document {
   email: string;
   otp: string;
-  purpose: "campus_admin_assign";
-  campusId: string;
+  purpose: "campus_admin_assign" | "employee_registration";
+  campusId?: string;
   expiresAt: Date;
   verified: boolean;
   createdAt: Date;
@@ -27,13 +27,13 @@ const OtpSchema = new Schema<IOtp>(
     },
     purpose: {
       type: String,
-      enum: ["campus_admin_assign"],
-      default: "campus_admin_assign",
+      enum: ["campus_admin_assign", "employee_registration"],
+      default: "employee_registration",
       required: true,
     },
     campusId: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
       uppercase: true,
     },

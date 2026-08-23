@@ -96,11 +96,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 6. Hash Password securely
+    // 6. Verify 6-digit email OTP
+    const { otp } = body;
+    if (!otp || !otp.trim()) {
+      return NextResponse.json(
+        { success: false, error: "6-digit email verification code is required." },
+        { status: 400 }
+      );
+    }
+
+    const Otp = (await import("@/models/Otp")).default;
+    const otpRecord = await Otp.findOne({
+      email: normalizedEmail,
+      purpose: "employee_registration",
+    });
+
+    if (!otpRecord) {
+      return NextResponse.json(
+        { success: false, error: "No verification code was requested for this email. Please request a verification code." },
+        { status: 400 }
+      );
+    }
+
+    if (new Date() > otpRecord.expiresAt) {
+      return NextResponse.json(
+        { success: false, error: "Verification code has expired. Please request a new verification code." },
+        { status: 400 }
+      );
+    }
+
+    if (otpRecord.otp.trim() !== otp.trim()) {
+      return NextResponse.json(
+        { success: false, error: "Invalid 6-digit verification code. Please check your inbox or request a new code." },
+        { status: 400 }
+      );
+    }
+
+    // Consume OTP
+    await Otp.deleteOne({ _id: otpRecord._id });
+
+    // 7. Hash Password securely
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // 7. Create User with physical Campus & Company associations
+    // 8. Create User with physical Campus & Company associations
     const newUser = await User.create({
       name,
       employeeId: formattedEmpId,
@@ -116,7 +155,7 @@ export async function POST(req: NextRequest) {
       isApproved: false,
     });
 
-    // 8. Safe response
+    // 9. Safe response
     return NextResponse.json(
       {
         success: true,
