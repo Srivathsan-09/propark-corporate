@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   RotateCcw,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -536,8 +537,8 @@ export default function RegisterPage() {
                 disabled={isSendingOtp}
               >
                 {isSendingOtp ? (
-                  <span className="flex items-center justify-center gap-1.5">
-                    <CarLoader size="inline" showRoad={false} carColor="#ffffff" className="w-8 h-4 scale-75 inline-flex" />
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
                     <span>Sending Verification Code...</span>
                   </span>
                 ) : (
@@ -599,8 +600,8 @@ export default function RegisterPage() {
                 disabled={isLoading || otp.length !== 6}
               >
                 {isLoading ? (
-                  <span className="flex items-center justify-center gap-1.5">
-                    <CarLoader size="inline" showRoad={false} carColor="#ffffff" className="w-8 h-4 scale-75 inline-flex" />
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
                     <span>Verifying Code & Creating Account...</span>
                   </span>
                 ) : (
