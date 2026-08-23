@@ -67,7 +67,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "System Reports & Safety",
       href: "/admin/reports",
       icon: ShieldAlert,
-      phaseBadge: "Phase 4",
     },
   ];
 
@@ -116,7 +115,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Safety & Reports",
       href: "/reports",
       icon: ShieldAlert,
-      phaseBadge: "Phase 4",
     },
   ];
 
