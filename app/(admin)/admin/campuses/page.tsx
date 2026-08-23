@@ -942,7 +942,7 @@ export default function AdminCampusesPage() {
       {/* VIEW 2: CAMPUS ADMINS DIRECTORY */}
       {activeTab === "admins" && isSuperAdmin && (
         <Card className="border-slate-200 bg-white shadow-xs rounded-2xl overflow-hidden">
-          <CardHeader className="py-4 px-5 bg-slate-50/80 border-b border-slate-100">
+          <CardHeader className="py-4 px-6 bg-slate-50/80 border-b border-slate-100">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -957,26 +957,26 @@ export default function AdminCampusesPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs min-w-[640px]">
+              <table className="w-full text-left text-xs min-w-[700px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] uppercase tracking-wider text-slate-500">
-                    <th className="py-3 px-4 font-bold w-36">Campus Code</th>
-                    <th className="py-3 px-4 font-bold">Campus Name</th>
-                    <th className="py-3 px-4 font-bold">Location</th>
-                    <th className="py-3 px-4 font-bold">Allocated Campus Admin</th>
-                    <th className="py-3 px-4 font-bold">Status</th>
-                    <th className="py-3 px-4 font-bold text-right">Actions</th>
+                    <th className="py-3.5 pl-6 pr-4 font-bold w-36">Campus Code</th>
+                    <th className="py-3.5 px-4 font-bold">Campus Name</th>
+                    <th className="py-3.5 px-4 font-bold">Location</th>
+                    <th className="py-3.5 px-4 font-bold">Allocated Campus Admin</th>
+                    <th className="py-3.5 px-4 font-bold">Status</th>
+                    <th className="py-3.5 pl-4 pr-6 font-bold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {campuses.map((campus) => (
                     <tr key={campus.campusId} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="font-bold text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 tracking-wide inline-block">
+                      <td className="py-3.5 pl-6 pr-4 whitespace-nowrap">
+                        <span className="font-bold text-xs text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-md border border-purple-200 tracking-wide inline-block">
                           {campus.campusId}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-900 text-xs">
+                      <td className="py-3.5 px-4 font-semibold text-slate-900 text-xs whitespace-nowrap">
                         {campus.name}
                       </td>
                       <td className="py-3.5 px-4 text-slate-500 text-xs whitespace-nowrap">
@@ -1003,8 +1003,8 @@ export default function AdminCampusesPage() {
                           </Badge>
                         )}
                       </td>
-                      <td className="py-3.5 px-4.5 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-3.5 pl-4 pr-6 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2.5">
                           <Button
                             size="sm"
                             variant="outline"
