@@ -436,7 +436,11 @@ export default function AdminEmployeesPage() {
 
                     {/* Status */}
                     <td className="py-3 px-4 whitespace-nowrap">
-                      {emp.verificationStatus === "approved" || emp.role === "admin" ? (
+                      {emp.role === "admin" ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800">Super Admin</span>
+                      ) : emp.role === "campus_admin" ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800">Campus Admin</span>
+                      ) : emp.verificationStatus === "approved" ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <Check className="h-3 w-3" /> Approved
                         </span>

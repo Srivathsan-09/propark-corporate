@@ -280,6 +280,8 @@ export default function AdminDashboardPage() {
                     <td className="py-2 px-3 whitespace-nowrap">
                       {emp.role === "admin" ? (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800">Admin</span>
+                      ) : emp.role === "campus_admin" ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800">Campus Admin</span>
                       ) : emp.verificationStatus === "approved" ? (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <Check className="h-2.5 w-2.5" /> Approved
@@ -295,7 +297,9 @@ export default function AdminDashboardPage() {
                       )}
                     </td>
                     <td className="py-2 px-3 text-right whitespace-nowrap">
-                      {emp.role !== "admin" && (
+                      {emp.role === "admin" || emp.role === "campus_admin" ? (
+                        <span className="text-slate-400 text-[10px] italic">Admin</span>
+                      ) : (
                         <div className="flex items-center justify-end gap-1">
                           {emp.verificationStatus !== "approved" && (
                             <button
