@@ -94,10 +94,20 @@ export async function POST(
       );
     }
 
+    const methodMessage =
+      emailResult.method === "resend"
+        ? `Verification code dispatched via Resend to ${email}.`
+        : emailResult.method === "gmail"
+        ? `Verification code dispatched via Gmail to ${email}.`
+        : emailResult.method === "smtp"
+        ? `Verification code sent via SMTP to ${email}.`
+        : `Verification code generated for ${email}.`;
+
     return NextResponse.json({
       success: true,
-      message: `Verification code sent to ${email}.`,
-      devOtp: emailResult.devOtp, // Returned only during local dev fallback if SMTP is unconfigured
+      message: methodMessage,
+      method: emailResult.method,
+      devOtp: emailResult.devOtp,
     });
   } catch (error: any) {
     console.error("Send OTP error:", error);
