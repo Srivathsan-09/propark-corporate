@@ -43,6 +43,7 @@ import {
 import LocationSearchInput from "@/components/map/LocationSearchInput";
 import MapView, { MapPoint } from "@/components/map/MapView";
 import { CarLoader } from "@/components/common/CarLoader";
+import { geocodingService } from "@/lib/services/geocoding";
 import { useRoute } from "@/hooks/useRoute";
 import { offerRideSchema } from "@/validations/ride.schema";
 
@@ -85,12 +86,23 @@ export default function OfferRidePage() {
   const currentHour = new Date().getHours();
   const defaultIsMorning = currentHour < 13;
 
+  // Profile & Campus Data
+  const [userCampusName, setUserCampusName] = useState<string>("Campus");
+  const [userHomeLocation, setUserHomeLocation] = useState<string>("");
+  const [homePoint, setHomePoint] = useState<MapPoint | null>(null);
+  const [campusPoint, setCampusPoint] = useState<MapPoint>({
+    name: "Tech Park Campus",
+    address: "Tech Park Campus, Chennai",
+    latitude: 12.8988,
+    longitude: 80.2284,
+  });
+
   // Form State
   const [formData, setFormData] = useState({
     vehicleId: "",
     rideType: defaultIsMorning ? ("pickup" as "pickup" | "drop") : ("drop" as "pickup" | "drop"),
-    startingLocation: defaultIsMorning ? "Tambaram Sanatorium" : "Tech Mahindra SEZ Campus, OMR",
-    destination: defaultIsMorning ? "Tech Mahindra SEZ Campus, OMR" : "Tambaram Sanatorium",
+    startingLocation: "",
+    destination: "",
     departureDate: new Date().toISOString().split("T")[0],
     departureTime: defaultIsMorning ? "08:30 AM" : "06:00 PM",
     availableSeats: 3,
@@ -99,36 +111,21 @@ export default function OfferRidePage() {
 
   // Coordinate Points State
   const [startPoint, setStartPoint] = useState<MapPoint>({
-    name: defaultIsMorning ? "Tambaram Sanatorium" : "Tech Mahindra SEZ Campus, OMR",
-    address: defaultIsMorning ? "Tambaram Sanatorium, Chennai" : "Tech Mahindra SEZ Campus, OMR, Sholinganallur, Chennai",
-    latitude: defaultIsMorning ? 12.9249 : 12.8988,
-    longitude: defaultIsMorning ? 80.1332 : 80.2284,
+    name: "",
+    address: "",
+    latitude: 0,
+    longitude: 0,
   });
 
   const [endPoint, setEndPoint] = useState<MapPoint>({
-    name: defaultIsMorning ? "Tech Mahindra SEZ Campus, OMR" : "Tambaram Sanatorium",
-    address: defaultIsMorning ? "Tech Mahindra SEZ Campus, OMR, Sholinganallur, Chennai" : "Tambaram Sanatorium, Chennai",
-    latitude: defaultIsMorning ? 12.8988 : 12.9249,
-    longitude: defaultIsMorning ? 80.2284 : 80.1332,
+    name: "",
+    address: "",
+    latitude: 0,
+    longitude: 0,
   });
 
-  // Dynamic Stops State with Coordinates
-  const [stops, setStops] = useState<IStopItem[]>([
-    {
-      name: "Guindy Kathipara Flyover",
-      address: "Kathipara Junction, Guindy, Chennai",
-      latitude: 13.0067,
-      longitude: 80.2025,
-      price: 120,
-    },
-    {
-      name: "Velachery Bypass Rd",
-      address: "Velachery Bypass, Chennai",
-      latitude: 12.9759,
-      longitude: 80.2212,
-      price: 180,
-    },
-  ]);
+  // Dynamic Stops State (empty by default)
+  const [stops, setStops] = useState<IStopItem[]>([]);
 
   // New Stop Input temporary state
   const [newStopName, setNewStopName] = useState("");
@@ -139,6 +136,104 @@ export default function OfferRidePage() {
 
   // Routing Hook
   const { routeResult, isCalculating, calculateRoute } = useRoute();
+
+  // Load User Profile & Setup Initial Locations
+  useEffect(() => {
+    async function loadProfileAndDefaults() {
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const data = await res.json();
+          const user = data.profile || {};
+          const campus = user.campusName || (session?.user as any)?.campusName || "Campus";
+          setUserCampusName(campus);
+
+          let cLat = 12.8988;
+          let cLng = 80.2284;
+          try {
+            const cResults = await geocodingService.search(campus, 1);
+            if (cResults.length > 0) {
+              cLat = cResults[0].latitude;
+              cLng = cResults[0].longitude;
+            }
+          } catch {}
+
+          const cPt: MapPoint = {
+            name: campus,
+            address: campus,
+            latitude: cLat,
+            longitude: cLng,
+          };
+          setCampusPoint(cPt);
+
+          const home = (user.homeLocation || "").trim();
+          if (home) {
+            setUserHomeLocation(home);
+            let hLat = 0;
+            let hLng = 0;
+            try {
+              const hResults = await geocodingService.search(home, 1);
+              if (hResults.length > 0) {
+                hLat = hResults[0].latitude;
+                hLng = hResults[0].longitude;
+              }
+            } catch {}
+
+            const hPt: MapPoint = {
+              name: home,
+              address: home,
+              latitude: hLat,
+              longitude: hLng,
+            };
+            setHomePoint(hPt);
+
+            if (defaultIsMorning) {
+              setFormData((prev) => ({
+                ...prev,
+                startingLocation: home,
+                destination: campus,
+              }));
+              setStartPoint(hPt);
+              setEndPoint(cPt);
+            } else {
+              setFormData((prev) => ({
+                ...prev,
+                startingLocation: campus,
+                destination: home,
+              }));
+              setStartPoint(cPt);
+              setEndPoint(hPt);
+            }
+          } else {
+            // Profile home location is empty: let user choose starting location!
+            if (defaultIsMorning) {
+              setFormData((prev) => ({
+                ...prev,
+                startingLocation: "",
+                destination: campus,
+              }));
+              setStartPoint({ name: "", address: "", latitude: 0, longitude: 0 });
+              setEndPoint(cPt);
+            } else {
+              setFormData((prev) => ({
+                ...prev,
+                startingLocation: campus,
+                destination: "",
+              }));
+              setStartPoint(cPt);
+              setEndPoint({ name: "", address: "", latitude: 0, longitude: 0 });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load user profile in offer ride:", err);
+      }
+    }
+
+    if (session?.user) {
+      loadProfileAndDefaults();
+    }
+  }, [session, defaultIsMorning]);
 
   // Load User Vehicles
   useEffect(() => {
@@ -213,45 +308,29 @@ export default function OfferRidePage() {
 
   const handleRideTypeChange = (newType: "pickup" | "drop") => {
     if (newType === "pickup") {
+      const startLoc = userHomeLocation || "";
+      const startPt = homePoint || { name: "", address: "", latitude: 0, longitude: 0 };
       setFormData((prev) => ({
         ...prev,
         rideType: "pickup",
-        startingLocation: prev.startingLocation === "Tech Mahindra SEZ Campus, OMR" ? "Tambaram Sanatorium" : prev.startingLocation,
-        destination: "Tech Mahindra SEZ Campus, OMR",
+        startingLocation: startLoc,
+        destination: userCampusName,
         departureTime: "08:30 AM",
       }));
-      setStartPoint({
-        name: "Tambaram Sanatorium",
-        address: "Tambaram Sanatorium, Chennai",
-        latitude: 12.9249,
-        longitude: 80.1332,
-      });
-      setEndPoint({
-        name: "Tech Mahindra SEZ Campus, OMR",
-        address: "Tech Mahindra SEZ Campus, OMR, Sholinganallur, Chennai",
-        latitude: 12.8988,
-        longitude: 80.2284,
-      });
+      setStartPoint(startPt);
+      setEndPoint(campusPoint);
     } else {
+      const destLoc = userHomeLocation || "";
+      const destPt = homePoint || { name: "", address: "", latitude: 0, longitude: 0 };
       setFormData((prev) => ({
         ...prev,
         rideType: "drop",
-        startingLocation: "Tech Mahindra SEZ Campus, OMR",
-        destination: prev.destination === "Tech Mahindra SEZ Campus, OMR" ? "Tambaram Sanatorium" : prev.destination,
+        startingLocation: userCampusName,
+        destination: destLoc,
         departureTime: "06:00 PM",
       }));
-      setStartPoint({
-        name: "Tech Mahindra SEZ Campus, OMR",
-        address: "Tech Mahindra SEZ Campus, OMR, Sholinganallur, Chennai",
-        latitude: 12.8988,
-        longitude: 80.2284,
-      });
-      setEndPoint({
-        name: "Tambaram Sanatorium",
-        address: "Tambaram Sanatorium, Chennai",
-        latitude: 12.9249,
-        longitude: 80.1332,
-      });
+      setStartPoint(campusPoint);
+      setEndPoint(destPt);
     }
   };
 
@@ -694,18 +773,19 @@ export default function OfferRidePage() {
                       <button
                         type="button"
                         onClick={() => setMapPickingTarget(mapPickingTarget === "origin" ? null : "origin")}
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-colors ${
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 ${
                           mapPickingTarget === "origin"
                             ? "bg-emerald-600 text-white"
                             : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
                         }`}
                       >
-                        {mapPickingTarget === "origin" ? "Cancel Pick" : "📍 Pick on Map"}
+                        <MapPin className="h-3 w-3" />
+                        {mapPickingTarget === "origin" ? "Cancel Pick" : "Pick on Map"}
                       </button>
                     </div>
                     <LocationSearchInput
                       id="startingLocation"
-                      placeholder="Search starting origin (e.g. Tambaram)"
+                      placeholder="Search starting origin or pick on map"
                       value={formData.startingLocation}
                       showCurrentLocation={false}
                       onChange={(loc) => {
@@ -743,18 +823,19 @@ export default function OfferRidePage() {
                       <button
                         type="button"
                         onClick={() => setMapPickingTarget(mapPickingTarget === "destination" ? null : "destination")}
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-colors ${
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 ${
                           mapPickingTarget === "destination"
                             ? "bg-blue-600 text-white"
                             : "bg-blue-100 text-blue-800 hover:bg-blue-200"
                         }`}
                       >
-                        {mapPickingTarget === "destination" ? "Cancel Pick" : "📍 Pick on Map"}
+                        <MapPin className="h-3 w-3" />
+                        {mapPickingTarget === "destination" ? "Cancel Pick" : "Pick on Map"}
                       </button>
                     </div>
                     <LocationSearchInput
                       id="destination"
-                      placeholder="Search destination (e.g. Tech Mahindra Campus)"
+                      placeholder="Search destination or pick on map"
                       value={formData.destination}
                       showCurrentLocation={false}
                       onChange={(loc) => {
