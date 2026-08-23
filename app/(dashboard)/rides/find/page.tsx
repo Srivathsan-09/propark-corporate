@@ -566,13 +566,15 @@ export default function FindRidePage() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <Badge
-                        className={`text-[10px] font-bold ${
-                          isPickup ? "bg-amber-100 text-amber-900 border-amber-300" : "bg-indigo-100 text-indigo-900 border-indigo-300"
-                        }`}
-                      >
-                        {isPickup ? "🌅 Pickup" : "🌆 Drop"}
-                      </Badge>
+                      {isPickup ? (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                          Pickup
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-700">
+                          Drop
+                        </span>
+                      )}
                       <Badge
                         className={`text-[10px] font-bold ${
                           ride.vehicleType === "Bike" ? "bg-blue-600 text-white" : "bg-emerald-600 text-white"

@@ -362,17 +362,6 @@ export default function LeafletRouteMap({
         </div>
       )}
 
-      {/* Floating Driver GPS Status Banner */}
-      {driverLocation && (
-        <div className="absolute top-3 left-3 z-10 bg-emerald-950/90 backdrop-blur-xs text-white text-xs py-1.5 px-3 rounded-xl shadow-lg flex items-center gap-2 border border-emerald-500/40 animate-in fade-in-50">
-          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
-          <span className="font-bold text-emerald-300">Live GPS Tracking Active</span>
-          {driverLocation.accuracy && (
-            <span className="text-[10px] text-emerald-200">±{Math.round(driverLocation.accuracy)}m</span>
-          )}
-        </div>
-      )}
-
       {/* Floating Route Distance & ETA Badge */}
       {showStats && (distanceText || durationText) && (
         <div className="absolute bottom-3 right-3 z-10 bg-white/95 backdrop-blur-xs text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-3 text-xs">

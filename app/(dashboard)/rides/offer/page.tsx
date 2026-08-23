@@ -486,10 +486,16 @@ export default function OfferRidePage() {
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-bold text-white">Ride Summary</CardTitle>
           <div className="flex items-center gap-1.5">
-            <Badge className="bg-amber-400 text-slate-950 font-bold text-[10px]">
-              {isPickup ? "🌅 Pickup" : "🌆 Drop"}
-            </Badge>
-            <Badge className="bg-emerald-500 text-slate-950 font-bold text-[10px]">
+            {isPickup ? (
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500 text-slate-950">
+                Pickup
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-600 text-white">
+                Drop
+              </span>
+            )}
+            <Badge className="bg-slate-700 text-white font-bold text-[10px]">
               {selectedVehicle?.vehicleType || "Car"}
             </Badge>
           </div>

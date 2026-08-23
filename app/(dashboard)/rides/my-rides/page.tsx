@@ -576,13 +576,15 @@ export default function MyRidesPage() {
                         <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-1.5">
                           {ride.startingLocation} <ArrowRight className="h-3.5 w-3.5 text-slate-400" /> {ride.destination}
                         </CardTitle>
-                        <Badge
-                          className={`text-[10px] font-bold ${
-                            isPickup ? "bg-amber-100 text-amber-900 border-amber-300" : "bg-indigo-100 text-indigo-900 border-indigo-300"
-                          }`}
-                        >
-                          {isPickup ? "🌅 Pickup" : "🌆 Drop"}
-                        </Badge>
+                        {isPickup ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            Pickup
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-700">
+                            Drop
+                          </span>
+                        )}
                       </div>
                       <CardDescription className="text-xs text-slate-500 mt-0.5">
                         {ride.vehicle.vehicleModel} ({ride.vehicle.registrationNumber}) • {ride.vehicleType}
@@ -985,7 +987,7 @@ export default function MyRidesPage() {
               </DialogHeader>
 
               {/* Real-time Map with Moving Driver Marker */}
-              <div className="rounded-xl overflow-hidden border border-slate-200 shadow-inner">
+              <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs">
                 <MapView
                   startLocation={{
                     name: liveTelemetry?.startingLocation || trackingModalRide.startingLocation,
@@ -1011,38 +1013,9 @@ export default function MyRidesPage() {
                   panToDriver={Boolean(liveTelemetry?.currentLocation)}
                   distanceText={liveTelemetry?.distanceKm ? `${liveTelemetry.distanceKm} km` : undefined}
                   durationText={liveTelemetry?.durationMinutes ? `${liveTelemetry.durationMinutes} mins` : undefined}
-                  height="340px"
+                  height="480px"
+                  showStats={true}
                 />
-              </div>
-
-              {/* Live Telemetry Info Card */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <span className="text-[10px] text-slate-400 block uppercase font-bold">Driver Status</span>
-                  <span className="font-bold text-slate-900 flex items-center gap-1.5 mt-0.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
-                    {liveTelemetry?.status === "in_progress" ? "En Route (Live GPS)" : "Awaiting Departure"}
-                  </span>
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <span className="text-[10px] text-slate-400 block uppercase font-bold">Speed & Accuracy</span>
-                  <span className="font-bold text-emerald-700 mt-0.5 block">
-                    {liveTelemetry?.currentLocation?.speed
-                      ? `${Math.round(liveTelemetry.currentLocation.speed)} km/h`
-                      : "Active GPS"}
-                    {liveTelemetry?.currentLocation?.accuracy
-                      ? ` (±${Math.round(liveTelemetry.currentLocation.accuracy)}m)`
-                      : ""}
-                  </span>
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <span className="text-[10px] text-slate-400 block uppercase font-bold">Driver Contact</span>
-                  <span className="font-bold text-slate-900 mt-0.5 block">
-                    {liveTelemetry?.driver?.phone ? `📞 ${liveTelemetry.driver.phone}` : "Verified Employee"}
-                  </span>
-                </div>
               </div>
 
               <div className="flex justify-end pt-1">
@@ -1051,7 +1024,7 @@ export default function MyRidesPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setIsLiveTrackingModalOpen(false)}
-                  className="rounded-xl text-xs"
+                  className="rounded-xl text-xs font-semibold px-4"
                 >
                   Close Live Tracker
                 </Button>

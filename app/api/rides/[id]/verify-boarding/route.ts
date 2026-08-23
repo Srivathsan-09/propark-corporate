@@ -79,13 +79,6 @@ export async function POST(
     rideRequest.boardedAt = new Date();
     await rideRequest.save();
 
-    // If ride is scheduled, automatically transition to in_progress
-    if (ride.status === "scheduled") {
-      ride.status = "in_progress";
-      ride.startedAt = new Date();
-      await ride.save();
-    }
-
     return NextResponse.json({
       success: true,
       message: `Verified! ${(rideRequest.passenger as any)?.name || "Passenger"} is safely boarded.`,
