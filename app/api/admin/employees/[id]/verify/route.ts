@@ -77,6 +77,18 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // Log admin audit action
+    const { logAdminActivity } = await import("@/lib/auditLogger");
+    await logAdminActivity(req, session, {
+      action: isApprove ? "EMPLOYEE_APPROVED" : "EMPLOYEE_REJECTED",
+      targetEntity: "User",
+      targetId: updatedEmployee.employeeId || String(updatedEmployee._id),
+      targetName: updatedEmployee.name,
+      details: isApprove
+        ? `Approved corporate verification for ${updatedEmployee.name} (${updatedEmployee.email}).`
+        : `Rejected verification for ${updatedEmployee.name}. Reason: ${targetEmployee.rejectionReason}`,
+    });
+
     return NextResponse.json({
       success: true,
       message: isApprove

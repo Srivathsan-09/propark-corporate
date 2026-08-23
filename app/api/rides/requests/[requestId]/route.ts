@@ -96,7 +96,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       ride.acceptedPassengers.push(rideRequest.passenger._id);
       await ride.save();
 
+      // Generate 4-digit boarding security PIN
+      const boardingPin = String(Math.floor(1000 + Math.random() * 9000));
+
       rideRequest.status = "accepted";
+      rideRequest.boardingPin = boardingPin;
       rideRequest.responseNote = responseNote || "Request accepted by driver";
       await rideRequest.save();
 
@@ -105,7 +109,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         recipient: rideRequest.passenger._id,
         sender: session.user.id,
         title: "Ride Request Confirmed! 🎉",
-        message: `${session.user.name} accepted your carpool request from "${rideRequest.pickupStop}" to "${rideRequest.dropStop}". Driver Contact: ${session.user.phone || session.user.email}.`,
+        message: `${session.user.name} accepted your carpool request. Your 4-digit Boarding PIN is: ${boardingPin}. Share this with the driver upon entering the car.`,
         type: "request_accepted",
         ride: ride._id,
         rideRequest: rideRequest._id,

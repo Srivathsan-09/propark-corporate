@@ -14,6 +14,7 @@ import {
   User,
   ShieldAlert,
   Shield,
+  ShieldCheck,
   Users,
   Route,
   BarChart3,
@@ -43,10 +44,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       icon: LayoutDashboard,
     },
     {
-      title: "Campus",
+      title: "Campuses Master Data",
       href: "/admin/campuses",
       icon: Building2,
     },
+    ...(isSuperAdmin
+      ? [
+          {
+            title: "Campus Administrators",
+            href: "/admin/admins",
+            icon: ShieldCheck,
+          },
+        ]
+      : []),
     {
       title: "Registered Employees",
       href: "/admin/employees",
@@ -68,6 +78,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       href: "/admin/reports",
       icon: ShieldAlert,
     },
+    ...(isSuperAdmin
+      ? [
+          {
+            title: "Audit Logs & Security",
+            href: "/admin/audit-logs",
+            icon: Shield,
+          },
+        ]
+      : []),
   ];
 
   // Navigation specifically for Employees / Commuters

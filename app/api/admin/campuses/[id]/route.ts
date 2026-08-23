@@ -93,6 +93,18 @@ export async function PATCH(
         );
       }
 
+      // Log admin audit action
+      const { logAdminActivity } = await import("@/lib/auditLogger");
+      await logAdminActivity(req, session, {
+        action: rawEmail ? "CAMPUS_ADMIN_ASSIGNED" : "CAMPUS_ADMIN_REVOKED",
+        targetEntity: "Campus",
+        targetId: campus.campusId,
+        targetName: campus.name,
+        details: rawEmail
+          ? `Assigned "${rawEmail}" as Campus Administrator for ${campus.name} (${campus.campusId}).`
+          : `Revoked Campus Administrator privileges for ${campus.name} (${campus.campusId}).`,
+      });
+
       return NextResponse.json({
         success: true,
         message: rawEmail ? `Assigned "${rawEmail}" as Campus Admin for ${campus.name}.` : `Unassigned Campus Admin from ${campus.name}.`,
@@ -401,6 +413,20 @@ export async function DELETE(
     );
 
     console.log(`DELETE campus: cascade — removed ${compCount} companies, unlinked users for ${targetCampusId}`);
+
+    // Log admin audit action
+    const { logAdminActivity } = await import("@/lib/auditLogger");
+    await logAdminActivity(
+      req,
+      { user: { email: userEmail, name: "Super Admin", role: userRole } },
+      {
+        action: "CAMPUS_DELETED",
+        targetEntity: "Campus",
+        targetId: targetCampusId,
+        targetName: deleted.name,
+        details: `Permanently deleted physical campus "${deleted.name}" (${targetCampusId}) and cascadingly unlinked users and removed companies.`,
+      }
+    );
 
     return NextResponse.json({
       success: true,

@@ -64,6 +64,16 @@ export async function PATCH(
 
     await report.save();
 
+    // Log admin audit action
+    const { logAdminActivity } = await import("@/lib/auditLogger");
+    await logAdminActivity(req, session, {
+      action: status === "resolved" ? "INCIDENT_RESOLVED" : "INCIDENT_STATUS_UPDATED",
+      targetEntity: "Report",
+      targetId: report.reportId,
+      targetName: report.title,
+      details: `Updated incident status to "${report.status}". Priority: "${report.priority}", Action Taken: "${report.actionTaken}". Findings: ${report.resolutionNotes || "None"}`,
+    });
+
     return NextResponse.json({
       success: true,
       message: `Report ${report.reportId} updated successfully.`,

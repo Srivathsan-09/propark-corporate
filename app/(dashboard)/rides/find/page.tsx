@@ -466,7 +466,7 @@ export default function FindRidePage() {
                     <SelectValue placeholder="All Vehicles" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">🚗 All Vehicles</SelectItem>
+                    <SelectItem value="all">All Vehicles</SelectItem>
                     <SelectItem value="Car">Car only</SelectItem>
                     <SelectItem value="Bike">Bike only</SelectItem>
                     <SelectItem value="SUV">SUV only</SelectItem>
@@ -671,11 +671,16 @@ export default function FindRidePage() {
                       </div>
                     )}
 
-                    {/* Driver Contact & Notes */}
+                    {/* Driver Contact & Privacy Masking */}
                     {ride.driver.phone && (
-                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500 pt-1">
-                        <Phone className="h-3 w-3 text-slate-400" />
-                        <span>Driver Contact: <strong className="text-slate-700">{ride.driver.phone}</strong></span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="h-3 w-3 text-slate-400" />
+                          <span>Contact: <span className="font-mono text-slate-600">{ride.driver.phone}</span></span>
+                        </div>
+                        <span className="text-[10px] text-purple-700 font-semibold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3" /> Unlocks on Booking
+                        </span>
                       </div>
                     )}
 

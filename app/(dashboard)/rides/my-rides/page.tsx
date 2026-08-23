@@ -32,6 +32,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -66,6 +67,9 @@ interface IPassengerRequest {
   fare: number;
   notes?: string;
   status: "pending" | "accepted" | "rejected" | "cancelled";
+  boardingPin?: string;
+  isBoarded?: boolean;
+  boardedAt?: string;
   createdAt: string;
 }
 
@@ -143,6 +147,9 @@ interface IBookedRide {
   fare: number;
   notes?: string;
   status: "pending" | "accepted" | "rejected" | "cancelled";
+  boardingPin?: string;
+  isBoarded?: boolean;
+  boardedAt?: string;
   createdAt: string;
 }
 
@@ -166,6 +173,46 @@ export default function MyRidesPage() {
   const [trackingModalRide, setTrackingModalRide] = useState<any | null>(null);
   const [liveTelemetry, setLiveTelemetry] = useState<any | null>(null);
   const [isLiveTrackingModalOpen, setIsLiveTrackingModalOpen] = useState(false);
+
+  // Driver Boarding PIN Verification Modal State
+  const [pinModalRequest, setPinModalRequest] = useState<any | null>(null);
+  const [enteredBoardingPin, setEnteredBoardingPin] = useState("");
+  const [isVerifyingPin, setIsVerifyingPin] = useState(false);
+  const [pinModalError, setPinModalError] = useState<string | null>(null);
+
+  const handleVerifyPassengerPin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pinModalRequest || !enteredBoardingPin.trim()) return;
+
+    setIsVerifyingPin(true);
+    setPinModalError(null);
+
+    try {
+      const res = await fetch(`/api/rides/${pinModalRequest.rideId}/verify-boarding`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: pinModalRequest._id,
+          boardingPin: enteredBoardingPin.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setActionSuccessMsg(data.message || "Passenger boarding verified successfully!");
+        setPinModalRequest(null);
+        setEnteredBoardingPin("");
+        await fetchMyRides(true);
+      } else {
+        setPinModalError(data.error || "Invalid 4-digit Boarding PIN.");
+      }
+    } catch (err) {
+      setPinModalError("Network error while verifying boarding code.");
+    } finally {
+      setIsVerifyingPin(false);
+    }
+  };
 
   const fetchMyRides = async (isSilent = false) => {
     if (!isSilent) setIsLoading(true);
@@ -708,13 +755,29 @@ export default function MyRidesPage() {
                                         <X className="h-3.5 w-3.5" /> Reject
                                       </Button>
                                     </>
+                                  ) : isAccepted ? (
+                                    <div className="flex items-center gap-1.5">
+                                      {req.isBoarded ? (
+                                        <Badge className="bg-emerald-600 text-white text-[10px] font-bold py-0.5 px-2 gap-1">
+                                          <Check className="h-3 w-3" /> Boarded
+                                        </Badge>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          onClick={() => {
+                                            setPinModalRequest({ ...req, rideId: ride._id });
+                                            setEnteredBoardingPin("");
+                                            setPinModalError(null);
+                                          }}
+                                          className="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg gap-1 shadow-2xs"
+                                        >
+                                          <ShieldCheck className="h-3.5 w-3.5" /> Verify PIN
+                                        </Button>
+                                      )}
+                                    </div>
                                   ) : (
-                                    <Badge
-                                      className={`text-[10px] font-bold ${
-                                        isAccepted ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-rose-100 text-rose-800"
-                                      }`}
-                                    >
-                                      {isAccepted ? "✓ Accepted" : "✕ " + req.status.toUpperCase()}
+                                    <Badge className="text-[10px] font-bold bg-rose-100 text-rose-800">
+                                      ✕ {req.status.toUpperCase()}
                                     </Badge>
                                   )}
                                 </div>
@@ -836,6 +899,35 @@ export default function MyRidesPage() {
                         <span>Driver Contact: <strong className="text-slate-900">{ride.driver.phone}</strong></span>
                       </div>
                     )}
+
+                    {/* Boarding Security PIN Card */}
+                    {isAccepted && booking.boardingPin && (
+                      <div className="p-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 bg-purple-600 text-white rounded-lg font-bold">
+                            <ShieldCheck className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-purple-700 block">Boarding Security PIN</span>
+                            <span className="text-xs text-slate-600">Share this 4-digit code with your driver upon entering the vehicle</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-end sm:self-center">
+                          <div className="font-mono text-xl font-bold tracking-widest bg-white px-3.5 py-1 rounded-lg border-2 border-purple-300 text-purple-900 shadow-2xs">
+                            {booking.boardingPin}
+                          </div>
+                          {booking.isBoarded ? (
+                            <Badge className="bg-emerald-600 text-white text-[10px] font-bold py-1 px-2">
+                              ✓ Boarded & Verified
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px] font-semibold py-1 px-2">
+                              Awaiting Boarding
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -940,6 +1032,82 @@ export default function MyRidesPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* DRIVER BOARDING PIN VERIFICATION MODAL */}
+      {pinModalRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-50">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
+                  <ShieldCheck className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Verify Passenger Boarding</h2>
+                  <p className="text-[11px] text-slate-500">{pinModalRequest.passenger?.name || "Passenger"}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPinModalRequest(null)}
+                className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {pinModalError && (
+              <div className="flex items-start gap-2 rounded-lg bg-rose-50 p-2.5 text-xs text-rose-800 border border-rose-200">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                <span>{pinModalError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyPassengerPin} className="space-y-3 text-xs">
+              <div className="p-3 bg-purple-50/50 rounded-xl border border-purple-100 text-center space-y-1">
+                <span className="text-[11px] text-purple-900 font-medium block">
+                  Ask {pinModalRequest.passenger?.name || "the passenger"} for their 4-digit Boarding PIN
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  This code is displayed on their booking confirmation screen
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <Input
+                  required
+                  autoFocus
+                  maxLength={4}
+                  value={enteredBoardingPin}
+                  onChange={(e) => setEnteredBoardingPin(e.target.value.replace(/\D/g, ""))}
+                  placeholder="••••"
+                  className="h-12 text-center font-mono text-2xl tracking-widest rounded-xl font-bold border-2 focus:border-purple-600"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPinModalRequest(null)}
+                  className="h-9 px-4 text-xs font-semibold rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isVerifyingPin || enteredBoardingPin.length < 4}
+                  size="sm"
+                  className="h-9 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5 rounded-xl shadow-xs"
+                >
+                  {isVerifyingPin ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                  Verify & Board
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

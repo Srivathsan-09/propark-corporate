@@ -12,6 +12,9 @@ export interface IRideRequest extends Document {
   notes?: string;
   status: "pending" | "accepted" | "rejected" | "cancelled";
   responseNote?: string;
+  boardingPin?: string;
+  isBoarded?: boolean;
+  boardedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,11 +74,27 @@ const RideRequestSchema = new Schema<IRideRequest>(
       type: String,
       default: "",
     },
+    boardingPin: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    isBoarded: {
+      type: Boolean,
+      default: false,
+    },
+    boardedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+if (process.env.NODE_ENV === "development" && mongoose.models.RideRequest) {
+  delete mongoose.models.RideRequest;
+}
 
 const RideRequest: Model<IRideRequest> =
   mongoose.models.RideRequest || mongoose.model<IRideRequest>("RideRequest", RideRequestSchema);
