@@ -25,7 +25,11 @@ export async function GET() {
     const userCampusId = session.user.campusId;
 
     // Super Admin sees all campuses; Campus Admin sees their assigned campus
-    const query = isSuperAdmin ? {} : { campusId: userCampusId };
+    const query = isSuperAdmin
+      ? {}
+      : userCampusId
+      ? { campusId: new RegExp(`^${userCampusId}$`, "i") }
+      : {};
     const campuses = await Campus.find(query).sort({ campusId: 1 }).lean();
 
     // Enrich with employee count per campus

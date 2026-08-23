@@ -21,7 +21,11 @@ export async function GET() {
     await connectToDatabase();
 
     const isSuperAdmin = session.user.role === "admin";
-    const query = isSuperAdmin ? {} : { campusId: session.user.campusId };
+    const query = isSuperAdmin
+      ? {}
+      : session.user.campusId
+      ? { campusId: new RegExp(`^${session.user.campusId}$`, "i") }
+      : {};
 
     // Fetch registered employees sorted in ascending order (EMP-001, EMP-002...)
     const employees = await User.find(query)

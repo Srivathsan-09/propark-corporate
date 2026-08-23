@@ -22,7 +22,7 @@ export async function middleware(req: NextRequest) {
 
   // 1. If user is already logged in and tries to access /login or /register
   if (isAuthRoute && token) {
-    if (token.role === "admin") {
+    if (token.role === "admin" || token.role === "campus_admin") {
       return NextResponse.redirect(new URL("/admin", req.url));
     }
     return NextResponse.redirect(new URL("/dashboard", req.url));
@@ -42,7 +42,7 @@ export async function middleware(req: NextRequest) {
       loginUrl.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(loginUrl);
     }
-    if (token.role !== "admin") {
+    if (token.role !== "admin" && token.role !== "campus_admin") {
       // Forbidden: redirect normal employee to employee dashboard
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }

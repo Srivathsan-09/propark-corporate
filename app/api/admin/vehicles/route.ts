@@ -29,7 +29,10 @@ export async function GET() {
       ownerQuery = { owner: { $nin: adminIds } };
     } else {
       // Campus Admin: only vehicles belonging to employees of their campus
-      const campusUsers = await User.find({ campusId: session.user.campusId }).select("_id");
+      const campusQuery = session.user.campusId
+        ? { campusId: new RegExp(`^${session.user.campusId}$`, "i") }
+        : {};
+      const campusUsers = await User.find(campusQuery).select("_id");
       const campusUserIds = campusUsers.map((u) => u._id);
       ownerQuery = { owner: { $in: campusUserIds } };
     }

@@ -25,7 +25,9 @@ export default function AdminLayout({
     );
   }
 
-  if (!session || session.user?.role !== "admin") {
+  const isAdminRole = session?.user?.role === "admin" || session?.user?.role === "campus_admin";
+
+  if (!session || !isAdminRole) {
     if (typeof window !== "undefined") {
       router.push("/dashboard");
     }

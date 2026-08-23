@@ -26,7 +26,10 @@ export async function GET() {
     let driverFilter: Record<string, any> = {};
 
     if (!isSuperAdmin) {
-      const campusUsers = await User.find({ campusId: session.user.campusId }).select("_id");
+      const campusQuery = session.user.campusId
+        ? { campusId: new RegExp(`^${session.user.campusId}$`, "i") }
+        : {};
+      const campusUsers = await User.find(campusQuery).select("_id");
       const campusUserIds = campusUsers.map((u) => u._id);
       driverFilter = { driver: { $in: campusUserIds } };
     }
