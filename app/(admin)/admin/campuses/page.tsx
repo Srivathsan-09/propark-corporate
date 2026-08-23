@@ -610,7 +610,7 @@ export default function AdminCampusesPage() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-sm text-slate-900">{req.name}</span>
-                      <span className="font-mono text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200 font-semibold">
+                      <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200 font-bold tracking-wide">
                         {req.campusId}
                       </span>
                     </div>
@@ -763,7 +763,7 @@ export default function AdminCampusesPage() {
                   {/* Top Line: Code, Name, Status, Delete */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-mono text-xs font-bold px-2 py-0.5 bg-purple-50 text-purple-700 rounded border border-purple-200 shrink-0">
+                      <span className="text-xs font-bold px-2 py-0.5 bg-purple-50 text-purple-700 rounded border border-purple-200 shrink-0 tracking-wide">
                         {campus.campusId}
                       </span>
                       <h3 className="text-sm font-bold text-slate-900 truncate">{campus.name}</h3>
@@ -957,46 +957,48 @@ export default function AdminCampusesPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs min-w-[640px]">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/50 text-xs uppercase tracking-wider text-slate-500">
-                    <th className="py-3 px-4.5 font-bold">Campus Code</th>
-                    <th className="py-3 px-4.5 font-bold">Campus Name</th>
-                    <th className="py-3 px-4.5 font-bold">Location</th>
-                    <th className="py-3 px-4.5 font-bold">Allocated Campus Admin</th>
-                    <th className="py-3 px-4.5 font-bold">Status</th>
-                    <th className="py-3 px-4.5 font-bold text-right">Actions</th>
+                  <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] uppercase tracking-wider text-slate-500">
+                    <th className="py-3 px-4 font-bold w-36">Campus Code</th>
+                    <th className="py-3 px-4 font-bold">Campus Name</th>
+                    <th className="py-3 px-4 font-bold">Location</th>
+                    <th className="py-3 px-4 font-bold">Allocated Campus Admin</th>
+                    <th className="py-3 px-4 font-bold">Status</th>
+                    <th className="py-3 px-4 font-bold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {campuses.map((campus) => (
                     <tr key={campus.campusId} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-3.5 px-4.5 font-mono font-bold text-purple-700 text-xs">
-                        {campus.campusId}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="font-bold text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 tracking-wide inline-block">
+                          {campus.campusId}
+                        </span>
                       </td>
-                      <td className="py-3.5 px-4.5 font-semibold text-slate-900 text-sm">
+                      <td className="py-3.5 px-4 font-semibold text-slate-900 text-xs">
                         {campus.name}
                       </td>
-                      <td className="py-3.5 px-4.5 text-slate-500 text-xs">
+                      <td className="py-3.5 px-4 text-slate-500 text-xs whitespace-nowrap">
                         {campus.city}, {campus.state}
                       </td>
-                      <td className="py-3.5 px-4.5">
+                      <td className="py-3.5 px-4">
                         {campus.adminEmail ? (
                           <div className="flex items-center gap-1.5 text-slate-900 font-medium text-xs">
                             <Mail className="h-3.5 w-3.5 text-purple-600 shrink-0" />
-                            <span>{campus.adminEmail}</span>
+                            <span className="truncate max-w-[200px]">{campus.adminEmail}</span>
                           </div>
                         ) : (
                           <span className="italic text-slate-400 text-xs">Not Assigned</span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4.5">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         {campus.adminEmail ? (
-                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-semibold py-0.5 px-2">
+                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px] font-semibold py-0.5 px-2">
                             Active Admin
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-amber-700 border-amber-200 text-xs py-0.5 px-2 font-medium">
+                          <Badge variant="outline" className="text-amber-700 border-amber-200 text-[11px] py-0.5 px-2 font-medium">
                             Pending Assignment
                           </Badge>
                         )}
