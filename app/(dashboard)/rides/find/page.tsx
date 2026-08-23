@@ -28,6 +28,7 @@ import {
   Flame,
   Check,
   RefreshCw,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ import {
 } from "@/components/ui/select";
 import { EmptyState } from "@/components/common/EmptyState";
 import { CarLoader } from "@/components/common/CarLoader";
+import { EmployeeProfileModal } from "@/components/common/EmployeeProfileModal";
 import MapView, { MapPoint } from "@/components/map/MapView";
 import LocationSearchInput from "@/components/map/LocationSearchInput";
 import { geocodingService } from "@/lib/services/geocoding";
@@ -139,6 +141,10 @@ export default function FindRidePage() {
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState<string | null>(null);
   const [bookingErrorMsg, setBookingErrorMsg] = useState<string | null>(null);
+
+  // Employee Profile Inspection Modal State
+  const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
+  const [viewProfileFallback, setViewProfileFallback] = useState<any | null>(null);
 
   // Custom Stop Request Mode
   const [isCustomStopMode, setIsCustomStopMode] = useState(false);
@@ -546,6 +552,16 @@ export default function FindRidePage() {
                           <span className="font-semibold text-emerald-800">{ride.driver.companyName || "Tech Mahindra"}</span>
                           <span>• {ride.driver.department}</span>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setViewProfileUserId(ride.driver._id);
+                            setViewProfileFallback(ride.driver);
+                          }}
+                          className="text-[10px] font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 mt-0.5 hover:underline transition-colors"
+                        >
+                          <User className="h-2.5 w-2.5" /> View Profile
+                        </button>
                       </div>
                     </div>
 
@@ -1002,6 +1018,14 @@ export default function FindRidePage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Coworker Driver Profile Modal */}
+      <EmployeeProfileModal
+        isOpen={Boolean(viewProfileUserId)}
+        onClose={() => setViewProfileUserId(null)}
+        userId={viewProfileUserId}
+        fallbackData={viewProfileFallback}
+      />
     </div>
   );
 }

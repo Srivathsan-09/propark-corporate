@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { CarLoader } from "@/components/common/CarLoader";
+import { EmployeeProfileModal } from "@/components/common/EmployeeProfileModal";
 import MapView, { DriverLivePoint } from "@/components/map/MapView";
 import { locationService } from "@/lib/services/location";
 import { getInitials } from "@/lib/utils";
@@ -173,6 +174,10 @@ export default function MyRidesPage() {
   const [trackingModalRide, setTrackingModalRide] = useState<any | null>(null);
   const [liveTelemetry, setLiveTelemetry] = useState<any | null>(null);
   const [isLiveTrackingModalOpen, setIsLiveTrackingModalOpen] = useState(false);
+
+  // Employee Profile Inspection Modal State
+  const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
+  const [viewProfileFallback, setViewProfileFallback] = useState<any | null>(null);
 
   // Driver Boarding PIN Verification Modal State
   const [pinModalRequest, setPinModalRequest] = useState<any | null>(null);
@@ -715,6 +720,16 @@ export default function MyRidesPage() {
                                   <div className="font-bold text-slate-900 flex items-center gap-1.5">
                                     {req.passenger.name}
                                     <span className="text-[10px] text-slate-500 font-mono">({req.passenger.employeeId})</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setViewProfileUserId(req.passenger._id);
+                                        setViewProfileFallback(req.passenger);
+                                      }}
+                                      className="text-[10px] font-bold text-purple-700 hover:text-purple-900 ml-1 hover:underline flex items-center gap-0.5"
+                                    >
+                                      View Profile
+                                    </button>
                                   </div>
                                   <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
                                     <span className="font-semibold text-emerald-800">{req.passenger.companyName || "Tech Mahindra"}</span>
@@ -831,8 +846,21 @@ export default function MyRidesPage() {
                             {ride.vehicleType}
                           </Badge>
                         </div>
-                        <CardDescription className="text-xs text-slate-500 mt-0.5">
-                          Driver: <strong>{ride.driver?.name || "Colleague"}</strong> ({ride.driver?.companyName || "Tech Mahindra"}) • Plate: {ride.vehicle?.registrationNumber || "Campus Vehicle"}
+                        <CardDescription className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-1.5">
+                          <span>
+                            Driver: <strong>{ride.driver?.name || "Colleague"}</strong> ({ride.driver?.companyName || "Tech Mahindra"}) • Plate: {ride.vehicle?.registrationNumber || "Campus Vehicle"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const driverId = (ride.driver as any)?._id || (booking.driver as any)?._id;
+                              setViewProfileUserId(driverId);
+                              setViewProfileFallback(ride.driver || booking.driver);
+                            }}
+                            className="text-[10px] font-bold text-purple-700 hover:text-purple-900 hover:underline"
+                          >
+                            • View Profile
+                          </button>
                         </CardDescription>
                       </div>
 
@@ -1108,6 +1136,14 @@ export default function MyRidesPage() {
           </div>
         </div>
       )}
+
+      {/* Coworker Employee Profile Modal */}
+      <EmployeeProfileModal
+        isOpen={Boolean(viewProfileUserId)}
+        onClose={() => setViewProfileUserId(null)}
+        userId={viewProfileUserId}
+        fallbackData={viewProfileFallback}
+      />
     </div>
   );
 }
