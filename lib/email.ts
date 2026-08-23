@@ -126,22 +126,38 @@ export async function sendCampusAdminOtpEmail({
     }
   }
 
-  // ── Method 2: Gmail App Password Service ──
-  const gmailUser = process.env.GMAIL_USER || (process.env.SMTP_USER?.includes("@gmail.com") ? process.env.SMTP_USER : undefined);
-  const gmailPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS;
+  // ── Method 2: SMTP / Gmail (Supports Paperless EMAIL_*, GMAIL_*, and SMTP_* vars) ──
+  const emailUser = (process.env.EMAIL_USER || process.env.GMAIL_USER || process.env.SMTP_USER)?.trim();
+  const emailPass = (process.env.EMAIL_PASSWORD || process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS)?.trim();
+  const emailHost = (process.env.EMAIL_HOST || process.env.SMTP_HOST)?.trim();
+  const emailPort = parseInt(process.env.EMAIL_PORT || process.env.SMTP_PORT || "465", 10);
+  const fromAddress = process.env.EMAIL_FROM || process.env.SMTP_FROM || emailUser || "security@commutex.corporate";
 
-  if (gmailUser && gmailPass) {
+  if (emailUser && emailPass) {
     try {
-      const gmailTransporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: gmailUser.trim(),
-          pass: gmailPass.trim().replace(/\s+/g, ""), // Remove any accidental spaces in app password
-        },
-      });
+      const isGmail = !emailHost || emailHost === "smtp.gmail.com" || emailUser.includes("@gmail.com");
+      
+      const transporter = isGmail
+        ? nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+              user: emailUser,
+              pass: emailPass.replace(/\s+/g, ""), // Clean any spaces in 16-letter App password
+            },
+          })
+        : nodemailer.createTransport({
+            host: emailHost,
+            port: emailPort,
+            secure: emailPort === 465,
+            auth: {
+              user: emailUser,
+              pass: emailPass,
+            },
+            tls: { rejectUnauthorized: false },
+          });
 
-      await gmailTransporter.sendMail({
-        from: `"${appName}" <${gmailUser.trim()}>`,
+      await transporter.sendMail({
+        from: `"${appName}" <${fromAddress}>`,
         to: email,
         subject,
         text: textBody,
@@ -153,60 +169,20 @@ export async function sendCampusAdminOtpEmail({
         },
       });
 
-      console.log(`✅ [Gmail SMTP] Successfully delivered OTP code to: ${email}`);
-      return { success: true, method: "gmail" };
-    } catch (gmailErr: any) {
-      console.error("❌ [Gmail SMTP Error]:", gmailErr?.message || gmailErr);
+      console.log(`✅ [Email Service] Delivered OTP code to: ${email} (via ${isGmail ? "Gmail" : emailHost})`);
+      return { success: true, method: isGmail ? "gmail" : "smtp" };
+    } catch (mailErr: any) {
+      console.error("❌ [Email Service Error]:", mailErr?.message || mailErr);
       return {
         success: false,
-        error: `Gmail delivery failed: ${gmailErr?.message || "Check Gmail App Password"}`,
+        error: `Email delivery failed: ${mailErr?.message}`,
         devOtp: otp,
       };
     }
   }
 
-  // ── Method 3: Generic Custom SMTP ──
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
-  const smtpPort = parseInt(process.env.SMTP_PORT || "465", 10);
-  const fromAddress = process.env.SMTP_FROM || smtpUser || "security@commutex.corporate";
-
-  if (smtpHost && smtpUser && smtpPass) {
-    try {
-      const customTransporter = nodemailer.createTransport({
-        host: smtpHost.trim(),
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: smtpUser.trim(),
-          pass: smtpPass.trim(),
-        },
-        tls: { rejectUnauthorized: false },
-      });
-
-      await customTransporter.sendMail({
-        from: `"${appName}" <${fromAddress}>`,
-        to: email,
-        subject,
-        text: textBody,
-        html: htmlBody,
-      });
-
-      console.log(`✅ [Custom SMTP] Delivered OTP code to: ${email}`);
-      return { success: true, method: "smtp" };
-    } catch (smtpErr: any) {
-      console.error("❌ [Custom SMTP Error]:", smtpErr?.message || smtpErr);
-      return {
-        success: false,
-        error: `SMTP delivery failed: ${smtpErr?.message}`,
-        devOtp: otp,
-      };
-    }
-  }
-
-  // ── Method 4: No Credentials Configured (Fallback & Developer preview) ──
-  console.warn("⚠️ [Email Notice] No RESEND_API_KEY, GMAIL_USER/GMAIL_APP_PASSWORD, or SMTP credentials found in environment variables.");
+  // ── Method 3: Fallback when credentials are not yet added in Vercel ──
+  console.warn("⚠️ [Email Notice] No EMAIL_USER/EMAIL_PASSWORD, GMAIL_USER/GMAIL_APP_PASSWORD, or RESEND_API_KEY found.");
   console.log(`[OTP CODE GENERATED] For: ${email} | Campus: ${campusId} | Code: ${otp}`);
 
   return {
