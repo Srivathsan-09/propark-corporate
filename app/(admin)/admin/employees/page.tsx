@@ -338,134 +338,155 @@ export default function AdminEmployeesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs" style={{ minWidth: "680px" }}>
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/80 text-[10px] uppercase tracking-wider text-slate-500">
-                  <th className="py-2 px-3 font-semibold w-[220px]">Employee</th>
-                  <th className="py-2 px-3 font-semibold w-[100px]">ID</th>
-                  <th className="py-2 px-3 font-semibold w-[110px]">Role</th>
-                  <th className="py-2 px-3 font-semibold w-[150px]">Company & Campus</th>
-                  <th className="py-2 px-3 font-semibold w-[80px]">Fleet</th>
-                  <th className="py-2 px-3 font-semibold w-[90px]">Status</th>
-                  <th className="py-2 px-3 font-semibold text-right">Actions</th>
+                <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500">
+                  <th className="py-3 pl-6 pr-4 font-bold w-[220px]">Employee / Admin</th>
+                  <th className="py-3 px-4 font-bold w-[110px]">ID</th>
+                  <th className="py-3 px-4 font-bold w-[120px]">Role</th>
+                  <th className="py-3 px-4 font-bold w-[170px]">Company & Campus</th>
+                  <th className="py-3 px-4 font-bold w-[90px]">Fleet</th>
+                  <th className="py-3 px-4 font-bold w-[100px]">Status</th>
+                  <th className="py-3 pl-4 pr-6 font-bold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredEmployees.map((emp) => (
                   <tr key={emp._id} className="hover:bg-slate-50/60 transition-colors">
                     {/* Employee Info - Name + Email, constrained */}
-                    <td className="py-2 px-3 max-w-[220px]">
-                      <div className="flex items-center gap-2 min-w-0">
+                    <td className="py-3 pl-6 pr-4 max-w-[220px]">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-purple-800 font-bold text-[10px] shrink-0">
                           {getInitials(emp.name)}
                         </div>
                         <div className="min-w-0">
-                          <div className="font-semibold text-slate-900 flex items-center gap-1 truncate">
+                          <div className="font-semibold text-slate-900 flex items-center gap-1.5 truncate text-xs">
                             <span className="truncate">{emp.name}</span>
                             {emp.role === "admin" && (
-                              <Crown className="h-3 w-3 text-purple-600 shrink-0" />
+                              <Crown className="h-3.5 w-3.5 text-purple-600 shrink-0" />
                             )}
                           </div>
-                          <div className="text-[10px] text-slate-500 truncate">{emp.email}</div>
+                          <div className="text-[11px] text-slate-500 truncate">{emp.email}</div>
                         </div>
                       </div>
                     </td>
 
                     {/* Employee ID */}
-                    <td className="py-2 px-3">
-                      <span className="font-mono text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 whitespace-nowrap">
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 tracking-wide inline-block">
                         {emp.employeeId}
                       </span>
                     </td>
 
                     {/* Role & Access Tier */}
-                    <td className="py-2 px-3">
+                    <td className="py-3 px-4 whitespace-nowrap">
                       {emp.role === "admin" ? (
-                        <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-[9px] font-semibold py-0 px-1.5 gap-1">
-                          <Crown className="h-2.5 w-2.5" /> Super Admin
+                        <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold py-0.5 px-2 gap-1">
+                          <Crown className="h-3 w-3" /> Super Admin
                         </Badge>
                       ) : emp.role === "campus_admin" ? (
-                        <div className="space-y-0.5">
-                          <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[9px] font-semibold py-0 px-1.5 gap-1">
-                            <Building2 className="h-2.5 w-2.5" /> Campus Admin
-                          </Badge>
-                          {emp.campusId && (
-                            <div className="font-mono text-[9px] text-blue-600 font-semibold">
-                              {emp.campusId}
-                            </div>
-                          )}
-                        </div>
+                        <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-semibold py-0.5 px-2 gap-1">
+                          <Building2 className="h-3 w-3" /> Campus Admin
+                        </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-slate-600 text-[9px] font-medium py-0 px-1.5 gap-1">
-                          <Users className="h-2.5 w-2.5" /> Employee
+                        <Badge variant="outline" className="text-slate-600 text-[10px] font-medium py-0.5 px-2 gap-1">
+                          <Users className="h-3 w-3" /> Employee
                         </Badge>
                       )}
                     </td>
 
                     {/* Company & Physical Campus */}
-                    <td className="py-2 px-3 max-w-[150px]">
-                      <div className="font-semibold text-slate-900 text-[11px] truncate">{emp.companyName || "—"}</div>
-                      <div className="text-[10px] text-slate-500 truncate">
-                        <span className="font-mono font-bold text-purple-700">{emp.campusId || "—"}</span>
-                        {emp.campusName && <span className="text-slate-400 ml-0.5 truncate"> {emp.campusName}</span>}
-                      </div>
+                    <td className="py-3 px-4 max-w-[170px]">
+                      {emp.role === "admin" ? (
+                        <div>
+                          <span className="font-bold text-[11px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 tracking-wide inline-block">
+                            Platform Wide
+                          </span>
+                          <div className="text-[10px] text-slate-400 mt-0.5">All Campuses</div>
+                        </div>
+                      ) : emp.role === "campus_admin" ? (
+                        <div>
+                          <span className="font-bold text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 tracking-wide inline-block">
+                            {emp.campusId || "Campus Admin"}
+                          </span>
+                          <div className="text-[10px] text-slate-500 mt-0.5 truncate">
+                            {emp.campusName || "Designated Campus"}
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="font-semibold text-slate-900 text-xs truncate">
+                            {emp.companyName || "—"}
+                          </div>
+                          <div className="text-[10px] text-slate-500 truncate mt-0.5 flex items-center gap-1">
+                            <span className="font-bold text-[11px] text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 tracking-wide inline-block">
+                              {emp.campusId || "—"}
+                            </span>
+                            {emp.campusName && <span className="text-slate-400 truncate">{emp.campusName}</span>}
+                          </div>
+                        </div>
+                      )}
                     </td>
 
                     {/* Vehicles */}
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
                         <Car className="h-3 w-3 text-slate-400" />
                         {emp.vehicleCount} {emp.vehicleCount === 1 ? "vehicle" : "vehicles"}
                       </span>
                     </td>
 
                     {/* Status */}
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      {emp.verificationStatus === "approved" ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      {emp.verificationStatus === "approved" || emp.role === "admin" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <Check className="h-3 w-3" /> Approved
                         </span>
                       ) : emp.verificationStatus === "rejected" ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                           <X className="h-3 w-3" /> Rejected
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                           <Clock className="h-3 w-3" /> Pending
                         </span>
                       )}
                     </td>
 
                     {/* Actions */}
-                    <td className="py-2 px-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        {/* Approve */}
-                        {emp.verificationStatus !== "approved" && (
-                          <button
-                            type="button"
-                            onClick={() => handleVerify(emp._id, "approve")}
-                            disabled={actionLoadingId === emp._id}
-                            className="h-7 px-2 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded flex items-center gap-1 transition-colors disabled:opacity-60"
-                          >
-                            {actionLoadingId === emp._id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Check className="h-3 w-3" />
-                            )}
-                            Approve
-                          </button>
-                        )}
+                    <td className="py-3 pl-4 pr-6 text-right whitespace-nowrap">
+                      {emp.role === "admin" || emp.role === "campus_admin" ? (
+                        <span className="text-slate-400 text-[11px] italic pr-2">System Admin</span>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Approve */}
+                          {emp.verificationStatus !== "approved" && (
+                            <button
+                              type="button"
+                              onClick={() => handleVerify(emp._id, "approve")}
+                              disabled={actionLoadingId === emp._id}
+                              className="h-7 px-2.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60 shadow-2xs"
+                            >
+                              {actionLoadingId === emp._id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                              Approve
+                            </button>
+                          )}
 
-                        {/* Reject */}
-                        {emp.verificationStatus !== "rejected" && emp.role !== "admin" && (
-                          <button
-                            type="button"
-                            onClick={() => handleVerify(emp._id, "reject")}
-                            disabled={actionLoadingId === emp._id}
-                            className="h-7 px-2 text-[11px] font-semibold border border-rose-200 text-rose-700 hover:bg-rose-50 rounded flex items-center gap-1 transition-colors disabled:opacity-60"
-                          >
-                            <X className="h-3 w-3" /> Reject
-                          </button>
-                        )}
-                      </div>
+                          {/* Reject */}
+                          {emp.verificationStatus !== "rejected" && (
+                            <button
+                              type="button"
+                              onClick={() => handleVerify(emp._id, "reject")}
+                              disabled={actionLoadingId === emp._id}
+                              className="h-7 px-2.5 text-xs font-semibold border border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60"
+                            >
+                              <X className="h-3 w-3" /> Reject
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
