@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -240,96 +240,100 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Left: Identity Card */}
-        <div>
-          <Card className="border-slate-200 bg-white shadow-sm">
-            <CardHeader className="text-center pb-3">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 border-2 border-emerald-500 text-lg font-bold text-emerald-800 shadow-sm mb-2">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
+        {/* Left: Compact Identity Card (4 cols on lg) */}
+        <div className="lg:col-span-4">
+          <Card className="border-slate-200 bg-white shadow-2xs rounded-xl overflow-hidden">
+            <CardHeader className="text-center py-3.5 px-4 bg-slate-50/70 border-b border-slate-100">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 border-2 border-emerald-500 text-sm font-bold text-emerald-800 shadow-2xs mb-1.5">
                 {getInitials(profile?.name || "PP")}
               </div>
-              <CardTitle className="text-base font-bold text-slate-900">
+              <CardTitle className="text-sm font-bold text-slate-900 leading-tight">
                 {profile?.name}
               </CardTitle>
 
-              <div className="pt-1 flex justify-center gap-2">
+              <div className="pt-1 flex justify-center">
                 {isAdmin ? (
-                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 gap-1 text-[10px] font-semibold">
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 gap-1 text-[10px] font-semibold py-0.5 px-2">
                     <Shield className="h-2.5 w-2.5" /> Super Admin
                   </Badge>
                 ) : isCampusAdmin ? (
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 gap-1 text-[10px] font-semibold">
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 gap-1 text-[10px] font-semibold py-0.5 px-2">
                     <Shield className="h-2.5 w-2.5" /> Campus Admin
                   </Badge>
                 ) : profile?.verificationStatus === "approved" || profile?.isApproved ? (
-                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold">
-                    Verified Employee
+                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0.5 px-2">
+                    ✓ Verified Employee
                   </Badge>
                 ) : profile?.verificationStatus === "rejected" ? (
-                  <Badge variant="destructive" className="text-[10px] font-semibold">
+                  <Badge variant="destructive" className="text-[10px] font-semibold py-0.5 px-2">
                     Verification Rejected
                   </Badge>
                 ) : (
-                  <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-semibold">
+                  <Badge className="bg-amber-50 text-amber-800 border-amber-200 text-[10px] font-semibold py-0.5 px-2">
                     Pending Verification
                   </Badge>
                 )}
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-3 border-t border-slate-100 pt-3 text-sm">
-              {/* Email — always shown */}
-              <div>
-                <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">Email</span>
-                <div className="flex items-center gap-2 mt-1 text-slate-700 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/80 truncate">
-                  <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                  <span className="truncate text-xs">{profile?.email}</span>
+            <CardContent className="p-3 space-y-2 text-xs">
+              {/* Email */}
+              <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Corporate Email</span>
+                <div className="flex items-center gap-1.5 mt-0.5 text-slate-800 font-medium text-xs truncate">
+                  <Mail className="h-3 w-3 text-slate-400 shrink-0" />
+                  <span className="truncate">{profile?.email}</span>
                 </div>
               </div>
 
               {/* Campus info for campus_admin */}
               {isCampusAdmin && (
-                <div>
-                  <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">Campus</span>
-                  <div className="flex flex-col gap-0.5 mt-1 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-200/80">
-                    <div className="flex items-center gap-1.5 font-semibold text-blue-900 text-xs">
-                      <Building2 className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                      <span>{profile?.campusName || "—"}</span>
+                <div className="p-2 rounded-lg bg-blue-50/70 border border-blue-100">
+                  <span className="text-[9px] font-bold text-blue-500 block uppercase tracking-wider">Assigned Campus</span>
+                  <div className="flex items-center justify-between gap-1.5 mt-0.5 text-blue-900 font-semibold text-xs">
+                    <div className="flex items-center gap-1 truncate">
+                      <Building2 className="h-3 w-3 text-blue-600 shrink-0" />
+                      <span className="truncate">{profile?.campusName || "—"}</span>
                     </div>
-                    <div className="font-mono text-[10px] text-blue-600 pl-5">
-                      ID: <strong>{profile?.campusId || "—"}</strong>
-                    </div>
+                    <span className="font-mono text-[10px] text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded shrink-0">
+                      {profile?.campusId}
+                    </span>
                   </div>
                 </div>
               )}
 
-              {/* For employees: show campus + company */}
+              {/* For employees: show ID, Campus, and Company */}
               {!isAdminOrCampusAdmin && (
                 <>
-                  <div>
-                    <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">Employee ID</span>
-                    <div className="flex items-center gap-2 mt-1 font-mono font-semibold text-slate-800 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-xs">
-                      <BadgeCheck className="h-3.5 w-3.5 text-emerald-600" />
-                      <span>{profile?.employeeId}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">Campus</span>
-                    <div className="flex flex-col gap-0.5 mt-1 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/80">
-                      <div className="flex items-center gap-1.5 font-semibold text-slate-800 text-xs">
-                        <MapPin className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                        <span>{profile?.campusName || "—"}</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                      <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Employee ID</span>
+                      <div className="flex items-center gap-1 mt-0.5 font-mono font-bold text-slate-800 text-[11px] truncate">
+                        <BadgeCheck className="h-3 w-3 text-emerald-600 shrink-0" />
+                        <span className="truncate">{profile?.employeeId}</span>
                       </div>
-                      <div className="font-mono text-[10px] text-slate-500 pl-5">
-                        ID: <strong className="text-emerald-700">{profile?.campusId || "—"}</strong>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                      <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Company</span>
+                      <div className="flex items-center gap-1 mt-0.5 text-slate-800 font-medium text-xs truncate">
+                        <Building2 className="h-3 w-3 text-slate-400 shrink-0" />
+                        <span className="truncate">{profile?.companyName || "—"}</span>
                       </div>
                     </div>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">Company</span>
-                    <div className="flex items-center gap-2 mt-1 text-slate-700 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-xs">
-                      <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <span>{profile?.companyName || "—"}</span>
+
+                  <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Physical Campus</span>
+                    <div className="flex items-center justify-between gap-1 mt-0.5 text-slate-800 font-medium text-xs">
+                      <div className="flex items-center gap-1 truncate">
+                        <MapPin className="h-3 w-3 text-emerald-600 shrink-0" />
+                        <span className="truncate">{profile?.campusName || "—"}</span>
+                      </div>
+                      <span className="font-mono text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200 shrink-0">
+                        {profile?.campusId}
+                      </span>
                     </div>
                   </div>
                 </>
@@ -338,150 +342,144 @@ export default function ProfilePage() {
           </Card>
         </div>
 
-        {/* Right: Edit Form */}
-        <div className="lg:col-span-2">
+        {/* Right: Compact Edit Form (8 cols on lg) */}
+        <div className="lg:col-span-8">
           <form onSubmit={handleSubmit}>
-            <Card className="border-slate-200 shadow-sm bg-white">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-bold text-slate-900">
-                  {isAdminOrCampusAdmin ? "Contact Settings" : "Personal & Commute Settings"}
+            <Card className="border-slate-200 shadow-2xs bg-white rounded-xl overflow-hidden">
+              <CardHeader className="py-2.5 px-4 bg-slate-50/70 border-b border-slate-100">
+                <CardTitle className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Briefcase className="h-3.5 w-3.5 text-purple-600" />
+                  {isAdminOrCampusAdmin ? "Contact Settings" : "Personal & Commute Preferences"}
                 </CardTitle>
-                <CardDescription className="text-xs">
-                  {isAdminOrCampusAdmin
-                    ? "Update your display name and phone number"
-                    : "Update your contact details, company, and default carpooling preferences"}
-                </CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-4">
-                {/* Full Name — all roles */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="name" className="text-xs font-semibold text-slate-700">Full Name</Label>
-                  <div className="relative">
-                    <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <Input
-                      id="name"
-                      name="name"
-                      type="text"
-                      value={formData.name}
-                      onChange={handleChange}
-                      disabled={isSaving}
-                      className={`pl-9 h-9 text-sm rounded-lg ${fieldErrors.name ? "border-rose-500" : ""}`}
-                      required
-                    />
+              <CardContent className="p-3.5 space-y-2.5">
+                {/* Row 1: Name & Phone (2 cols) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="space-y-1">
+                    <Label htmlFor="name" className="text-[11px] font-semibold text-slate-700">Full Name</Label>
+                    <div className="relative">
+                      <UserIcon className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
+                      <Input
+                        id="name"
+                        name="name"
+                        type="text"
+                        value={formData.name}
+                        onChange={handleChange}
+                        disabled={isSaving}
+                        className={`pl-8 h-8 text-xs rounded-lg ${fieldErrors.name ? "border-rose-500" : ""}`}
+                        required
+                      />
+                    </div>
+                    {fieldErrors.name && <p className="text-[10px] text-rose-600">{fieldErrors.name}</p>}
                   </div>
-                  {fieldErrors.name && <p className="text-xs text-rose-600">{fieldErrors.name}</p>}
+
+                  <div className="space-y-1">
+                    <Label htmlFor="phone" className="text-[11px] font-semibold text-slate-700">Phone Number</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
+                      <Input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        placeholder="+91 98765 43210"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        disabled={isSaving}
+                        className={`pl-8 h-8 text-xs rounded-lg ${fieldErrors.phone ? "border-rose-500" : ""}`}
+                        required
+                      />
+                    </div>
+                    {fieldErrors.phone && <p className="text-[10px] text-rose-600">{fieldErrors.phone}</p>}
+                  </div>
                 </div>
 
-                {/* Phone — all roles */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="phone" className="text-xs font-semibold text-slate-700">Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <Input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      placeholder="+91 98765 43210"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      disabled={isSaving}
-                      className={`pl-9 h-9 text-sm rounded-lg ${fieldErrors.phone ? "border-rose-500" : ""}`}
-                      required
-                    />
-                  </div>
-                  {fieldErrors.phone && <p className="text-xs text-rose-600">{fieldErrors.phone}</p>}
-                </div>
-
-                {/* Employee-only fields: Company, Department, Commute Prefs */}
+                {/* Employee-only fields: 2-column compact grid */}
                 {!isAdminOrCampusAdmin && (
                   <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Company */}
-                      <div className="space-y-1.5">
-                        <Label htmlFor="companyName" className="text-xs font-semibold text-slate-700">Company / Organization</Label>
+                    {/* Row 2: Company & Department */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="space-y-1">
+                        <Label htmlFor="companyName" className="text-[11px] font-semibold text-slate-700">Company / Organization</Label>
                         <div className="relative">
-                          <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                          <Building2 className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
                           <Input
                             id="companyName"
                             name="companyName"
                             type="text"
-                            placeholder="e.g. Tech Mahindra, Infosys"
+                            placeholder="e.g. Tech Mahindra"
                             value={formData.companyName}
                             onChange={handleChange}
                             disabled={isSaving}
-                            className={`pl-9 h-9 text-sm rounded-lg ${fieldErrors.companyName ? "border-rose-500" : ""}`}
+                            className={`pl-8 h-8 text-xs rounded-lg ${fieldErrors.companyName ? "border-rose-500" : ""}`}
                             required
                           />
                         </div>
-                        {fieldErrors.companyName && <p className="text-xs text-rose-600">{fieldErrors.companyName}</p>}
+                        {fieldErrors.companyName && <p className="text-[10px] text-rose-600">{fieldErrors.companyName}</p>}
                       </div>
 
-                      {/* Department */}
-                      <div className="space-y-1.5">
-                        <Label htmlFor="department" className="text-xs font-semibold text-slate-700">Department</Label>
+                      <div className="space-y-1">
+                        <Label htmlFor="department" className="text-[11px] font-semibold text-slate-700">Department</Label>
                         <div className="relative">
-                          <Building className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                          <Building className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
                           <Input
                             id="department"
                             name="department"
                             type="text"
-                            placeholder="e.g. Engineering, HR"
+                            placeholder="e.g. Cloud & AI"
                             value={formData.department}
                             onChange={handleChange}
                             disabled={isSaving}
-                            className={`pl-9 h-9 text-sm rounded-lg ${fieldErrors.department ? "border-rose-500" : ""}`}
+                            className={`pl-8 h-8 text-xs rounded-lg ${fieldErrors.department ? "border-rose-500" : ""}`}
                             required
                           />
                         </div>
-                        {fieldErrors.department && <p className="text-xs text-rose-600">{fieldErrors.department}</p>}
+                        {fieldErrors.department && <p className="text-[10px] text-rose-600">{fieldErrors.department}</p>}
                       </div>
                     </div>
 
-                    {/* Commute section header */}
-                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 pt-2 border-t border-slate-100">
-                      Commute & Location Defaults
-                    </h3>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="homeLocation" className="text-xs font-semibold text-slate-700">Home / Starting Neighborhood</Label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                        <Input
-                          id="homeLocation"
-                          name="homeLocation"
-                          type="text"
-                          placeholder="e.g. Tambaram, Sholinganallur, Velachery"
-                          value={formData.homeLocation}
-                          onChange={handleChange}
-                          disabled={isSaving}
-                          className="pl-9 h-9 text-sm rounded-lg"
-                        />
+                    {/* Row 3: Home Location & Morning Time */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="space-y-1">
+                        <Label htmlFor="homeLocation" className="text-[11px] font-semibold text-slate-700">Home / Starting Neighborhood</Label>
+                        <div className="relative">
+                          <MapPin className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
+                          <Input
+                            id="homeLocation"
+                            name="homeLocation"
+                            type="text"
+                            placeholder="e.g. Tambaram, Velachery"
+                            value={formData.homeLocation}
+                            onChange={handleChange}
+                            disabled={isSaving}
+                            className="pl-8 h-8 text-xs rounded-lg"
+                          />
+                        </div>
                       </div>
-                      <p className="text-[10px] text-slate-400">Helps match you with colleagues offering rides from your area</p>
-                    </div>
 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="departureTimePreference" className="text-xs font-semibold text-slate-700">Typical Morning Departure Time</Label>
-                      <div className="relative">
-                        <Clock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                        <Input
-                          id="departureTimePreference"
-                          name="departureTimePreference"
-                          type="text"
-                          placeholder="e.g. 08:30 AM"
-                          value={formData.departureTimePreference}
-                          onChange={handleChange}
-                          disabled={isSaving}
-                          className="pl-9 h-9 text-sm rounded-lg"
-                        />
+                      <div className="space-y-1">
+                        <Label htmlFor="departureTimePreference" className="text-[11px] font-semibold text-slate-700">Morning Departure Time</Label>
+                        <div className="relative">
+                          <Clock className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
+                          <Input
+                            id="departureTimePreference"
+                            name="departureTimePreference"
+                            type="text"
+                            placeholder="e.g. 08:30 AM"
+                            value={formData.departureTimePreference}
+                            onChange={handleChange}
+                            disabled={isSaving}
+                            className="pl-8 h-8 text-xs rounded-lg"
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="notes" className="text-xs font-semibold text-slate-700">Ride Preferences & Commute Notes</Label>
+                    {/* Row 4: Notes */}
+                    <div className="space-y-1">
+                      <Label htmlFor="notes" className="text-[11px] font-semibold text-slate-700">Ride Preferences & Commute Notes</Label>
                       <div className="relative">
-                        <FileText className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                        <FileText className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
                         <Input
                           id="notes"
                           name="notes"
@@ -490,19 +488,17 @@ export default function ProfilePage() {
                           value={formData.notes}
                           onChange={handleChange}
                           disabled={isSaving}
-                          className="pl-9 h-9 text-sm rounded-lg"
+                          className="pl-8 h-8 text-xs rounded-lg"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                      <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50/60">
-                        <div className="flex items-center gap-2">
-                          <Music className="h-4 w-4 text-emerald-600" />
-                          <div>
-                            <div className="text-xs font-bold text-slate-800">Music En Route</div>
-                            <div className="text-[10px] text-slate-500">Enjoy music during commute</div>
-                          </div>
+                    {/* Row 5: Compact Micro Toggles */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <label className="flex items-center justify-between p-2 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-1.5">
+                          <Music className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          <span className="text-[11px] font-semibold text-slate-800">Music En Route</span>
                         </div>
                         <input
                           type="checkbox"
@@ -510,16 +506,14 @@ export default function ProfilePage() {
                           checked={formData.musicPreference}
                           onChange={handleChange}
                           disabled={isSaving}
-                          className="h-4 w-4 rounded border-slate-300 accent-emerald-600"
+                          className="h-3.5 w-3.5 rounded border-slate-300 accent-emerald-600"
                         />
-                      </div>
-                      <div className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-slate-50/60">
-                        <div className="flex items-center gap-2">
-                          <Cigarette className="h-4 w-4 text-slate-500" />
-                          <div>
-                            <div className="text-xs font-bold text-slate-800">Smoking Allowed</div>
-                            <div className="text-[10px] text-slate-500">Allow smoking in vehicle</div>
-                          </div>
+                      </label>
+
+                      <label className="flex items-center justify-between p-2 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-1.5">
+                          <Cigarette className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                          <span className="text-[11px] font-semibold text-slate-800">Smoking Allowed</span>
                         </div>
                         <input
                           type="checkbox"
@@ -527,23 +521,24 @@ export default function ProfilePage() {
                           checked={formData.smokingPreference}
                           onChange={handleChange}
                           disabled={isSaving}
-                          className="h-4 w-4 rounded border-slate-300 accent-emerald-600"
+                          className="h-3.5 w-3.5 rounded border-slate-300 accent-emerald-600"
                         />
-                      </div>
+                      </label>
                     </div>
                   </>
                 )}
               </CardContent>
 
-              <CardFooter className="flex justify-end border-t border-slate-100 pt-3 bg-slate-50/50 rounded-b-xl">
+              <CardFooter className="flex justify-end border-t border-slate-100 py-2.5 px-4 bg-slate-50/50">
                 <Button
                   type="submit"
-                  className="h-8 px-5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-xs"
+                  size="sm"
+                  className="h-8 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-xs"
                   disabled={isSaving}
                 >
                   {isSaving ? (
                     <span className="flex items-center gap-1.5">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-3 w-3 animate-spin" />
                       Saving...
                     </span>
                   ) : (
