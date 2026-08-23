@@ -71,7 +71,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Campus Rides Hub",
       href: "/admin/rides",
       icon: Route,
-      phaseBadge: "Phase 2",
     },
     {
       title: "System Reports & Safety",
@@ -100,19 +99,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Find a Ride",
       href: "/rides/find",
       icon: Search,
-      phaseBadge: "Phase 2",
     },
     {
       title: "Offer a Ride",
       href: "/rides/offer",
       icon: PlusCircle,
-      phaseBadge: "Phase 2",
     },
     {
       title: "My Rides",
       href: "/rides/my-rides",
       icon: Clock,
-      phaseBadge: "Phase 2",
     },
     {
       title: "My Vehicles",
@@ -123,7 +119,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Notifications",
       href: "/notifications",
       icon: Bell,
-      phaseBadge: "Phase 4",
     },
     {
       title: "My Profile",
@@ -207,15 +202,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     />
                     <span>{item.title}</span>
                   </div>
-
-                  {item.phaseBadge && (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] px-1.5 py-0 font-normal text-slate-400 border-slate-200 group-hover:border-slate-300"
-                    >
-                      {item.phaseBadge}
-                    </Badge>
-                  )}
                 </Link>
               );
             })}
