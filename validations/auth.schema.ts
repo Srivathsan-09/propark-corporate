@@ -8,11 +8,11 @@ export const registerSchema = z
       .min(2, "Full name must be at least 2 characters")
       .max(100, "Full name cannot exceed 100 characters"),
     employeeId: z
-      .string({ required_error: "Employee ID is required" })
+      .string({ required_error: "Emp Id is required" })
       .trim()
-      .min(3, "Employee ID must be at least 3 characters")
-      .max(30, "Employee ID cannot exceed 30 characters")
-      .regex(/^[A-Za-z0-9_-]+$/, "Employee ID can only contain letters, numbers, hyphens, and underscores"),
+      .min(3, "Emp Id must be at least 3 characters")
+      .max(30, "Emp Id cannot exceed 30 characters")
+      .regex(/^[A-Za-z0-9_-]+$/, "Emp Id can only contain letters, numbers, hyphens, and underscores"),
     email: z
       .string({ required_error: "Corporate email is required" })
       .trim()

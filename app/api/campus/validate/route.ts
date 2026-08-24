@@ -20,9 +20,14 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const normalized = campusId.toUpperCase().trim();
+    const clean = campusId.toUpperCase().trim();
+    const withoutHyphen = clean.replace(/[-_]/g, "");
     const match = await Campus.findOne({
-      campusId: normalized,
+      $or: [
+        { campusId: clean },
+        { campusId: withoutHyphen },
+        { campusId: { $regex: new RegExp(`^${withoutHyphen.replace(/([0-9]+)/, "-?$1")}$`, "i") } }
+      ],
       status: "active",
     }).lean();
 
@@ -31,7 +36,7 @@ export async function GET(req: NextRequest) {
         {
           success: false,
           valid: false,
-          error: `Campus ID "${normalized}" is not recognized in CommuteX. Available: CAMP001, CAMP002, CAMP003.`,
+          error: `Campus ID "${campusId}" is not recognized. Please check your Campus ID (e.g. CAMP001, CAMP002).`,
         },
         { status: 404 }
       );

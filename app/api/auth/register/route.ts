@@ -29,13 +29,18 @@ export async function POST(req: NextRequest) {
     await connectToDatabase();
 
     const normalizedEmail = email.toLowerCase().trim();
-    const normalizedCampusId = campusId.toUpperCase().trim();
+    const cleanCampusId = campusId.toUpperCase().trim();
+    const withoutHyphen = cleanCampusId.replace(/[-_]/g, "");
     const formattedEmpId = formatEmployeeId(employeeId);
 
     // 3. Import Campus Model & Validate Campus ID & Company Membership
     const Campus = (await import("@/models/Campus")).default;
     const campus = await Campus.findOne({
-      campusId: normalizedCampusId,
+      $or: [
+        { campusId: cleanCampusId },
+        { campusId: withoutHyphen },
+        { campusId: { $regex: new RegExp(`^${withoutHyphen.replace(/([0-9]+)/, "-?$1")}$`, "i") } }
+      ],
       status: "active",
     });
 
@@ -43,7 +48,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `Invalid Campus ID "${normalizedCampusId}". Please enter a valid registered Campus ID (e.g. CAMP001, CAMP002, CAMP003).`,
+          error: `Invalid Campus ID "${campusId}". Please enter a valid registered Campus ID (e.g. CAMP001, CAMP002).`,
         },
         { status: 400 }
       );

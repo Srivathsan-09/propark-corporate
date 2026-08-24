@@ -142,7 +142,7 @@ export default function DashboardPage() {
                 </Badge>
               </div>
               <p className="text-xs text-amber-800 mt-1 leading-relaxed max-w-2xl">
-                Your corporate profile (Company ID: <strong className="font-mono">{session?.user?.employeeId}</strong>) is currently awaiting verification from the campus mobility administrator. You can register your vehicles and configure your profile. Finding and offering rides will be unlocked upon approval.
+                Your corporate profile (Emp Id: <strong className="font-mono">{session?.user?.employeeId}</strong>) is currently awaiting verification from the campus mobility administrator. You can register your vehicles and configure your profile. Finding and offering rides will be unlocked upon approval.
               </p>
             </div>
           </div>
@@ -390,7 +390,7 @@ export default function DashboardPage() {
               Campus Admin Approval Required
             </DialogTitle>
             <DialogDescription className="text-center text-sm text-slate-600 pt-2 leading-relaxed">
-              Your employee profile (Company ID: <strong>{session?.user?.employeeId}</strong>) is currently pending review by the campus administrator.
+              Your employee profile (Emp Id: <strong>{session?.user?.employeeId}</strong>) is currently pending review by the campus administrator.
               <br /><br />
               Finding and offering rides will be unlocked immediately once your identity is approved. You can continue adding your vehicle and editing your commute preferences in the meantime.
             </DialogDescription>

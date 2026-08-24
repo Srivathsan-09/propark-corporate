@@ -32,11 +32,10 @@ export async function ensureCampusMasterData() {
         city: "Chennai",
         state: "Tamil Nadu",
         companies: [
-          "ABC Technologies",
-          "XYZ Solutions",
-          "LML Private Ltd",
           "Tech Mahindra",
           "Infosys",
+          "Comcast",
+          "HCL",
         ],
         status: "active" as const,
       },

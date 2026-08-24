@@ -340,7 +340,7 @@ export default function AdminEmployeesPage() {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500">
                   <th className="py-3 pl-6 pr-4 font-bold w-[220px]">Employee / Admin</th>
-                  <th className="py-3 px-4 font-bold w-[110px]">ID</th>
+                  <th className="py-3 px-4 font-bold w-[110px]">Emp Id</th>
                   <th className="py-3 px-4 font-bold w-[120px]">Role</th>
                   <th className="py-3 px-4 font-bold w-[170px]">Company & Campus</th>
                   <th className="py-3 px-4 font-bold w-[90px]">Fleet</th>

@@ -26,9 +26,26 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { CarLoader } from "@/components/common/CarLoader";
 import { registerSchema } from "@/validations/auth.schema";
+
+interface ICampusOption {
+  _id: string;
+  campusId: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  companies: string[];
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -47,6 +64,10 @@ export default function RegisterPage() {
     confirmPassword: "",
   });
 
+  const [campuses, setCampuses] = useState<ICampusOption[]>([]);
+  const [matchedCampus, setMatchedCampus] = useState<ICampusOption | null>(null);
+  const [isLoadingCampuses, setIsLoadingCampuses] = useState(true);
+
   const [otp, setOtp] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -58,6 +79,49 @@ export default function RegisterPage() {
   const [resendTimer, setResendTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [devOtpNotice, setDevOtpNotice] = useState<string | null>(null);
+
+  // Load active campuses dynamically
+  useEffect(() => {
+    async function loadCampuses() {
+      try {
+        const res = await fetch("/api/campus/validate");
+        if (res.ok) {
+          const data = await res.json();
+          setCampuses(data.campuses || []);
+        }
+      } catch (err) {
+        console.error("Failed to load campuses:", err);
+      } finally {
+        setIsLoadingCampuses(false);
+      }
+    }
+    loadCampuses();
+  }, []);
+
+  // Dynamically match entered Campus ID and derive companies
+  useEffect(() => {
+    if (!formData.campusId.trim()) {
+      setMatchedCampus(null);
+      return;
+    }
+    const cleanInput = formData.campusId.toUpperCase().trim().replace(/[-_]/g, "");
+    const found = campuses.find((c) => {
+      const cClean = c.campusId.toUpperCase().trim().replace(/[-_]/g, "");
+      return (
+        cClean === cleanInput ||
+        c.campusId.toUpperCase().trim() === formData.campusId.toUpperCase().trim()
+      );
+    });
+
+    if (found) {
+      setMatchedCampus(found);
+      if (formData.companyName && !found.companies.includes(formData.companyName)) {
+        setFormData((prev) => ({ ...prev, companyName: "" }));
+      }
+    } else {
+      setMatchedCampus(null);
+    }
+  }, [formData.campusId, campuses, formData.companyName]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -337,39 +401,18 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Row 2: Company / Organization & Campus ID */}
+            {/* Row 2: Campus ID & Company / Organization (Dropdown) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div className="space-y-0.5">
-                <Label htmlFor="companyName" className="text-[11px] font-semibold text-slate-700">
-                  Company / Organization
-                </Label>
-                <div className="relative">
-                  <Building2 className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                  <Input
-                    id="companyName"
-                    name="companyName"
-                    type="text"
-                    placeholder="e.g. ABC Technologies"
-                    value={formData.companyName}
-                    onChange={handleChange}
-                    disabled={isSendingOtp}
-                    className={`h-8.5 pl-8 text-xs rounded-lg ${fieldErrors.companyName ? "border-rose-500" : "border-slate-200"}`}
-                    required
-                  />
-                </div>
-                {fieldErrors.companyName && (
-                  <p className="text-[10px] text-rose-600">{fieldErrors.companyName}</p>
-                )}
-              </div>
-
               <div className="space-y-0.5">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="campusId" className="text-[11px] font-semibold text-slate-700">
                     Campus ID
                   </Label>
-                  <span className="text-[9px] text-emerald-700 font-medium flex items-center gap-0.5">
-                    <Info className="h-2.5 w-2.5" /> Required
-                  </span>
+                  {matchedCampus && (
+                    <span className="text-[9px] text-emerald-700 font-semibold truncate max-w-[130px]" title={matchedCampus.name}>
+                      {matchedCampus.name}
+                    </span>
+                  )}
                 </div>
                 <div className="relative">
                   <MapPin className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
@@ -389,13 +432,60 @@ export default function RegisterPage() {
                   <p className="text-[10px] text-rose-600">{fieldErrors.campusId}</p>
                 )}
               </div>
+
+              <div className="space-y-0.5">
+                <Label htmlFor="companyName" className="text-[11px] font-semibold text-slate-700">
+                  Company / Organization
+                </Label>
+                <div className="relative">
+                  <Select
+                    value={formData.companyName}
+                    onValueChange={(val) => {
+                      setFormData((prev) => ({ ...prev, companyName: val }));
+                      if (fieldErrors.companyName) {
+                        setFieldErrors((prev) => {
+                          const updated = { ...prev };
+                          delete updated.companyName;
+                          return updated;
+                        });
+                      }
+                    }}
+                    disabled={isSendingOtp || !matchedCampus}
+                  >
+                    <SelectTrigger
+                      id="companyName"
+                      className={`h-8.5 text-xs rounded-lg ${fieldErrors.companyName ? "border-rose-500" : "border-slate-200"}`}
+                    >
+                      <SelectValue
+                        placeholder={
+                          !formData.campusId.trim()
+                            ? "Enter Campus ID first"
+                            : !matchedCampus
+                            ? "Invalid Campus ID"
+                            : "Select your company"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {matchedCampus?.companies?.map((comp: string) => (
+                        <SelectItem key={comp} value={comp} className="text-xs">
+                          {comp}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {fieldErrors.companyName && (
+                  <p className="text-[10px] text-rose-600">{fieldErrors.companyName}</p>
+                )}
+              </div>
             </div>
 
-            {/* Row 3: Company ID & Department */}
+            {/* Row 3: Emp Id & Department */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div className="space-y-0.5">
                 <Label htmlFor="employeeId" className="text-[11px] font-semibold text-slate-700">
-                  Company ID (Employee Badge)
+                  Emp Id
                 </Label>
                 <div className="relative">
                   <BadgeCheck className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />

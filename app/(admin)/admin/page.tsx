@@ -249,7 +249,7 @@ export default function AdminDashboardPage() {
               <thead>
                 <tr className="border-b border-slate-100 text-[10px] uppercase text-slate-400 bg-slate-50/40">
                   <th className="py-2 px-3 font-semibold w-[220px]">Employee</th>
-                  <th className="py-2 px-3 font-semibold w-[100px]">ID</th>
+                  <th className="py-2 px-3 font-semibold w-[100px]">Emp Id</th>
                   <th className="py-2 px-3 font-semibold w-[130px]">Department</th>
                   <th className="py-2 px-3 font-semibold w-[100px]">Status</th>
                   <th className="py-2 px-3 font-semibold text-right">Action</th>

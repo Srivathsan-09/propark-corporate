@@ -311,7 +311,7 @@ export default function ProfilePage() {
                 <>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Employee ID</span>
+                      <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Emp Id</span>
                       <div className="flex items-center gap-1 mt-0.5 font-mono font-bold text-slate-800 text-xs truncate">
                         <BadgeCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                         <span className="truncate">{profile?.employeeId}</span>
