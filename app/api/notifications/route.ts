@@ -36,7 +36,7 @@ export async function GET() {
       unreadCount,
     });
   } catch (error: unknown) {
-    console.error("❌ Notifications GET Error:", error);
+    console.error(" Notifications GET Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch notifications." },
       { status: 500 }
@@ -81,7 +81,7 @@ export async function PATCH(req: NextRequest) {
       { status: 400 }
     );
   } catch (error: unknown) {
-    console.error("❌ Notifications PATCH Error:", error);
+    console.error(" Notifications PATCH Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update notification status." },
       { status: 500 }

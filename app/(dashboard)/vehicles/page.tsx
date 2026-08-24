@@ -438,7 +438,7 @@ export default function VehiclesPage() {
                     <div className="absolute top-2 right-2">
                       {isApproved ? (
                         <Badge className="bg-emerald-600 text-white border-0 text-[10px] font-bold shadow-sm">
-                          <Check className="h-3 w-3 mr-1" /> Verified
+                          Verified
                         </Badge>
                       ) : vehicle.verificationStatus === "rejected" ? (
                         <Badge variant="destructive" className="text-[10px] font-bold shadow-sm">
@@ -446,7 +446,7 @@ export default function VehiclesPage() {
                         </Badge>
                       ) : (
                         <Badge className="bg-amber-500 text-white border-0 text-[10px] font-bold shadow-sm">
-                          <Clock className="h-3 w-3 mr-1" /> Pending Approval
+                          Pending Approval
                         </Badge>
                       )}
                     </div>

@@ -143,7 +143,7 @@ export const authOptions: NextAuthOptions = {
 
           return true;
         } catch (error) {
-          console.error("❌ Google OAuth signIn error:", error);
+          console.error(" Google OAuth signIn error:", error);
           return false;
         }
       }

@@ -28,7 +28,7 @@ export async function GET() {
       vehicles,
     });
   } catch (error: unknown) {
-    console.error("❌ Vehicle GET API Error:", error);
+    console.error(" Vehicle GET API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to retrieve vehicles." },
       { status: 500 }
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error: unknown) {
-    console.error("❌ Vehicle POST API Error:", error);
+    console.error(" Vehicle POST API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to register vehicle. Please try again." },
       { status: 500 }

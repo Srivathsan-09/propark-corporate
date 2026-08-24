@@ -12,11 +12,11 @@ export async function ensureCampusMasterData() {
 
         if (colNames.includes("campuscompanies")) {
           await mongoose.connection.db.dropCollection("campuscompanies");
-          console.log("🧹 [Cleanup] Dropped legacy 'campuscompanies' collection.");
+          console.log(" [Cleanup] Dropped legacy 'campuscompanies' collection.");
         }
         if (colNames.includes("companies")) {
           await mongoose.connection.db.dropCollection("companies");
-          console.log("🧹 [Cleanup] Dropped legacy 'companies' collection.");
+          console.log(" [Cleanup] Dropped legacy 'companies' collection.");
         }
       } catch (dropErr) {
         // Non-fatal if already dropped
@@ -95,8 +95,8 @@ export async function ensureCampusMasterData() {
       console.error("Employee ID formatting sync error:", empErr);
     }
 
-    console.log("✅ [Seed] Master Campuses & Companies initialized successfully.");
+    console.log(" [Seed] Master Campuses & Companies initialized successfully.");
   } catch (error) {
-    console.error("⚠️ [Seed] Error initializing campus master data:", error);
+    console.error(" [Seed] Error initializing campus master data:", error);
   }
 }

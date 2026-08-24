@@ -40,7 +40,7 @@ export async function GET() {
       profile: user,
     });
   } catch (error: unknown) {
-    console.error("❌ Profile GET API Error:", error);
+    console.error(" Profile GET API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to retrieve profile data." },
       { status: 500 }
@@ -110,7 +110,7 @@ export async function PATCH(req: NextRequest) {
       profile: updatedUser,
     });
   } catch (error: unknown) {
-    console.error("❌ Profile PATCH API Error:", error);
+    console.error(" Profile PATCH API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update profile." },
       { status: 500 }

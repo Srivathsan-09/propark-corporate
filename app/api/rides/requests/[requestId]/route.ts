@@ -145,7 +145,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       });
     }
   } catch (error: unknown) {
-    console.error("❌ Accept/Reject Request API Error:", error);
+    console.error(" Accept/Reject Request API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update ride request status." },
       { status: 500 }

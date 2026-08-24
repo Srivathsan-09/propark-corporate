@@ -48,7 +48,7 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
       })
       .catch((error) => {
         cached.promise = null;
-        console.error("❌ MongoDB Atlas Connection Error:", error);
+        console.error(" MongoDB Atlas Connection Error:", error);
         throw error;
       });
   }

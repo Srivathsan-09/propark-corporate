@@ -45,8 +45,8 @@ export async function logAdminActivity(
       userAgent,
     });
 
-    console.log(`📋 [Audit Log] ${payload.action} on ${payload.targetEntity} (${payload.targetId}) by ${session.user.email}`);
+    console.log(` [Audit Log] ${payload.action} on ${payload.targetEntity} (${payload.targetId}) by ${session.user.email}`);
   } catch (error) {
-    console.error("⚠️ [Audit Logger Error]:", error);
+    console.error(" [Audit Logger Error]:", error);
   }
 }

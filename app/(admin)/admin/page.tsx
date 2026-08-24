@@ -283,16 +283,16 @@ export default function AdminDashboardPage() {
                       ) : emp.role === "campus_admin" ? (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800">Campus Admin</span>
                       ) : emp.verificationStatus === "approved" ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <Check className="h-2.5 w-2.5" /> Approved
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Approved
                         </span>
                       ) : emp.verificationStatus === "rejected" ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                          <X className="h-2.5 w-2.5" /> Rejected
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                          Rejected
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                          <Clock className="h-2.5 w-2.5" /> Pending
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                          Pending
                         </span>
                       )}
                     </td>
@@ -308,10 +308,8 @@ export default function AdminDashboardPage() {
                               disabled={actionLoadingId === emp._id}
                               className="h-6 px-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded flex items-center gap-1 disabled:opacity-60 transition-colors"
                             >
-                              {actionLoadingId === emp._id ? (
+                              {actionLoadingId === emp._id && (
                                 <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Check className="h-3 w-3" />
                               )}
                               Approve
                             </button>
@@ -323,7 +321,10 @@ export default function AdminDashboardPage() {
                               disabled={actionLoadingId === emp._id}
                               className="h-6 px-2 border border-rose-200 text-rose-700 hover:bg-rose-50 text-[10px] font-bold rounded flex items-center gap-1 disabled:opacity-60 transition-colors"
                             >
-                              <X className="h-3 w-3" /> Reject
+                              {actionLoadingId === emp._id && (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              )}
+                              Reject
                             </button>
                           )}
                         </div>

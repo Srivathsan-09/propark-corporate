@@ -358,11 +358,8 @@ export default function AdminEmployeesPage() {
                           {getInitials(emp.name)}
                         </div>
                         <div className="min-w-0">
-                          <div className="font-semibold text-slate-900 flex items-center gap-1.5 truncate text-xs">
-                            <span className="truncate">{emp.name}</span>
-                            {emp.role === "admin" && (
-                              <Crown className="h-3.5 w-3.5 text-purple-600 shrink-0" />
-                            )}
+                          <div className="font-semibold text-slate-900 truncate text-xs">
+                            {emp.name}
                           </div>
                           <div className="text-[11px] text-slate-500 truncate">{emp.email}</div>
                         </div>
@@ -379,16 +376,16 @@ export default function AdminEmployeesPage() {
                     {/* Role & Access Tier */}
                     <td className="py-3 px-4 whitespace-nowrap">
                       {emp.role === "admin" ? (
-                        <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold py-0.5 px-2 gap-1">
-                          <Crown className="h-3 w-3" /> Super Admin
+                        <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold py-0.5 px-2">
+                          Super Admin
                         </Badge>
                       ) : emp.role === "campus_admin" ? (
-                        <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-semibold py-0.5 px-2 gap-1">
-                          <Building2 className="h-3 w-3" /> Campus Admin
+                        <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-semibold py-0.5 px-2">
+                          Campus Admin
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-slate-600 text-[10px] font-medium py-0.5 px-2 gap-1">
-                          <Users className="h-3 w-3" /> Employee
+                        <Badge variant="outline" className="text-slate-600 text-[10px] font-medium py-0.5 px-2">
+                          Employee
                         </Badge>
                       )}
                     </td>
@@ -428,8 +425,7 @@ export default function AdminEmployeesPage() {
 
                     {/* Vehicles */}
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                        <Car className="h-3 w-3 text-slate-400" />
+                      <span className="text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
                         {emp.vehicleCount} {emp.vehicleCount === 1 ? "vehicle" : "vehicles"}
                       </span>
                     </td>
@@ -441,16 +437,16 @@ export default function AdminEmployeesPage() {
                       ) : emp.role === "campus_admin" ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800">Campus Admin</span>
                       ) : emp.verificationStatus === "approved" ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <Check className="h-3 w-3" /> Approved
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Approved
                         </span>
                       ) : emp.verificationStatus === "rejected" ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                          <X className="h-3 w-3" /> Rejected
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                          Rejected
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                          <Clock className="h-3 w-3" /> Pending
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                          Pending
                         </span>
                       )}
                     </td>
@@ -469,10 +465,8 @@ export default function AdminEmployeesPage() {
                               disabled={actionLoadingId === emp._id}
                               className="h-7 px-2.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60 shadow-2xs"
                             >
-                              {actionLoadingId === emp._id ? (
+                              {actionLoadingId === emp._id && (
                                 <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Check className="h-3 w-3" />
                               )}
                               Approve
                             </button>
@@ -486,7 +480,10 @@ export default function AdminEmployeesPage() {
                               disabled={actionLoadingId === emp._id}
                               className="h-7 px-2.5 text-xs font-semibold border border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60"
                             >
-                              <X className="h-3 w-3" /> Reject
+                              {actionLoadingId === emp._id && (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              )}
+                              Reject
                             </button>
                           )}
                         </div>

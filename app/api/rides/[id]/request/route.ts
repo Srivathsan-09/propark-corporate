@@ -150,7 +150,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       { status: 201 }
     );
   } catch (error: unknown) {
-    console.error("❌ Ride Request API Error:", error);
+    console.error(" Ride Request API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to submit ride request. Please try again." },
       { status: 500 }

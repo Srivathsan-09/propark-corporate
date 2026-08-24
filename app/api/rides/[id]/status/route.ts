@@ -136,7 +136,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       ride,
     });
   } catch (error: unknown) {
-    console.error("❌ Update Ride Status API Error:", error);
+    console.error(" Update Ride Status API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update ride status." },
       { status: 500 }

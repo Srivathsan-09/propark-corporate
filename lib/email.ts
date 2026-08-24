@@ -118,11 +118,11 @@ export async function sendCampusAdminOtpEmail({
       if (resendResult.error) {
         console.error("[Resend Error]:", resendResult.error);
       } else {
-        console.log(`✅ [Resend] Successfully dispatched OTP email to: ${email}`);
+        console.log(` [Resend] Successfully dispatched OTP email to: ${email}`);
         return { success: true, method: "resend" };
       }
     } catch (resendErr: any) {
-      console.error("❌ [Resend Exception]:", resendErr?.message || resendErr);
+      console.error(" [Resend Exception]:", resendErr?.message || resendErr);
     }
   }
 
@@ -169,10 +169,10 @@ export async function sendCampusAdminOtpEmail({
         },
       });
 
-      console.log(`✅ [Email Service] Delivered OTP code to: ${email} (via ${isGmail ? "Gmail" : emailHost})`);
+      console.log(` [Email Service] Delivered OTP code to: ${email} (via ${isGmail ? "Gmail" : emailHost})`);
       return { success: true, method: isGmail ? "gmail" : "smtp" };
     } catch (mailErr: any) {
-      console.error("❌ [Email Service Error]:", mailErr?.message || mailErr);
+      console.error(" [Email Service Error]:", mailErr?.message || mailErr);
       return {
         success: false,
         error: `Email delivery failed: ${mailErr?.message}`,
@@ -182,7 +182,7 @@ export async function sendCampusAdminOtpEmail({
   }
 
   // ── Method 3: Fallback when credentials are not yet added in Vercel ──
-  console.warn("⚠️ [Email Notice] No EMAIL_USER/EMAIL_PASSWORD, GMAIL_USER/GMAIL_APP_PASSWORD, or RESEND_API_KEY found.");
+  console.warn(" [Email Notice] No EMAIL_USER/EMAIL_PASSWORD, GMAIL_USER/GMAIL_APP_PASSWORD, or RESEND_API_KEY found.");
   console.log(`[OTP CODE GENERATED] For: ${email} | Campus: ${campusId} | Code: ${otp}`);
 
   return {
@@ -291,11 +291,11 @@ export async function sendRegistrationOtpEmail({
       if (resendResult.error) {
         console.error("[Resend Error]:", resendResult.error);
       } else {
-        console.log(`✅ [Resend] Successfully dispatched registration OTP email to: ${email}`);
+        console.log(` [Resend] Successfully dispatched registration OTP email to: ${email}`);
         return { success: true, method: "resend" };
       }
     } catch (resendErr: any) {
-      console.error("❌ [Resend Exception]:", resendErr?.message || resendErr);
+      console.error(" [Resend Exception]:", resendErr?.message || resendErr);
     }
   }
 
@@ -342,10 +342,10 @@ export async function sendRegistrationOtpEmail({
         },
       });
 
-      console.log(`✅ [Email Service] Delivered registration OTP to: ${email}`);
+      console.log(` [Email Service] Delivered registration OTP to: ${email}`);
       return { success: true, method: isGmail ? "gmail" : "smtp" };
     } catch (mailErr: any) {
-      console.error("❌ [Email Service Error]:", mailErr?.message || mailErr);
+      console.error(" [Email Service Error]:", mailErr?.message || mailErr);
       return {
         success: false,
         error: `Email delivery failed: ${mailErr?.message}`,
@@ -355,7 +355,7 @@ export async function sendRegistrationOtpEmail({
   }
 
   // ── Method 3: Fallback ──
-  console.warn("⚠️ [Email Notice] No email service configured. OTP logged for testing.");
+  console.warn(" [Email Notice] No email service configured. OTP logged for testing.");
   console.log(`[REGISTRATION OTP] For: ${email} | Code: ${otp}`);
 
   return {

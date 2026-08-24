@@ -284,10 +284,8 @@ export default function AdminVehiclesPage() {
                                 disabled={actionLoadingId === veh._id}
                                 className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5 font-semibold rounded-lg shadow-xs"
                               >
-                                {actionLoadingId === veh._id ? (
+                                {actionLoadingId === veh._id && (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Check className="h-3.5 w-3.5" />
                                 )}
                                 Approve
                               </Button>
@@ -300,7 +298,9 @@ export default function AdminVehiclesPage() {
                                 disabled={actionLoadingId === veh._id}
                                 className="h-8 px-3 border-rose-300 text-rose-700 hover:bg-rose-50 text-xs gap-1.5 rounded-lg font-semibold"
                               >
-                                <X className="h-3.5 w-3.5" />
+                                {actionLoadingId === veh._id && (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                )}
                                 Reject
                               </Button>
                             )}

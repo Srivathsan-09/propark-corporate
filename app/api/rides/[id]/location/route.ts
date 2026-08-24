@@ -67,7 +67,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       durationMinutes: ride.durationMinutes,
     });
   } catch (error: unknown) {
-    console.error("❌ Live Location GET API Error:", error);
+    console.error(" Live Location GET API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to retrieve live location." },
       { status: 500 }
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       status: ride.status,
     });
   } catch (error: unknown) {
-    console.error("❌ Live Location POST API Error:", error);
+    console.error(" Live Location POST API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update live GPS location." },
       { status: 500 }

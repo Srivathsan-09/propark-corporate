@@ -51,7 +51,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       vehicle,
     });
   } catch (error: unknown) {
-    console.error("❌ Vehicle GET by ID API Error:", error);
+    console.error(" Vehicle GET by ID API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to retrieve vehicle details." },
       { status: 500 }
@@ -164,7 +164,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       vehicle: updatedVehicle,
     });
   } catch (error: unknown) {
-    console.error("❌ Vehicle PATCH API Error:", error);
+    console.error(" Vehicle PATCH API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update vehicle details." },
       { status: 500 }
@@ -214,7 +214,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       message: "Vehicle removed successfully.",
     });
   } catch (error: unknown) {
-    console.error("❌ Vehicle DELETE API Error:", error);
+    console.error(" Vehicle DELETE API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to delete vehicle." },
       { status: 500 }

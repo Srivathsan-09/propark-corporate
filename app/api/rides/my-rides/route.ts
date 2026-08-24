@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
       bookedRides: validBookedRides,
     });
   } catch (error: unknown) {
-    console.error("❌ My Rides GET API Error:", error);
+    console.error(" My Rides GET API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch rides history." },
       { status: 500 }

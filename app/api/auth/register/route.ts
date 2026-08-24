@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error: unknown) {
-    console.error("❌ Registration API Error:", error);
+    console.error(" Registration API Error:", error);
     return NextResponse.json(
       {
         success: false,

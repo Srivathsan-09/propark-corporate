@@ -399,7 +399,7 @@ export async function DELETE(
     }
 
     const targetCampusId = deleted.campusId;
-    console.log(`DELETE campus: ✅ PERMANENTLY DELETED "${deleted.name}" (${targetCampusId})`);
+    console.log(`DELETE campus:  PERMANENTLY DELETED "${deleted.name}" (${targetCampusId})`);
 
     // Cascade: delete associated companies
     const { deletedCount: compCount } = await Company.deleteMany({

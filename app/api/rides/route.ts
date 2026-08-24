@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
       rides: securedRides,
     });
   } catch (error: unknown) {
-    console.error("❌ Rides GET API Error:", error);
+    console.error(" Rides GET API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch available rides." },
       { status: 500 }
@@ -300,7 +300,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error: unknown) {
-    console.error("❌ Ride POST API Error:", error);
+    console.error(" Ride POST API Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to post ride. Please try again." },
       { status: 500 }
