@@ -135,10 +135,10 @@ export default function AdminDashboardPage() {
             </Badge>
           </div>
           <h1 className="text-lg font-bold tracking-tight text-slate-900">
-            Admin Dashboard & Verification
+            Admin Overview
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Review employee requests, fleet, and live commute manifests.
+            Review employees, vehicles, and active campus rides.
           </p>
         </div>
 
@@ -155,12 +155,12 @@ export default function AdminDashboardPage() {
           </Link>
           <Link href="/admin/vehicles">
             <button className="h-8 px-3 text-xs font-semibold rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition-colors">
-              <Car className="h-3.5 w-3.5 text-indigo-600" /> Fleet
+              <Car className="h-3.5 w-3.5 text-indigo-600" /> Vehicles
             </button>
           </Link>
           <Link href="/admin/rides">
             <button className="h-8 px-4 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition-colors shadow-sm">
-              <Route className="h-3.5 w-3.5" /> Track Rides
+              <Route className="h-3.5 w-3.5" /> Rides
             </button>
           </Link>
         </div>

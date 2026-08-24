@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -130,14 +130,14 @@ export default function AdminAuditLogsPage() {
           <div className="flex items-center gap-2.5 mt-1.5">
             <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
               <FileCheck className="h-5 w-5 text-purple-600" />
-              Enterprise Security & Audit Trail
+              Activity Logs
             </h1>
-            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-2 py-0.5">
-              SOC 2 / Compliance Grade
+            <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold px-2 py-0.5">
+              Super Admin
             </Badge>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Immutable audit record of all administrative operations, employee approvals, campus deletions, and security privileges.
+            History of administrative actions, employee approvals, and campus updates.
           </p>
         </div>
       </div>
@@ -146,7 +146,7 @@ export default function AdminAuditLogsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Total Logged Actions</span>
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Total Actions</span>
             <div className="text-xl font-bold text-slate-900 mt-0.5">{totalLogs}</div>
           </div>
           <div className="p-2 bg-slate-100 rounded-lg text-slate-700">
@@ -156,7 +156,7 @@ export default function AdminAuditLogsPage() {
 
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-purple-600 uppercase tracking-wider block">Today&apos;s Mutations</span>
+            <span className="text-[11px] font-semibold text-purple-600 uppercase tracking-wider block">Today&apos;s Actions</span>
             <div className="text-xl font-bold text-purple-900 mt-0.5">{todayCount}</div>
           </div>
           <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
@@ -166,7 +166,7 @@ export default function AdminAuditLogsPage() {
 
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-rose-600 uppercase tracking-wider block">Critical Operations</span>
+            <span className="text-[11px] font-semibold text-rose-600 uppercase tracking-wider block">Important Actions</span>
             <div className="text-xl font-bold text-rose-900 mt-0.5">{securityCount}</div>
           </div>
           <div className="p-2 bg-rose-50 rounded-lg text-rose-600">
@@ -197,17 +197,17 @@ export default function AdminAuditLogsPage() {
             onChange={(e) => setEntityFilter(e.target.value)}
             className="h-8 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-2xs"
           >
-            <option value="all">All Target Entities</option>
+            <option value="all">All Types</option>
             <option value="Campus">Campus</option>
-            <option value="User">User Account</option>
-            <option value="Report">Incident Report</option>
+            <option value="User">Employee / User</option>
+            <option value="Report">Report</option>
           </select>
         </div>
 
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
           <Input
-            placeholder="Search admin email, action, ID..."
+            placeholder="Search admin, action, or ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8 h-8 text-xs rounded-lg"
@@ -220,7 +220,7 @@ export default function AdminAuditLogsPage() {
         <CardHeader className="py-3 px-6 bg-slate-50/80 border-b border-slate-100">
           <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <FileCheck className="h-4 w-4 text-purple-600" />
-            Audit Records Stream ({filteredLogs.length})
+            Activity History ({filteredLogs.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -228,9 +228,9 @@ export default function AdminAuditLogsPage() {
             <table className="w-full text-left text-xs min-w-[760px]">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] uppercase tracking-wider text-slate-500">
-                  <th className="py-3 pl-6 pr-4 font-bold w-36">Timestamp</th>
-                  <th className="py-3 px-4 font-bold">Admin Operator</th>
-                  <th className="py-3 px-4 font-bold">Action Type</th>
+                  <th className="py-3 pl-6 pr-4 font-bold w-36">Date & Time</th>
+                  <th className="py-3 px-4 font-bold">Admin</th>
+                  <th className="py-3 px-4 font-bold">Action</th>
                   <th className="py-3 px-4 font-bold">Target</th>
                   <th className="py-3 px-4 font-bold">Description</th>
                   <th className="py-3 pl-4 pr-6 font-bold text-right">Details</th>

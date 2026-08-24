@@ -179,11 +179,11 @@ export default function AdminEmployeesPage() {
           <div className="flex flex-wrap items-center gap-3 mt-2">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
               <Users className="h-6 w-6 text-purple-600" />
-              Corporate Employee Directory
+              Employees
             </h1>
             {isSuperAdmin ? (
               <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold px-2.5 py-0.5">
-                Super Admin Access
+                Super Admin
               </Badge>
             ) : (
               <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-0.5">
@@ -193,8 +193,8 @@ export default function AdminEmployeesPage() {
           </div>
           <p className="text-sm text-slate-500 mt-1">
             {isSuperAdmin
-              ? "Super Admin console: Manage all users, allocate Campus Admins, and verify corporate employees."
-              : "Campus Admin console: Manage and verify corporate commuters inside your assigned physical campus."}
+              ? "View and manage employee accounts and verification requests across campuses."
+              : "View and manage employee accounts for your assigned campus."}
           </p>
         </div>
 

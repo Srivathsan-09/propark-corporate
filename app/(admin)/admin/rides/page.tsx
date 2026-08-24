@@ -194,7 +194,7 @@ export default function AdminRidesPage() {
           </div>
           <div className="flex items-center gap-2.5 mt-1">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Campus Rides Oversight & Manifest
+              Campus Rides
             </h1>
             {isRefreshing && (
               <span className="flex items-center gap-1 text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
@@ -203,7 +203,7 @@ export default function AdminRidesPage() {
             )}
           </div>
           <p className="text-xs text-slate-500">
-            Real-time monitoring of all campus carpools, route schedules, and complete employee passenger manifests
+            Real-time monitoring of campus carpools and passenger manifests.
           </p>
         </div>
 

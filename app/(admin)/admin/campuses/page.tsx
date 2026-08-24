@@ -523,11 +523,11 @@ export default function AdminCampusesPage() {
           <div className="flex flex-wrap items-center gap-3 mt-2">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
               <Building2 className="h-6 w-6 text-purple-600" />
-              Campus & Admin Hub
+              Campuses
             </h1>
             {isSuperAdmin ? (
               <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold px-2.5 py-0.5">
-                Super Admin Console
+                Super Admin
               </Badge>
             ) : (
               <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-0.5">
@@ -537,8 +537,8 @@ export default function AdminCampusesPage() {
           </div>
           <p className="text-sm text-slate-500 mt-1">
             {isSuperAdmin
-              ? "Governance across all physical campuses, campus administrators, and company addition approvals."
-              : "Manage operating companies and commuters for your assigned physical campus."}
+              ? "Manage physical campuses, operating companies, and campus administrators."
+              : "Manage operating companies and employees for your assigned campus."}
           </p>
         </div>
 

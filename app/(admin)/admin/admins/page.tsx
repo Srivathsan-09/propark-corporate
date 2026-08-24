@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -232,20 +232,20 @@ export default function CampusAdminsPage() {
           <div className="flex items-center gap-2.5 mt-1.5">
             <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-purple-600" />
-              Campus Administrators Governance
+              Campus Administrators
             </h1>
             <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold px-2 py-0.5">
-              Super Admin Privileges
+              Super Admin
             </Badge>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Designate, verify, and govern authorized campus administrators with two-factor email OTP authorization.
+            Assign and manage administrators for each physical campus location.
           </p>
         </div>
 
         <Link href="/admin/campuses">
           <Button variant="outline" size="sm" className="h-8 text-xs px-3 border-slate-200 text-slate-700 hover:bg-slate-50 gap-1.5 rounded-lg font-semibold">
-            <Building2 className="h-3.5 w-3.5 text-slate-500" /> Manage Campuses Master Data
+            <Building2 className="h-3.5 w-3.5 text-slate-500" /> Manage Campuses
           </Button>
         </Link>
       </div>

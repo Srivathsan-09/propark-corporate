@@ -122,10 +122,10 @@ export default function AdminVehiclesPage() {
             </Link>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
-            Campus Registered Fleet & Verification
+            Vehicles
           </h1>
           <p className="text-xs text-slate-500">
-            Verify employee vehicle photos, number plates, and approve vehicles for campus carpooling
+            Review and approve employee vehicles for carpooling.
           </p>
         </div>
 

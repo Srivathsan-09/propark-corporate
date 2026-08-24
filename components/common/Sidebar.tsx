@@ -39,48 +39,43 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Navigation specifically for Platform / Campus Admins
   const adminNavItems = [
     {
-      title: "Overview & Analytics",
+      title: "Overview",
       href: "/admin",
       icon: LayoutDashboard,
     },
     {
-      title: "Campuses Master Data",
+      title: "Campuses",
       href: "/admin/campuses",
       icon: Building2,
     },
     ...(isSuperAdmin
       ? [
           {
-            title: "Campus Administrators",
+            title: "Campus Admins",
             href: "/admin/admins",
             icon: ShieldCheck,
           },
         ]
       : []),
     {
-      title: "Registered Employees",
+      title: "Employees",
       href: "/admin/employees",
       icon: Users,
     },
     {
-      title: "All Campus Vehicles",
+      title: "Vehicles",
       href: "/admin/vehicles",
       icon: Car,
     },
     {
-      title: "Campus Rides Hub",
+      title: "Rides",
       href: "/admin/rides",
       icon: Route,
-    },
-    {
-      title: "System Reports & Safety",
-      href: "/admin/reports",
-      icon: ShieldAlert,
     },
     ...(isSuperAdmin
       ? [
           {
-            title: "Audit Logs & Security",
+            title: "Activity Logs",
             href: "/admin/audit-logs",
             icon: Shield,
           },
@@ -124,11 +119,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "My Profile",
       href: "/profile",
       icon: User,
-    },
-    {
-      title: "Safety & Reports",
-      href: "/reports",
-      icon: ShieldAlert,
     },
   ];
 
