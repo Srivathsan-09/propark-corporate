@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
       dbUser = await User.findOne({ email: session.user.email.toLowerCase().trim() }).lean();
     }
 
-    console.log("🚘 [POST /api/rides] Session user:", session.user?.email, "DB user found:", dbUser?.name, "Approved:", dbUser?.isApproved, dbUser?.verificationStatus);
+    console.log("[POST /api/rides] Session user:", session.user?.email, "DB user found:", dbUser?.name, "Approved:", dbUser?.isApproved, dbUser?.verificationStatus);
 
     const isEmployeeApproved =
       Boolean(
@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
       );
 
     if (!dbUser || !isEmployeeApproved) {
-      console.warn("⛔ [POST /api/rides] Blocked: Employee is not approved", dbUser);
+      console.warn("[POST /api/rides] Blocked: Employee is not approved", dbUser);
       return NextResponse.json(
         {
           success: false,

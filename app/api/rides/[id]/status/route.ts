@@ -102,7 +102,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
             Notification.create({
               recipient: req.passenger,
               sender: ride.driver._id,
-              title: "Ride Started! 🚗 Live GPS Active",
+              title: "Ride Started - Live GPS Active",
               message: `Employee ${driverName} has started the ride. You can now track their live GPS location in real time!`,
               type: "ride_started",
               ride: ride._id,
@@ -116,7 +116,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
             Notification.create({
               recipient: req.passenger,
               sender: ride.driver._id,
-              title: "Ride Completed! 🎉",
+              title: "Ride Completed",
               message: `You have reached your destination. Thank you for carpooling with Employee ${driverName} on CommuteX.`,
               type: "ride_completed",
               ride: ride._id,

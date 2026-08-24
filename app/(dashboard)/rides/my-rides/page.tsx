@@ -624,7 +624,7 @@ export default function MyRidesPage() {
                             className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-bold text-xs rounded-xl gap-1.5 h-8"
                           >
                             {actionLoadingId === ride._id ? (
-                              <CarLoader size="inline" showRoad={false} carColor="#e11d48" className="w-8 h-4 scale-75" />
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : (
                               <Trash2 className="h-3.5 w-3.5" />
                             )}
@@ -643,7 +643,7 @@ export default function MyRidesPage() {
                           title="Delete Ride Record"
                         >
                           {actionLoadingId === ride._id ? (
-                            <CarLoader size="inline" showRoad={false} carColor="#e11d48" className="w-8 h-4 scale-75" />
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
                             <Trash2 className="h-3.5 w-3.5" />
                           )}
@@ -736,7 +736,7 @@ export default function MyRidesPage() {
                                   <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
                                     <span className="font-semibold text-emerald-800">{req.passenger.companyName || "Tech Mahindra"}</span>
                                     <span>• {req.passenger.department}</span>
-                                    {req.passenger.phone && <span>• 📞 {req.passenger.phone}</span>}
+                                    {req.passenger.phone && <span>• {req.passenger.phone}</span>}
                                   </div>
                                   <div className="text-[11px] text-slate-600 mt-1">
                                     Boarding: <strong className="text-slate-800">{req.pickupStop}</strong> • Seats: <strong>{req.seatsRequested}</strong> • Fare: <strong>₹{req.fare}</strong>
@@ -756,7 +756,7 @@ export default function MyRidesPage() {
                                         className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1"
                                       >
                                         {actionLoadingId === req._id ? (
-                                          <CarLoader size="inline" showRoad={false} carColor="#ffffff" className="w-8 h-4 scale-75" />
+                                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                         ) : (
                                           <Check className="h-3.5 w-3.5" />
                                         )}
@@ -794,7 +794,7 @@ export default function MyRidesPage() {
                                     </div>
                                   ) : (
                                     <Badge className="text-[10px] font-bold bg-rose-100 text-rose-800">
-                                      ✕ {req.status.toUpperCase()}
+                                      {req.status.toUpperCase()}
                                     </Badge>
                                   )}
                                 </div>
@@ -868,8 +868,8 @@ export default function MyRidesPage() {
 
                       <div className="flex items-center gap-2 text-xs">
                         {isLive && isAccepted ? (
-                          <Badge className="bg-emerald-600 text-white font-bold text-xs gap-1.5 animate-pulse">
-                            <Radio className="h-3 w-3 animate-ping" /> Driver is on the way!
+                          <Badge className="bg-emerald-600 text-white font-bold text-xs gap-1.5">
+                            <Radio className="h-3 w-3 animate-ping" /> Driver is on the way
                           </Badge>
                         ) : (
                           <Badge
@@ -881,7 +881,7 @@ export default function MyRidesPage() {
                                 : "bg-rose-100 text-rose-800"
                             }`}
                           >
-                            {isAccepted ? "✓ Booking Confirmed" : booking.status === "pending" ? "⏳ Awaiting Driver" : "✕ " + booking.status}
+                            {isAccepted ? "Booking Confirmed" : booking.status === "pending" ? "Awaiting Driver" : booking.status}
                           </Badge>
                         )}
 
@@ -897,7 +897,7 @@ export default function MyRidesPage() {
                             } font-bold text-xs rounded-xl shadow-xs gap-1.5 h-8`}
                           >
                             <Navigation className="h-3.5 w-3.5" />
-                            {isLive ? "📍 Track Driver Live GPS" : "View Route on Map"}
+                            {isLive ? "Track Driver Live GPS" : "View Route on Map"}
                           </Button>
                         )}
                       </div>
@@ -948,7 +948,7 @@ export default function MyRidesPage() {
                           </div>
                           {booking.isBoarded ? (
                             <Badge className="bg-emerald-600 text-white text-[10px] font-bold py-1 px-2">
-                              ✓ Boarded & Verified
+                              Boarded & Verified
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px] font-semibold py-1 px-2">
@@ -978,7 +978,7 @@ export default function MyRidesPage() {
                     Live Driver GPS Tracking
                   </DialogTitle>
                   <Badge className="bg-emerald-600 text-white font-bold text-xs">
-                    {liveTelemetry?.status === "in_progress" ? "🔴 Live Commute" : "Scheduled"}
+                    {liveTelemetry?.status === "in_progress" ? "Live Commute" : "Scheduled"}
                   </Badge>
                 </div>
                 <DialogDescription className="text-xs text-slate-500">

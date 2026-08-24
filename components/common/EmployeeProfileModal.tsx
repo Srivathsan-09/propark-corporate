@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState } from "react";
 import {
@@ -268,7 +268,7 @@ export function EmployeeProfileModal({
                             {v.registrationNumber}
                           </span>
                           <span className="text-[10px] text-emerald-700 font-semibold mt-0.5 inline-block">
-                            ✓ Verified
+                            Verified
                           </span>
                         </div>
                       </div>

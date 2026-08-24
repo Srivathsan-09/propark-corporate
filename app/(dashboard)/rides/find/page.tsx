@@ -637,7 +637,7 @@ export default function FindRidePage() {
                             {isFull
                               ? "0 Left (Full)"
                               : isOneSeatLeft
-                              ? "🔥 1 Seat Left!"
+                              ? "1 Seat Left!"
                               : `${ride.availableSeats} of ${ride.totalSeats} Left`}
                           </span>
                         </div>
@@ -910,7 +910,7 @@ export default function FindRidePage() {
 
                       {customStopAddress && (
                         <div className="text-[10px] text-emerald-900 bg-white/90 p-2 rounded-lg border border-emerald-200 font-mono flex items-center justify-between gap-2">
-                          <span className="truncate">📍 Located Pin: {customStopAddress}</span>
+                          <span className="truncate">Pinned Location: {customStopAddress}</span>
                           <span className="shrink-0 text-[9px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded">
                             Pinned on Map
                           </span>
@@ -1003,12 +1003,12 @@ export default function FindRidePage() {
                 >
                   {isSubmittingBooking ? (
                     <span className="flex items-center justify-center gap-1.5">
-                      <CarLoader size="inline" showRoad={false} carColor="#ffffff" className="w-8 h-4 scale-75 inline-flex" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
                       <span>Sending Request...</span>
                     </span>
                   ) : session?.user?.role !== "admin" &&
                     (!session?.user?.isApproved && session?.user?.verificationStatus === "pending") ? (
-                    "🔒 Awaiting Admin Approval"
+                    "Awaiting Admin Approval"
                   ) : (
                     <>
                       <CheckCircle className="h-3.5 w-3.5" /> Send Request to Driver

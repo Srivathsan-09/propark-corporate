@@ -108,7 +108,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       await Notification.create({
         recipient: rideRequest.passenger._id,
         sender: session.user.id,
-        title: "Ride Request Confirmed! 🎉",
+        title: "Ride Request Confirmed",
         message: `${session.user.name} accepted your carpool request. Your 4-digit Boarding PIN is: ${boardingPin}. Share this with the driver upon entering the car.`,
         type: "request_accepted",
         ride: ride._id,

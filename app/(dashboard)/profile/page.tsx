@@ -266,7 +266,7 @@ export default function ProfilePage() {
                   </Badge>
                 ) : profile?.verificationStatus === "approved" || profile?.isApproved ? (
                   <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px] font-semibold py-0.5 px-2.5 rounded-lg">
-                    ✓ Verified Employee
+                    Verified Employee
                   </Badge>
                 ) : profile?.verificationStatus === "rejected" ? (
                   <Badge variant="destructive" className="text-[11px] font-semibold py-0.5 px-2.5 rounded-lg">

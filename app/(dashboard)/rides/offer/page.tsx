@@ -577,13 +577,13 @@ export default function OfferRidePage() {
           >
             {isSubmitting ? (
               <span className="flex items-center justify-center gap-1.5">
-                <CarLoader size="inline" showRoad={false} carColor="#022c22" className="w-8 h-4 scale-75 inline-flex" />
+                <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
                 <span>Posting Ride...</span>
               </span>
             ) : !isEmployeeApproved ? (
-              "🔒 Account Pending Admin Approval"
+              "Account Pending Admin Approval"
             ) : !isVehicleApproved ? (
-              "🔒 Vehicle Pending Admin Approval"
+              "Vehicle Pending Admin Approval"
             ) : (
               `Post ${isPickup ? "Pickup" : "Drop"} Ride`
             )}
@@ -757,7 +757,7 @@ export default function OfferRidePage() {
                             const isApproved = v.isApproved || v.verificationStatus === "approved" || session?.user?.role === "admin";
                             return (
                               <SelectItem key={v._id} value={v._id}>
-                                {v.vehicleModel} ({v.registrationNumber}) — {v.vehicleType} {!isApproved ? "⚠️ (Pending Admin Approval)" : "✓ Verified"}
+                                {v.vehicleModel} ({v.registrationNumber}) — {v.vehicleType} {!isApproved ? "(Pending Approval)" : "(Verified)"}
                               </SelectItem>
                             );
                           })}

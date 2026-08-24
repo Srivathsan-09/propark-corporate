@@ -372,7 +372,7 @@ export default function AdminRidesPage() {
                           isPickup ? "bg-amber-100 text-amber-900 border-amber-300" : "bg-indigo-100 text-indigo-900 border-indigo-300"
                         }`}
                       >
-                        {isPickup ? "🌅 Morning Pickup" : "🌆 Evening Drop"}
+                        {isPickup ? "Morning Pickup" : "Evening Drop"}
                       </Badge>
                       <Badge className="bg-slate-900 text-white font-bold text-[10px]">
                         {ride.vehicle.vehicleModel} ({ride.vehicle.registrationNumber})
@@ -585,8 +585,9 @@ export default function AdminRidesPage() {
                                     </span>
                                     <span>• {req.passenger.department}</span>
                                     {req.passenger.phone && (
-                                      <span className="text-slate-600 font-mono">
-                                        📞 {req.passenger.phone}
+                                      <span className="text-slate-600 font-mono flex items-center gap-1">
+                                        <Phone className="h-3 w-3 text-slate-400" />
+                                        {req.passenger.phone}
                                       </span>
                                     )}
                                   </div>

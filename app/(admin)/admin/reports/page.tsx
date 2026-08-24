@@ -7,23 +7,19 @@ import {
   ShieldAlert,
   ArrowLeft,
   Search,
-  Filter,
   CheckCircle2,
   Clock,
   AlertTriangle,
   FileText,
-  User,
-  Building2,
   Eye,
   Loader2,
   X,
-  Send,
   CheckCircle,
   AlertCircle,
-  ShieldCheck,
   Phone,
   Mail,
-  Car,
+  Building2,
+  Save,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -66,7 +62,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function AdminReportsPage() {
   const { data: session } = useSession();
   const isSuperAdmin = session?.user?.role === "admin";
-  const isCampusAdmin = session?.user?.role === "campus_admin";
 
   const [reports, setReports] = useState<IReportItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -96,7 +91,7 @@ export default function AdminReportsPage() {
       }
     } catch (err) {
       console.error("Failed to load reports:", err);
-      setErrorMessage("Failed to load incident reports.");
+      setErrorMessage("Failed to load reports. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -137,15 +132,15 @@ export default function AdminReportsPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setSuccessMessage(`Incident ${selectedReport.reportId} updated successfully.`);
+        setSuccessMessage(`Report ${selectedReport.reportId} updated successfully.`);
         setSelectedReport(null);
         await fetchReports();
       } else {
-        setErrorMessage(data.error || "Failed to update incident.");
+        setErrorMessage(data.error || "Failed to update report.");
       }
     } catch (err) {
-      console.error("Resolution update error:", err);
-      setErrorMessage("Network error while updating incident.");
+      console.error("Update error:", err);
+      setErrorMessage("Network error while updating report.");
     } finally {
       setIsUpdating(false);
     }
@@ -175,7 +170,7 @@ export default function AdminReportsPage() {
   if (isLoading) {
     return (
       <div className="py-20 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 shadow-xs">
-        <CarLoader size="page" message="Loading Safety & Incident Triage desk..." />
+        <CarLoader size="page" message="Loading reports..." />
       </div>
     );
   }
@@ -188,7 +183,7 @@ export default function AdminReportsPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/admin"
-              className="text-xs text-slate-500 hover:text-purple-600 flex items-center gap-1 font-semibold transition-colors"
+              className="text-xs text-slate-500 hover:text-purple-700 flex items-center gap-1 font-semibold transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Back to Overview
             </Link>
@@ -196,20 +191,20 @@ export default function AdminReportsPage() {
           <div className="flex flex-wrap items-center gap-2.5 mt-1.5">
             <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
               <ShieldAlert className="h-5 w-5 text-rose-600" />
-              Incident & Safety Management Hub
+              Incident Reports
             </h1>
             {isSuperAdmin ? (
-              <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold px-2 py-0.5">
-                Super Admin Console
+              <Badge variant="outline" className="text-purple-700 border-purple-200 bg-purple-50 text-xs font-semibold px-2 py-0.5">
+                Super Admin
               </Badge>
             ) : (
-              <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2 py-0.5">
+              <Badge variant="outline" className="text-blue-700 border-blue-200 bg-blue-50 text-xs font-semibold px-2 py-0.5">
                 Campus Admin ({session?.user?.campusId})
               </Badge>
             )}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Triage commuter disputes, investigate safety escalations, and record administrative actions.
+            Review and resolve reported incidents across campus rides.
           </p>
         </div>
       </div>
@@ -229,11 +224,11 @@ export default function AdminReportsPage() {
         </div>
       )}
 
-      {/* Top Metrics Cards - Compact & High-Density */}
+      {/* Top Metrics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Total Incidents</span>
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Total Reports</span>
             <div className="text-xl font-bold text-slate-900 mt-0.5">{totalReports}</div>
           </div>
           <div className="p-2 bg-slate-100 rounded-lg text-slate-700">
@@ -243,7 +238,7 @@ export default function AdminReportsPage() {
 
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider block">Active Triage</span>
+            <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider block">Pending Review</span>
             <div className="text-xl font-bold text-amber-900 mt-0.5">{pendingReports}</div>
           </div>
           <div className="p-2 bg-amber-50 rounded-lg text-amber-600">
@@ -253,7 +248,7 @@ export default function AdminReportsPage() {
 
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-rose-600 uppercase tracking-wider block">High / Urgent</span>
+            <span className="text-[11px] font-semibold text-rose-700 uppercase tracking-wider block">High Priority</span>
             <div className="text-xl font-bold text-rose-900 mt-0.5">{urgentReports}</div>
           </div>
           <div className="p-2 bg-rose-50 rounded-lg text-rose-600">
@@ -263,7 +258,7 @@ export default function AdminReportsPage() {
 
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider block">Resolved Cases</span>
+            <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block">Resolved</span>
             <div className="text-xl font-bold text-emerald-900 mt-0.5">{resolvedReports}</div>
           </div>
           <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
@@ -281,9 +276,9 @@ export default function AdminReportsPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="h-8 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-2xs"
           >
-            <option value="all">All Statuses ({reports.length})</option>
+            <option value="all">All Statuses</option>
             <option value="pending">Pending</option>
-            <option value="in_investigation">In Investigation</option>
+            <option value="in_investigation">In Review</option>
             <option value="resolved">Resolved</option>
             <option value="dismissed">Dismissed</option>
           </select>
@@ -321,7 +316,7 @@ export default function AdminReportsPage() {
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
           <Input
-            placeholder="Search report ID, title, commuter..."
+            placeholder="Search by ID, name, email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8 h-8 text-xs rounded-lg"
@@ -329,12 +324,12 @@ export default function AdminReportsPage() {
         </div>
       </div>
 
-      {/* Incident Triage Table */}
+      {/* Incident Reports Table */}
       <Card className="border-slate-200 bg-white shadow-xs rounded-xl overflow-hidden">
         <CardHeader className="py-3 px-6 bg-slate-50/80 border-b border-slate-100">
-          <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-rose-600" />
-            Safety Incident & Dispute Queue ({filteredReports.length})
+          <CardTitle className="text-sm font-bold text-slate-900 flex items-center justify-between">
+            <span>All Reports</span>
+            <span className="text-xs text-slate-500 font-normal">{filteredReports.length} total</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -342,27 +337,27 @@ export default function AdminReportsPage() {
             <table className="w-full text-left text-xs min-w-[760px]">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] uppercase tracking-wider text-slate-500">
-                  <th className="py-3 pl-6 pr-4 font-bold w-28">Incident ID</th>
+                  <th className="py-3 pl-6 pr-4 font-bold w-28">Report ID</th>
                   <th className="py-3 px-4 font-bold">Campus / Company</th>
-                  <th className="py-3 px-4 font-bold">Complainant</th>
-                  <th className="py-3 px-4 font-bold">Category & Subject</th>
+                  <th className="py-3 px-4 font-bold">Reported By</th>
+                  <th className="py-3 px-4 font-bold">Category & Title</th>
                   <th className="py-3 px-4 font-bold">Priority</th>
                   <th className="py-3 px-4 font-bold">Status</th>
-                  <th className="py-3 pl-4 pr-6 font-bold text-right">Actions</th>
+                  <th className="py-3 pl-4 pr-6 font-bold text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredReports.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="text-center py-10 text-slate-400 text-xs">
-                      No incidents found matching current filters.
+                      No incident reports found.
                     </td>
                   </tr>
                 ) : (
                   filteredReports.map((report) => (
                     <tr key={report._id || report.reportId} className="hover:bg-slate-50/60 transition-colors">
                       <td className="py-3 pl-6 pr-4 whitespace-nowrap">
-                        <span className="font-bold text-xs text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 tracking-wide inline-block">
+                        <span className="font-bold text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 tracking-wide inline-block font-mono">
                           {report.reportId}
                         </span>
                       </td>
@@ -375,7 +370,7 @@ export default function AdminReportsPage() {
                         <div className="text-[11px] text-slate-500">{report.reporterEmail}</div>
                       </td>
                       <td className="py-3 px-4 max-w-[220px]">
-                        <div className="text-[11px] font-bold text-purple-700 uppercase tracking-wide">
+                        <div className="text-[11px] font-semibold text-purple-700">
                           {CATEGORY_LABELS[report.category] || report.category}
                         </div>
                         <div className="font-medium text-slate-800 text-xs truncate" title={report.title}>
@@ -384,17 +379,17 @@ export default function AdminReportsPage() {
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         {report.priority === "urgent" && (
-                          <Badge className="bg-rose-600 text-white text-[10px] font-bold py-0.5 px-2">
+                          <Badge className="bg-rose-600 text-white text-[10px] font-semibold py-0.5 px-2">
                             Urgent
                           </Badge>
                         )}
                         {report.priority === "high" && (
-                          <Badge className="bg-amber-500 text-white text-[10px] font-bold py-0.5 px-2">
+                          <Badge className="bg-amber-500 text-white text-[10px] font-semibold py-0.5 px-2">
                             High
                           </Badge>
                         )}
                         {report.priority === "medium" && (
-                          <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-semibold py-0.5 px-2">
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-semibold py-0.5 px-2">
                             Medium
                           </Badge>
                         )}
@@ -407,16 +402,16 @@ export default function AdminReportsPage() {
                       <td className="py-3 px-4 whitespace-nowrap">
                         {report.status === "pending" && (
                           <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px] font-semibold py-0.5 px-2">
-                            Pending Review
+                            Pending
                           </Badge>
                         )}
                         {report.status === "in_investigation" && (
-                          <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-semibold py-0.5 px-2">
-                            Investigating
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-semibold py-0.5 px-2">
+                            In Review
                           </Badge>
                         )}
                         {report.status === "resolved" && (
-                          <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold py-0.5 px-2">
+                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0.5 px-2">
                             Resolved
                           </Badge>
                         )}
@@ -431,10 +426,10 @@ export default function AdminReportsPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleOpenReport(report)}
-                          className="h-7 text-xs px-2.5 border-purple-200 text-purple-700 hover:bg-purple-50 gap-1 rounded-lg font-semibold shadow-2xs"
+                          className="h-7 text-xs px-2.5 border-slate-200 text-slate-700 hover:bg-slate-50 gap-1 rounded-lg font-medium shadow-2xs"
                         >
-                          <Eye className="h-3 w-3" />
-                          Review & Triage
+                          <Eye className="h-3 w-3 text-slate-500" />
+                          View Details
                         </Button>
                       </td>
                     </tr>
@@ -446,25 +441,22 @@ export default function AdminReportsPage() {
         </CardContent>
       </Card>
 
-      {/* INVESTIGATE & RESOLUTION MODAL */}
+      {/* INCIDENT DETAILS MODAL */}
       {selectedReport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in-50">
           <div className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-rose-50 text-rose-600 border border-rose-100">
-                  <ShieldAlert className="h-4 w-4" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-slate-900">Incident Details</h2>
+                  <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    {selectedReport.reportId}
+                  </span>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-bold text-slate-900">Incident Triage Desk</h2>
-                    <span className="font-mono text-xs font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                      {selectedReport.reportId}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500">Filed on {new Date(selectedReport.createdAt).toLocaleString()}</p>
-                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Reported on {new Date(selectedReport.createdAt).toLocaleString()}
+                </p>
               </div>
               <button
                 onClick={() => setSelectedReport(null)}
@@ -477,7 +469,7 @@ export default function AdminReportsPage() {
             {/* Reporter & Case Snapshot */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-xs">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Complainant Commuter</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Reporter Details</span>
                 <strong className="text-slate-900 text-xs">{selectedReport.reporterName}</strong>
                 <div className="text-[11px] text-slate-500">{selectedReport.reporterEmail}</div>
                 {selectedReport.reporterPhone && (
@@ -491,18 +483,18 @@ export default function AdminReportsPage() {
                 <strong className="text-slate-900 text-xs">{selectedReport.reporterCampusId || "CAMP001"}</strong>
                 <div className="text-[11px] text-slate-500">{selectedReport.reporterCompany || "Corporate Commuter"}</div>
                 {selectedReport.involvedUserName && (
-                  <div className="text-[11px] text-purple-700 font-semibold mt-0.5">
-                    Involved Party: {selectedReport.involvedUserName}
+                  <div className="text-[11px] text-purple-700 font-medium mt-0.5">
+                    Involved Person: {selectedReport.involvedUserName}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Incident Statement */}
+            {/* Description */}
             <div className="space-y-1.5 p-3 rounded-xl bg-white border border-slate-200">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-900">{selectedReport.title}</span>
-                <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold">
+                <Badge variant="outline" className="text-purple-700 border-purple-200 bg-purple-50 text-[10px] font-semibold">
                   {CATEGORY_LABELS[selectedReport.category] || selectedReport.category}
                 </Badge>
               </div>
@@ -511,29 +503,29 @@ export default function AdminReportsPage() {
               </p>
             </div>
 
-            {/* Triage & Resolution Form */}
+            {/* Resolution Form */}
             <form onSubmit={handleSaveResolution} className="space-y-3 text-xs pt-1 border-t border-slate-100">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">Triage Status</Label>
+                  <Label className="text-xs font-semibold text-slate-700">Status</Label>
                   <select
                     value={editStatus}
                     onChange={(e) => setEditStatus(e.target.value)}
-                    className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 font-medium"
+                    className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 font-medium focus:outline-purple-600"
                   >
                     <option value="pending">Pending</option>
-                    <option value="in_investigation">In Investigation</option>
+                    <option value="in_investigation">In Review</option>
                     <option value="resolved">Resolved</option>
                     <option value="dismissed">Dismissed</option>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">Priority Level</Label>
+                  <Label className="text-xs font-semibold text-slate-700">Priority</Label>
                   <select
                     value={editPriority}
                     onChange={(e) => setEditPriority(e.target.value)}
-                    className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 font-medium"
+                    className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 font-medium focus:outline-purple-600"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -547,10 +539,10 @@ export default function AdminReportsPage() {
                   <select
                     value={editActionTaken}
                     onChange={(e) => setEditActionTaken(e.target.value)}
-                    className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 font-medium"
+                    className="w-full h-8 px-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 font-medium focus:outline-purple-600"
                   >
-                    <option value="none">None / Inquiry</option>
-                    <option value="warning_issued">Formal Warning Issued</option>
+                    <option value="none">None</option>
+                    <option value="warning_issued">Warning Issued</option>
                     <option value="account_suspended">Account Suspended</option>
                     <option value="ride_cancelled">Ride Cancelled</option>
                     <option value="resolved_amicably">Resolved Amicably</option>
@@ -559,12 +551,12 @@ export default function AdminReportsPage() {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Administrative Findings & Resolution Remarks</Label>
+                <Label className="text-xs font-semibold text-slate-700">Admin Notes / Resolution Remarks</Label>
                 <textarea
                   rows={3}
                   value={resolutionNotes}
                   onChange={(e) => setResolutionNotes(e.target.value)}
-                  placeholder="Record investigation findings, actions taken, or instructions provided to commuters..."
+                  placeholder="Enter resolution notes, actions taken, or follow-up details..."
                   className="w-full p-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-purple-600"
                 />
               </div>
@@ -585,8 +577,8 @@ export default function AdminReportsPage() {
                   size="sm"
                   className="h-8 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5 rounded-lg shadow-xs"
                 >
-                  {isUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
-                  Save Findings & Update Status
+                  {isUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Save Changes
                 </Button>
               </div>
             </form>
@@ -596,4 +588,3 @@ export default function AdminReportsPage() {
     </div>
   );
 }
-

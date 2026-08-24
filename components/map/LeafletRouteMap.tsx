@@ -247,9 +247,9 @@ export default function LeafletRouteMap({
             <span class="absolute inline-flex h-10 w-10 rounded-full bg-emerald-400 opacity-75 animate-ping"></span>
             
             <!-- Core badge -->
-            <div class="relative flex items-center gap-1 px-2.5 py-1 rounded-full shadow-2xl bg-emerald-700 border-2 border-white text-white font-extrabold text-xs">
+            <div class="relative flex items-center gap-1.5 px-3 py-1 rounded-full shadow-2xl bg-emerald-700 border-2 border-white text-white font-extrabold text-xs">
               <span class="h-2 w-2 rounded-full bg-emerald-300 animate-pulse"></span>
-              <span>${isBike ? "🏍️" : "🚗"} ${driverName ? driverName.split(" ")[0] : "Driver"}</span>
+              <span>${driverName ? driverName.split(" ")[0] : "Driver"}</span>
               ${
                 driverLocation.speed
                   ? `<span class="text-[10px] text-emerald-200 font-mono">(${Math.round(driverLocation.speed)} km/h)</span>`
@@ -271,7 +271,7 @@ export default function LeafletRouteMap({
 
       driverMarker.bindPopup(`
         <div style="font-size: 12px; font-family: sans-serif;">
-          <strong>🚗 Live Driver Location</strong><br/>
+          <strong>Live Driver Location</strong><br/>
           <span>${driverName ? "Driver: " + driverName : "Active Commute"}</span><br/>
           ${driverLocation.speed ? "<span>Speed: " + Math.round(driverLocation.speed) + " km/h</span><br/>" : ""}
           <span style="color: #059669; font-weight: bold;">● GPS Live Tracking Active</span>
@@ -294,13 +294,13 @@ export default function LeafletRouteMap({
         customPickupPoint.latitude,
         customPickupPoint.longitude,
         "bg-purple-600 ring-2 ring-white ring-offset-2 shadow-xl animate-bounce",
-        "📍",
+        "P",
         customPickupPoint.name || "Custom Stop",
         false
       );
       customMarker.bindPopup(`
         <div style="font-size: 12px; font-family: sans-serif;">
-          <strong style="color: #9333ea;">📍 Your Custom Pickup Location</strong><br/>
+          <strong style="color: #9333ea;">Your Custom Pickup Location</strong><br/>
           <span>${customPickupPoint.address || customPickupPoint.name}</span>
         </div>
       `);
