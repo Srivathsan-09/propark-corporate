@@ -83,23 +83,29 @@ export default function LeafletRouteMap({
       attributionControl: false,
     });
 
-    // Dual Tile Layers: Primary CartoDB Voyager + OSM Fallback (100% tile rendering guarantee)
-    const primaryTileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      subdomains: "abcd",
-      attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-    });
+    // Esri ArcGIS World Street Map (Ultra-reliable global vector tiles on Akamai CDN, zero 403/404 errors)
+    const esriTileLayer = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 19,
+        attribution: "&copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap",
+      }
+    );
 
-    const osmFallbackLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
-    });
+    const cartoFallbackLayer = L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+      {
+        maxZoom: 19,
+        subdomains: "abcd",
+        attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+      }
+    );
 
-    primaryTileLayer.addTo(map);
+    esriTileLayer.addTo(map);
 
-    primaryTileLayer.on("tileerror", () => {
-      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(osmFallbackLayer)) {
-        osmFallbackLayer.addTo(mapInstanceRef.current);
+    esriTileLayer.on("tileerror", () => {
+      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(cartoFallbackLayer)) {
+        cartoFallbackLayer.addTo(mapInstanceRef.current);
       }
     });
 
@@ -379,7 +385,7 @@ export default function LeafletRouteMap({
     <div className={`relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm ${className}`}>
       <div
         ref={mapContainerRef}
-        style={{ height, width: "100%" }}
+        style={{ height, width: "100%", background: "#e2e8f0" }}
         className={`z-0 ${isClickPicking ? "cursor-crosshair" : ""}`}
       />
 
