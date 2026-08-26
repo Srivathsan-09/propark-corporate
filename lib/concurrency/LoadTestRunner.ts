@@ -72,7 +72,7 @@ class LoadTestRunnerService {
       });
     }
 
-    // Create unique Ride for this load test run
+    // Create unique Ride for this load test run (totalSeats must be >= 1 for schema validation)
     const testRide = await Ride.create({
       driver: dummyDriver._id,
       vehicle: dummyVehicle._id,
@@ -82,7 +82,7 @@ class LoadTestRunnerService {
       destination: "Karayanchavadi, Poonamallee",
       departureDate: new Date().toISOString().split("T")[0],
       departureTime: "06:00 PM",
-      totalSeats,
+      totalSeats: Math.max(1, totalSeats),
       availableSeats: totalSeats,
       basePrice: 50,
       stops: [{ name: "Iyyappanthangal", price: 30 }],
@@ -90,13 +90,14 @@ class LoadTestRunnerService {
       campusId: testCampusId,
     });
 
-    log(`Created Test Ride ID: ${testRide._id} with ${totalSeats} seats`);
+    log(`Created Test Ride ID: ${testRide._id} with ${totalSeats} available seats`);
 
-    // Create distinct test passenger accounts if not existing
+    // Create 100 distinct test passenger accounts if not existing
+    const requiredPassengersCount = Math.max(100, concurrentUsers);
     let passengers: any[] = await User.find({ email: { $regex: "^passenger\\.lt" } });
 
-    if (passengers.length < concurrentUsers) {
-      const needed = concurrentUsers - passengers.length;
+    if (passengers.length < requiredPassengersCount) {
+      const needed = requiredPassengersCount - passengers.length;
       const startIdx = passengers.length + 1;
       const newPassengerObjs = Array.from({ length: needed }).map((_, idx) => ({
         name: `Passenger LT ${startIdx + idx}`,
