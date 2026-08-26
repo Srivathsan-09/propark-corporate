@@ -49,6 +49,7 @@ import { CarLoader } from "@/components/common/CarLoader";
 import { EmployeeProfileModal } from "@/components/common/EmployeeProfileModal";
 import MapView, { DriverLivePoint } from "@/components/map/MapView";
 import { locationService } from "@/lib/services/location";
+import { resolvePlaceCoordinates } from "@/lib/services/geocoding";
 import { getInitials } from "@/lib/utils";
 
 interface IPassengerRequest {
@@ -1059,14 +1060,22 @@ export default function MyRidesPage() {
                   startLocation={{
                     name: liveTelemetry?.startingLocation || trackingModalRide.startingLocation,
                     address: liveTelemetry?.startLocation?.address || trackingModalRide.startingLocation,
-                    latitude: liveTelemetry?.startLocation?.latitude || 12.9249,
-                    longitude: liveTelemetry?.startLocation?.longitude || 80.1332,
+                    ...resolvePlaceCoordinates(
+                      liveTelemetry?.startingLocation || trackingModalRide.startingLocation,
+                      liveTelemetry?.startLocation?.latitude || trackingModalRide.startLocation?.latitude,
+                      liveTelemetry?.startLocation?.longitude || trackingModalRide.startLocation?.longitude,
+                      true
+                    ),
                   }}
                   destination={{
                     name: liveTelemetry?.destination || trackingModalRide.destination,
                     address: liveTelemetry?.endLocation?.address || trackingModalRide.destination,
-                    latitude: liveTelemetry?.endLocation?.latitude || 12.8988,
-                    longitude: liveTelemetry?.endLocation?.longitude || 80.2284,
+                    ...resolvePlaceCoordinates(
+                      liveTelemetry?.destination || trackingModalRide.destination,
+                      liveTelemetry?.endLocation?.latitude || trackingModalRide.endLocation?.latitude,
+                      liveTelemetry?.endLocation?.longitude || trackingModalRide.endLocation?.longitude,
+                      false
+                    ),
                   }}
                   stops={trackingModalRide.stops?.map((s: any) => ({
                     name: s.name,
@@ -1076,10 +1085,13 @@ export default function MyRidesPage() {
                   }))}
                   driverLocation={
                     liveTelemetry?.currentLocation ||
-                    driverGpsPosition || {
-                      latitude: liveTelemetry?.startLocation?.latitude || trackingModalRide.startLocation?.latitude || 12.9249,
-                      longitude: liveTelemetry?.startLocation?.longitude || trackingModalRide.startLocation?.longitude || 80.1332,
-                    }
+                    driverGpsPosition ||
+                    resolvePlaceCoordinates(
+                      liveTelemetry?.startingLocation || trackingModalRide.startingLocation,
+                      liveTelemetry?.startLocation?.latitude || trackingModalRide.startLocation?.latitude,
+                      liveTelemetry?.startLocation?.longitude || trackingModalRide.startLocation?.longitude,
+                      true
+                    )
                   }
                   driverName={liveTelemetry?.driver?.name || "Driver"}
                   driverVehicleType={liveTelemetry?.vehicle?.vehicleType || "Car"}

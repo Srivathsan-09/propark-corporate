@@ -276,4 +276,77 @@ function extractLocalityName(propsOrAddress: any, fallbackDisplayName?: string):
   return "Location";
 }
 
+/**
+ * Smart Dynamic Place-to-Coordinate Resolver
+ * Ensures origin/destination coordinates match the place string (e.g. Karayanchavadi -> 13.048, Tech Park -> 12.8988)
+ */
+export function resolvePlaceCoordinates(
+  placeName: string | undefined,
+  existingLat?: number,
+  existingLng?: number,
+  isOrigin: boolean = true
+): { latitude: number; longitude: number } {
+  if (
+    typeof existingLat === "number" &&
+    !isNaN(existingLat) &&
+    existingLat !== 0 &&
+    typeof existingLng === "number" &&
+    !isNaN(existingLng) &&
+    existingLng !== 0
+  ) {
+    return { latitude: existingLat, longitude: existingLng };
+  }
+
+  const name = (placeName || "").toLowerCase();
+
+  // Tech Park / Campus / Sholinganallur / OMR / Siruseri
+  if (
+    name.includes("tech park") ||
+    name.includes("sholinganallur") ||
+    name.includes("omr") ||
+    name.includes("campus") ||
+    name.includes("siruseri")
+  ) {
+    return { latitude: 12.8988, longitude: 80.2284 };
+  }
+
+  // Karayanchavadi / Poonamallee
+  if (
+    name.includes("karayanchavadi") ||
+    name.includes("karayan") ||
+    name.includes("poonamallee") ||
+    name.includes("kumunanchavadi")
+  ) {
+    return { latitude: 13.048, longitude: 80.091 };
+  }
+
+  // Porur
+  if (name.includes("porur")) {
+    return { latitude: 13.0382, longitude: 80.1565 };
+  }
+
+  // Guindy
+  if (name.includes("guindy")) {
+    return { latitude: 13.0067, longitude: 80.202 };
+  }
+
+  // Mugalivakkam
+  if (name.includes("mugalivakkam")) {
+    return { latitude: 13.0238, longitude: 80.1691 };
+  }
+
+  // Iyyappanthangal
+  if (name.includes("iyyappanthangal")) {
+    return { latitude: 13.0418, longitude: 80.1417 };
+  }
+
+  // Tambaram
+  if (name.includes("tambaram")) {
+    return { latitude: 12.9249, longitude: 80.1332 };
+  }
+
+  // Fallback defaults if unmapped
+  return isOrigin ? { latitude: 12.8988, longitude: 80.2284 } : { latitude: 13.048, longitude: 80.091 };
+}
+
 export const geocodingService = new GeocodingService();

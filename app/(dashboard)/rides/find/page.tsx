@@ -58,7 +58,7 @@ import { CarLoader } from "@/components/common/CarLoader";
 import { EmployeeProfileModal } from "@/components/common/EmployeeProfileModal";
 import MapView, { MapPoint, DriverLivePoint } from "@/components/map/MapView";
 import LocationSearchInput from "@/components/map/LocationSearchInput";
-import { geocodingService } from "@/lib/services/geocoding";
+import { geocodingService, resolvePlaceCoordinates } from "@/lib/services/geocoding";
 import { getInitials } from "@/lib/utils";
 
 interface IRideStop {
@@ -910,14 +910,22 @@ export default function FindRidePage() {
                     startLocation={{
                       name: selectedRide.startingLocation,
                       address: selectedRide.startLocation?.address || selectedRide.startingLocation,
-                      latitude: selectedRide.startLocation?.latitude || 12.9249,
-                      longitude: selectedRide.startLocation?.longitude || 80.1332,
+                      ...resolvePlaceCoordinates(
+                        selectedRide.startingLocation,
+                        selectedRide.startLocation?.latitude,
+                        selectedRide.startLocation?.longitude,
+                        true
+                      ),
                     }}
                     destination={{
                       name: selectedRide.destination,
                       address: selectedRide.endLocation?.address || selectedRide.destination,
-                      latitude: selectedRide.endLocation?.latitude || 12.8988,
-                      longitude: selectedRide.endLocation?.longitude || 80.2284,
+                      ...resolvePlaceCoordinates(
+                        selectedRide.destination,
+                        selectedRide.endLocation?.latitude,
+                        selectedRide.endLocation?.longitude,
+                        false
+                      ),
                     }}
                     stops={selectedRide.stops.map((s) => ({
                       name: s.name,
@@ -1266,14 +1274,22 @@ export default function FindRidePage() {
                   startLocation={{
                     name: liveTelemetry?.startingLocation || liveTrackingRide.startingLocation,
                     address: liveTelemetry?.startLocation?.address || liveTrackingRide.startingLocation,
-                    latitude: liveTelemetry?.startLocation?.latitude || 13.048,
-                    longitude: liveTelemetry?.startLocation?.longitude || 80.091,
+                    ...resolvePlaceCoordinates(
+                      liveTelemetry?.startingLocation || liveTrackingRide.startingLocation,
+                      liveTelemetry?.startLocation?.latitude || liveTrackingRide.startLocation?.latitude,
+                      liveTelemetry?.startLocation?.longitude || liveTrackingRide.startLocation?.longitude,
+                      true
+                    ),
                   }}
                   destination={{
                     name: liveTelemetry?.destination || liveTrackingRide.destination,
                     address: liveTelemetry?.endLocation?.address || liveTrackingRide.destination,
-                    latitude: liveTelemetry?.endLocation?.latitude || 12.8988,
-                    longitude: liveTelemetry?.endLocation?.longitude || 80.2284,
+                    ...resolvePlaceCoordinates(
+                      liveTelemetry?.destination || liveTrackingRide.destination,
+                      liveTelemetry?.endLocation?.latitude || liveTrackingRide.endLocation?.latitude,
+                      liveTelemetry?.endLocation?.longitude || liveTrackingRide.endLocation?.longitude,
+                      false
+                    ),
                   }}
                   stops={liveTrackingRide.stops?.map((s: any) => ({
                     name: s.name,
@@ -1283,10 +1299,13 @@ export default function FindRidePage() {
                   }))}
                   driverLocation={
                     liveTelemetry?.currentLocation ||
-                    liveTrackingRide.currentLocation || {
-                      latitude: liveTelemetry?.startLocation?.latitude || liveTrackingRide.startLocation?.latitude || 13.048,
-                      longitude: liveTelemetry?.startLocation?.longitude || liveTrackingRide.startLocation?.longitude || 80.091,
-                    }
+                    liveTrackingRide.currentLocation ||
+                    resolvePlaceCoordinates(
+                      liveTelemetry?.startingLocation || liveTrackingRide.startingLocation,
+                      liveTelemetry?.startLocation?.latitude || liveTrackingRide.startLocation?.latitude,
+                      liveTelemetry?.startLocation?.longitude || liveTrackingRide.startLocation?.longitude,
+                      true
+                    )
                   }
                   driverName={liveTrackingRide.driver?.name || "Driver"}
                   driverVehicleType={liveTrackingRide.vehicleType || "Car"}
