@@ -197,3 +197,91 @@ export async function resolveFuzzyLocation(
 
   return null;
 }
+
+export interface SnappedRoutePoint {
+  snappedLatitude: number;
+  snappedLongitude: number;
+  minDistanceKm: number;
+  routeProgressIndex: number;
+  routeProgressFraction: number;
+  isTooFar: boolean;
+  reason?: string;
+}
+
+/**
+ * Snaps a clicked map point (lat, lon) to the nearest practical boarding point
+ * directly on the driver's route polyline.
+ * Prevents unnecessary side-street detours while keeping recognisable locality names.
+ */
+export function snapPointToRoute(
+  lat: number,
+  lon: number,
+  polyline: [number, number][] = [],
+  maxAllowedDistanceKm: number = 4.0
+): SnappedRoutePoint {
+  if (!polyline || polyline.length === 0) {
+    return {
+      snappedLatitude: lat,
+      snappedLongitude: lon,
+      minDistanceKm: 0,
+      routeProgressIndex: 0,
+      routeProgressFraction: 0,
+      isTooFar: false,
+    };
+  }
+
+  let minDistance = Infinity;
+  let bestLat = lat;
+  let bestLon = lon;
+  let bestIndex = 0;
+
+  for (let i = 0; i < polyline.length; i++) {
+    const [pLat, pLon] = polyline[i];
+    const dist = haversineDistanceKm(lat, lon, pLat, pLon);
+    if (dist < minDistance) {
+      minDistance = dist;
+      bestLat = pLat;
+      bestLon = pLon;
+      bestIndex = i;
+    }
+  }
+
+  const routeProgressFraction = polyline.length > 1 ? bestIndex / (polyline.length - 1) : 0;
+  const isTooFar = minDistance > maxAllowedDistanceKm;
+
+  return {
+    snappedLatitude: bestLat,
+    snappedLongitude: bestLon,
+    minDistanceKm: Math.round(minDistance * 10) / 10,
+    routeProgressIndex: bestIndex,
+    routeProgressFraction,
+    isTooFar,
+    reason: isTooFar
+      ? `This location is too far (${Math.round(minDistance * 10) / 10} km) from your current route. Try selecting a boarding point closer to your route.`
+      : undefined,
+  };
+}
+
+/**
+ * Automatically sorts an array of route stops according to their sequence along the driver's route.
+ * Re-arranges stops in travel order (e.g. Porur -> Mugalivakkam -> Alandur) regardless of the order they were clicked.
+ */
+export function sortStopsByRouteProgress<T extends { latitude?: number; longitude?: number }>(
+  stops: T[],
+  polyline: [number, number][] = []
+): T[] {
+  if (!stops || stops.length <= 1 || !polyline || polyline.length === 0) {
+    return stops;
+  }
+
+  const stopsWithProgress = stops.map((stop) => {
+    if (typeof stop.latitude !== "number" || typeof stop.longitude !== "number") {
+      return { stop, progress: 0 };
+    }
+    const snapped = snapPointToRoute(stop.latitude, stop.longitude, polyline, 50);
+    return { stop, progress: snapped.routeProgressFraction };
+  });
+
+  stopsWithProgress.sort((a, b) => a.progress - b.progress);
+  return stopsWithProgress.map((item) => item.stop);
+}

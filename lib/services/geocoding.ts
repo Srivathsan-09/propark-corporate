@@ -147,26 +147,25 @@ class GeocodingService {
         if (data && Array.isArray(data.features) && data.features.length > 0) {
           const props = data.features[0].properties || {};
           const coords = data.features[0].geometry?.coordinates || [longitude, latitude];
-          const name = props.name || props.street || props.district || props.city;
+          
+          const shortName = extractLocalityName(props, props.name || props.street || props.city);
 
-          if (name) {
-            const parts = [
-              props.name,
-              props.street,
-              props.district || props.suburb,
-              props.city || props.county,
-              props.state,
-            ].filter(Boolean);
+          const parts = [
+            shortName,
+            props.street !== shortName ? props.street : null,
+            props.district || props.suburb,
+            props.city || props.county,
+            props.state,
+          ].filter(Boolean);
 
-            return {
-              displayName: Array.from(new Set(parts)).join(", "),
-              shortName: props.name || name,
-              latitude: parseFloat(coords[1]),
-              longitude: parseFloat(coords[0]),
-              city: props.city || props.county,
-              state: props.state,
-            };
-          }
+          return {
+            displayName: Array.from(new Set(parts)).join(", "),
+            shortName,
+            latitude: parseFloat(coords[1]),
+            longitude: parseFloat(coords[0]),
+            city: props.city || props.county,
+            state: props.state,
+          };
         }
       }
     } catch (err) {
@@ -192,16 +191,11 @@ class GeocodingService {
       if (!item || !item.display_name) return null;
 
       const address = item.address || {};
-      const shortName =
-        item.name ||
-        address.suburb ||
-        address.neighbourhood ||
-        address.road ||
-        item.display_name.split(",")[0];
+      const shortName = extractLocalityName(address, item.name || item.display_name);
 
       return {
         displayName: item.display_name,
-        shortName: shortName.trim(),
+        shortName,
         latitude: parseFloat(item.lat),
         longitude: parseFloat(item.lon),
         city: address.city || address.town || address.state_district,
@@ -212,6 +206,60 @@ class GeocodingService {
       return null;
     }
   }
+}
+
+/**
+ * Helper to extract recognizable human-friendly locality / place name
+ * Prioritizes suburb, neighbourhood, town, village, amenity, building over raw road names.
+ */
+function extractLocalityName(propsOrAddress: any, fallbackDisplayName?: string): string {
+  if (!propsOrAddress) return fallbackDisplayName?.split(",")[0] || "Location";
+
+  const p = propsOrAddress;
+
+  // 1. Prefer suburb, neighbourhood, locality, quarter, town, village
+  const locality =
+    p.suburb ||
+    p.neighbourhood ||
+    p.quarter ||
+    p.residential ||
+    p.locality ||
+    p.district ||
+    p.city_district ||
+    p.town ||
+    p.village;
+
+  if (locality && typeof locality === "string" && locality.trim().length > 0) {
+    return locality.trim();
+  }
+
+  // 2. Prefer specific landmark / amenity / station / building
+  const landmark = p.amenity || p.building || p.station || p.bus_stop || p.railway;
+  if (landmark && typeof landmark === "string" && landmark.trim().length > 0) {
+    return landmark.trim();
+  }
+
+  // 3. Check name (if it's not a raw highway/road name)
+  const name = p.name;
+  if (name && typeof name === "string" && name.trim().length > 0) {
+    const cleanName = name.trim();
+    const isHighway = /highway|expressway|bypass|national highway|nh\s*\d|sh\s*\d|road|salai/i.test(cleanName);
+    if (!isHighway) {
+      return cleanName;
+    }
+  }
+
+  // 4. Fallback to street or first part of display name
+  const street = p.street || p.road;
+  if (street && typeof street === "string" && street.trim().length > 0) {
+    return street.trim();
+  }
+
+  if (fallbackDisplayName) {
+    return fallbackDisplayName.split(",")[0].trim();
+  }
+
+  return "Location";
 }
 
 export const geocodingService = new GeocodingService();

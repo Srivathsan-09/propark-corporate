@@ -294,6 +294,15 @@ export default function OfferRidePage() {
     }
   }, [startPoint, endPoint, stops, calculateRoute]);
 
+  // Auto-sort stops chronologically along travel direction whenever route coordinates update
+  useEffect(() => {
+    if (routeResult?.coordinates && routeResult.coordinates.length > 0 && stops.length > 1) {
+      import("@/lib/services/routeCorridor").then(({ sortStopsByRouteProgress }) => {
+        setStops((prevStops) => sortStopsByRouteProgress(prevStops, routeResult.coordinates));
+      });
+    }
+  }, [routeResult?.coordinates]);
+
   const handleVehicleChange = (vId: string) => {
     const v = vehicles.find((veh) => veh._id === vId);
     setFormData((prev) => ({
@@ -346,52 +355,55 @@ export default function OfferRidePage() {
   };
 
   const handleMapClick = async (loc: { address: string; latitude: number; longitude: number }) => {
-    const short = loc.address.split(",")[0].trim();
+    const geocoded = await geocodingService.reverse(loc.latitude, loc.longitude);
+    const shortName = geocoded?.shortName || loc.address.split(",")[0].trim();
+    const fullAddress = geocoded?.displayName || loc.address;
 
     // 1. Set Starting Origin if unselected
     if (!formData.startingLocation || !startPoint.latitude || startPoint.latitude === 0) {
-      setFormData((prev) => ({ ...prev, startingLocation: short }));
-      setStartPoint({ name: short, address: loc.address, latitude: loc.latitude, longitude: loc.longitude });
-      setSuccessMessage(`Set Starting Origin to "${short}" from map click.`);
+      setFormData((prev) => ({ ...prev, startingLocation: shortName }));
+      setStartPoint({ name: shortName, address: fullAddress, latitude: loc.latitude, longitude: loc.longitude });
+      setSuccessMessage(`Set Starting Origin to "${shortName}" from map click.`);
       setTimeout(() => setSuccessMessage(null), 3000);
       return;
     }
 
     // 2. Set Destination if unselected
     if (!formData.destination || !endPoint.latitude || endPoint.latitude === 0) {
-      setFormData((prev) => ({ ...prev, destination: short }));
-      setEndPoint({ name: short, address: loc.address, latitude: loc.latitude, longitude: loc.longitude });
-      setSuccessMessage(`Set Destination to "${short}" from map click.`);
+      setFormData((prev) => ({ ...prev, destination: shortName }));
+      setEndPoint({ name: shortName, address: fullAddress, latitude: loc.latitude, longitude: loc.longitude });
+      setSuccessMessage(`Set Destination to "${shortName}" from map click.`);
       setTimeout(() => setSuccessMessage(null), 3000);
       return;
     }
 
-    // 3. Both Origin and Destination set: Map click adds intermediate stop along corridor
-    const { validateStopCorridor } = await import("@/lib/services/routeCorridor");
-    const validation = validateStopCorridor(
-      { latitude: loc.latitude, longitude: loc.longitude, name: short },
-      startPoint,
-      endPoint,
-      routeResult?.coordinates || []
-    );
+    // 3. Both Origin and Destination set: Snap boarding point to driver's route polyline
+    const { snapPointToRoute, sortStopsByRouteProgress } = await import("@/lib/services/routeCorridor");
+    const snapped = snapPointToRoute(loc.latitude, loc.longitude, routeResult?.coordinates || [], 4.0);
 
-    if (!validation.isValid) {
-      setErrorMessage(validation.reason || "Clicked location is outside your commute corridor.");
+    if (snapped.isTooFar) {
+      setErrorMessage(
+        snapped.reason ||
+          `"${shortName}" is too far from your current route. Try selecting a boarding point closer to your route.`
+      );
       return;
     }
 
     setErrorMessage(null);
-    setStops((prev) => [
-      ...prev,
-      {
-        name: short,
-        address: loc.address,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        price: 100,
-      },
-    ]);
-    setSuccessMessage(`Added stop "${short}" from map click!`);
+    const newStop: IStopItem = {
+      name: shortName,
+      address: fullAddress,
+      latitude: snapped.snappedLatitude,
+      longitude: snapped.snappedLongitude,
+      price: 100,
+    };
+
+    setStops((prev) => {
+      const updated = [...prev, newStop];
+      return sortStopsByRouteProgress(updated, routeResult?.coordinates || []);
+    });
+
+    setSuccessMessage(`Added boarding stop "${shortName}" snapped to your route!`);
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
@@ -425,35 +437,34 @@ export default function OfferRidePage() {
     }
 
     if (!stopLat || !stopLng || (stopLat === 0 && stopLng === 0)) {
-      setErrorMessage(`Could not predict location for "${newStopName}". Please check spelling or pick on map.`);
+      setErrorMessage(`Could not predict location for "${newStopName}". Please check spelling or tap on map.`);
       return;
     }
 
-    // 2. Validate Stop Corridor (e.g. Poonamallee -> Tambaram vs Kumbakonam)
-    const { validateStopCorridor } = await import("@/lib/services/routeCorridor");
-    const validation = validateStopCorridor(
-      { latitude: stopLat, longitude: stopLng, name: stopName },
-      startPoint,
-      endPoint,
-      routeResult?.coordinates || []
-    );
+    // 2. Snap boarding stop to driver's route
+    const { snapPointToRoute, sortStopsByRouteProgress } = await import("@/lib/services/routeCorridor");
+    const snapped = snapPointToRoute(stopLat, stopLng, routeResult?.coordinates || [], 4.0);
 
-    if (!validation.isValid) {
-      setErrorMessage(validation.reason || "Stop is outside your commute corridor.");
+    if (snapped.isTooFar) {
+      setErrorMessage(
+        snapped.reason ||
+          `"${stopName}" is too far from your current route. Try selecting a boarding point closer to your route.`
+      );
       return;
     }
 
-    // 3. Add valid stop to route
-    setStops((prev) => [
-      ...prev,
-      {
-        name: stopName,
-        address: stopAddress,
-        latitude: stopLat,
-        longitude: stopLng,
-        price: Number(newStopPrice) || 100,
-      },
-    ]);
+    const newStop: IStopItem = {
+      name: stopName,
+      address: stopAddress,
+      latitude: snapped.snappedLatitude,
+      longitude: snapped.snappedLongitude,
+      price: Number(newStopPrice) || 100,
+    };
+
+    setStops((prev) => {
+      const updated = [...prev, newStop];
+      return sortStopsByRouteProgress(updated, routeResult?.coordinates || []);
+    });
 
     setNewStopName("");
     setNewStopAddress("");
@@ -461,6 +472,8 @@ export default function OfferRidePage() {
     setNewStopLng(0);
     setNewStopPrice(100);
     setErrorMessage(null);
+    setSuccessMessage(`Added boarding stop "${stopName}" to your route!`);
+    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   const handleRemoveStop = (index: number) => {
