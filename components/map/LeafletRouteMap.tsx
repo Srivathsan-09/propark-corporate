@@ -87,20 +87,33 @@ export default function LeafletRouteMap({
       zoom: 13.5,
       zoomControl: true,
       attributionControl: false,
+      dragging: true,
+      touchZoom: true,
+      doubleClickZoom: true,
+      scrollWheelZoom: true,
+      boxZoom: true,
+      keyboard: true,
+      tapHold: false,
     });
 
-    const handleUserInteraction = (e: L.LeafletEvent) => {
-      hasUserPannedRef.current = true;
-      setHasUserPanned(true);
-    };
+    if (map.dragging) map.dragging.enable();
+    if (map.touchZoom) map.touchZoom.enable();
+    if (map.doubleClickZoom) map.doubleClickZoom.enable();
+    if (map.scrollWheelZoom) map.scrollWheelZoom.enable();
 
-    map.on("dragstart", handleUserInteraction);
-    map.on("zoomstart", handleUserInteraction);
-    map.on("touchstart", handleUserInteraction);
-    map.on("movestart", (e: any) => {
-      if (e && e.originalEvent) {
+    const markUserPanned = () => {
+      if (!hasUserPannedRef.current) {
         hasUserPannedRef.current = true;
         setHasUserPanned(true);
+      }
+    };
+
+    map.on("dragstart", markUserPanned);
+    map.on("zoomstart", markUserPanned);
+    map.on("touchstart", markUserPanned);
+    map.on("movestart", (e: any) => {
+      if (e && e.originalEvent) {
+        markUserPanned();
       }
     });
 
@@ -159,20 +172,47 @@ export default function LeafletRouteMap({
       clearTimeout(timer1);
       clearTimeout(timer2);
       resizeObserver.disconnect();
-      map.off("dragstart", handleUserInteraction);
-      map.off("zoomstart", handleUserInteraction);
+      map.off("dragstart", markUserPanned);
+      map.off("zoomstart", markUserPanned);
+      map.off("touchstart", markUserPanned);
       map.remove();
       mapInstanceRef.current = null;
     };
   }, []);
 
-  // Handle map click events
+  // Handle map click events (disambiguate drag vs click)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
+    let pointerStartPos: { x: number; y: number } | null = null;
+
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+      const clientX = "touches" in e ? e.touches[0]?.clientX : (e as MouseEvent).clientX;
+      const clientY = "touches" in e ? e.touches[0]?.clientY : (e as MouseEvent).clientY;
+      if (typeof clientX === "number" && typeof clientY === "number") {
+        pointerStartPos = { x: clientX, y: clientY };
+      }
+    };
+
     const handleMapClick = async (e: L.LeafletMouseEvent) => {
       if (!onMapClick) return;
+
+      // Disambiguate drag vs tap: if pointer moved more than 6px, it's a drag gesture
+      if (pointerStartPos && e.originalEvent) {
+        const orig = e.originalEvent as MouseEvent | TouchEvent;
+        const clientX = "changedTouches" in orig ? orig.changedTouches[0]?.clientX : (orig as MouseEvent).clientX;
+        const clientY = "changedTouches" in orig ? orig.changedTouches[0]?.clientY : (orig as MouseEvent).clientY;
+        if (typeof clientX === "number" && typeof clientY === "number") {
+          const dx = clientX - pointerStartPos.x;
+          const dy = clientY - pointerStartPos.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 6) {
+            // Drag gesture - do not trigger stop selection
+            return;
+          }
+        }
+      }
 
       const { lat, lng } = e.latlng;
       setIsReverseGeocoding(true);
@@ -192,8 +232,16 @@ export default function LeafletRouteMap({
       }
     };
 
+    const container = mapContainerRef.current;
+    if (container) {
+      container.addEventListener("pointerdown", handlePointerDown, { passive: true });
+    }
+
     map.on("click", handleMapClick);
     return () => {
+      if (container) {
+        container.removeEventListener("pointerdown", handlePointerDown);
+      }
       map.off("click", handleMapClick);
     };
   }, [onMapClick]);
@@ -466,19 +514,39 @@ export default function LeafletRouteMap({
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    if (driverLocation && driverLocation.latitude && driverLocation.longitude) {
-      map.setView([driverLocation.latitude, driverLocation.longitude], 14.5, { animate: true });
-    } else if (startLocation && startLocation.latitude && startLocation.longitude) {
-      map.setView([startLocation.latitude, startLocation.longitude], 14, { animate: true });
+    const targetLat = driverLocation?.latitude || startLocation?.latitude;
+    const targetLng = driverLocation?.longitude || startLocation?.longitude;
+
+    if (targetLat && targetLng) {
+      map.flyTo([targetLat, targetLng], 15, {
+        animate: true,
+        duration: 0.8,
+      });
     }
   };
 
   return (
-    <div className={`relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm ${className}`}>
+    <div
+      className={`relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm ${className}`}
+      onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+      onMouseMove={(e) => {
+        if (e.buttons === 1) e.stopPropagation();
+      }}
+    >
       <div
         ref={mapContainerRef}
-        style={{ height, width: "100%", background: "#e2e8f0" }}
-        className="z-0 cursor-pointer"
+        style={{
+          height,
+          width: "100%",
+          background: "#e2e8f0",
+          touchAction: "none",
+          pointerEvents: "auto",
+          userSelect: "none",
+        }}
+        className="z-0 cursor-grab active:cursor-grabbing"
       />
 
       {/* Floating Recenter Map Button when user has panned */}
@@ -486,9 +554,9 @@ export default function LeafletRouteMap({
         <button
           type="button"
           onClick={handleRecenterMap}
-          className="absolute top-3 right-3 z-10 bg-slate-900/90 hover:bg-slate-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow-lg border border-slate-700 flex items-center gap-1.5 transition-all animate-in fade-in-50"
+          className="absolute top-3 right-3 z-20 bg-slate-950/90 hover:bg-slate-900 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xl border border-slate-700/80 flex items-center gap-2 transition-all active:scale-95 animate-in fade-in-50"
         >
-          <Navigation2 className="h-3.5 w-3.5 text-emerald-400" />
+          <Navigation2 className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
           Recenter Map
         </button>
       )}
