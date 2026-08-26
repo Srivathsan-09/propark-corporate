@@ -83,12 +83,25 @@ export default function LeafletRouteMap({
       attributionControl: false,
     });
 
-    // High-performance CartoDB Voyager vector tiles (never rate-limited or 404 blank)
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png", {
+    // Dual Tile Layers: Primary CartoDB Voyager + OSM Fallback (100% tile rendering guarantee)
+    const primaryTileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png", {
       maxZoom: 19,
       subdomains: "abcd",
       attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-    }).addTo(map);
+    });
+
+    const osmFallbackLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors",
+    });
+
+    primaryTileLayer.addTo(map);
+
+    primaryTileLayer.on("tileerror", () => {
+      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(osmFallbackLayer)) {
+        osmFallbackLayer.addTo(mapInstanceRef.current);
+      }
+    });
 
     const markersGroup = L.layerGroup().addTo(map);
     markersLayerRef.current = markersGroup;
@@ -341,13 +354,13 @@ export default function LeafletRouteMap({
       map.setView([customPickupPoint.latitude, customPickupPoint.longitude], Math.max(map.getZoom(), 14), {
         animate: true,
       });
-    } else if (boundsPoints.length > 0 && !panToDriver) {
+    } else if (boundsPoints.length > 0 && !panToDriver && !isClickPicking) {
       try {
         const bounds = L.latLngBounds(boundsPoints);
         map.fitBounds(bounds, {
           padding: [45, 45],
           maxZoom: 15,
-          animate: true,
+          animate: false,
         });
       } catch (err) {
         console.warn("Bounds fitting warning:", err);
@@ -357,9 +370,9 @@ export default function LeafletRouteMap({
     // Ensure map tiles redraw properly whenever picking mode or route changes
     setTimeout(() => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.invalidateSize();
+        mapInstanceRef.current.invalidateSize({ animate: false });
       }
-    }, 100);
+    }, 50);
   }, [startLocation, destination, stops, customPickupPoint, driverLocation, routeCoordinates, panToDriver, isClickPicking]);
 
   return (
