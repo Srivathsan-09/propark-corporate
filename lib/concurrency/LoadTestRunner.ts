@@ -61,7 +61,7 @@ class LoadTestRunnerService {
     let dummyVehicle = await Vehicle.findOne({ registrationNumber: "TN-07-LT-9999" });
     if (!dummyVehicle) {
       dummyVehicle = await Vehicle.create({
-        driver: dummyDriver._id,
+        owner: dummyDriver._id,
         vehicleModel: "Hyundai Verna",
         vehicleType: "Car",
         registrationNumber: "TN-07-LT-9999",
