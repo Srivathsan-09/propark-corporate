@@ -83,8 +83,8 @@ export default function LeafletRouteMap({
       attributionControl: false,
     });
 
-    // High-performance CartoDB Voyager vector tiles + OpenStreetMap fallback (never rate-limited or blank)
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    // High-performance CartoDB Voyager vector tiles (never rate-limited or 404 blank)
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png", {
       maxZoom: 19,
       subdomains: "abcd",
       attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
