@@ -41,6 +41,8 @@ class LoadTestRunnerService {
 
     // 1. SETUP DUMMY RIDE & USERS FOR LOAD TESTING
     const testCampusId = "CAMP-LOADTEST-01";
+
+    // Ensure dummy driver exists & is assigned to CAMP-LOADTEST-01
     let dummyDriver = await User.findOne({ email: "driver.loadtest@corporate.com" });
     if (!dummyDriver) {
       dummyDriver = await User.create({
@@ -54,11 +56,11 @@ class LoadTestRunnerService {
         isApproved: true,
         verificationStatus: "approved",
       });
-    } else if (!dummyDriver.isApproved || dummyDriver.campusId !== testCampusId) {
-      dummyDriver.isApproved = true;
-      dummyDriver.verificationStatus = "approved";
-      dummyDriver.campusId = testCampusId;
-      await dummyDriver.save();
+    } else {
+      await User.updateOne(
+        { _id: dummyDriver._id },
+        { $set: { isApproved: true, verificationStatus: "approved", campusId: testCampusId } }
+      );
     }
 
     let dummyVehicle = await Vehicle.findOne({ registrationNumber: "TN-07-LT-9999" });
@@ -96,10 +98,10 @@ class LoadTestRunnerService {
 
     log(`Created Test Ride ID: ${testRide._id} with ${totalSeats} available seats`);
 
-    // Ensure all test passenger accounts in DB are approved and assigned to CAMP-LOADTEST-01
+    // Force update ALL existing test passenger accounts in DB to CAMP-LOADTEST-01 and isApproved: true
     await User.updateMany(
       { email: { $regex: "^passenger\\.lt" } },
-      { isApproved: true, verificationStatus: "approved", campusId: testCampusId }
+      { $set: { isApproved: true, verificationStatus: "approved", campusId: testCampusId } }
     );
 
     // Prepare 100 100% DISTINCT approved passenger accounts in memory & DB
@@ -121,11 +123,6 @@ class LoadTestRunnerService {
           isApproved: true,
           verificationStatus: "approved",
         });
-      } else if (!user.isApproved || user.campusId !== testCampusId) {
-        user.isApproved = true;
-        user.verificationStatus = "approved";
-        user.campusId = testCampusId;
-        await user.save();
       }
       passengers.push(user);
     }
@@ -133,7 +130,7 @@ class LoadTestRunnerService {
     log(`Prepared ${passengers.length} distinct authenticated employee accounts in Campus "${testCampusId}"`);
 
     // 2. DISPATCH CONCURRENT BOOKING REQUESTS SIMULTANEOUSLY (Promise.all)
-    log(`💥 Triggering ${concurrentUsers} concurrent requests simultaneously via Promise.all()...`);
+    log(`💥 Triggering ${concurrentUsers} concurrent requests simultaneously...`);
 
     const idempotencyKeyForTest6 = `IDEM-SHARED-${Date.now()}`;
 
@@ -147,7 +144,7 @@ class LoadTestRunnerService {
         userId: passenger._id.toString(),
         userName: passenger.name,
         userEmail: passenger.email,
-        userCampusId: passenger.campusId || testCampusId,
+        userCampusId: testCampusId,
         pickupStop: "Iyyappanthangal",
         dropStop: "Karayanchavadi",
         seatsRequested: 1,
@@ -167,6 +164,12 @@ class LoadTestRunnerService {
     const successfulBookings = results.filter((r) => r.success).length;
     const failedBookings = results.filter((r) => !r.success).length;
     const idempotentHits = results.filter((r) => r.idempotencyHit).length;
+
+    // Log sample errors if any failed unexpectedly
+    const sampleErrors = results.filter((r) => !r.success).map((r) => r.error).filter(Boolean);
+    if (sampleErrors.length > 0 && totalSeats > 0 && successfulBookings < Math.min(totalSeats, concurrentUsers)) {
+      log(`Sample error note: ${sampleErrors[0]}`);
+    }
 
     // Check duplicate passenger IDs in confirmed bookings in DB
     const passengerIdsInDb = finalBookingsInDb.map((b) => b.passenger.toString());
