@@ -1095,6 +1095,7 @@ export default function MyRidesPage() {
                   }
                   driverName={liveTelemetry?.driver?.name || "Driver"}
                   driverVehicleType={liveTelemetry?.vehicle?.vehicleType || "Car"}
+                  routeCoordinates={liveEtaResult?.coordinates}
                   panToDriver={true}
                   distanceText={
                     liveEtaResult?.remainingDistanceKm

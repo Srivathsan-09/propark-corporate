@@ -89,13 +89,20 @@ export default function LeafletRouteMap({
       attributionControl: false,
     });
 
-    const handleUserInteraction = () => {
+    const handleUserInteraction = (e: L.LeafletEvent) => {
       hasUserPannedRef.current = true;
       setHasUserPanned(true);
     };
 
     map.on("dragstart", handleUserInteraction);
     map.on("zoomstart", handleUserInteraction);
+    map.on("touchstart", handleUserInteraction);
+    map.on("movestart", (e: any) => {
+      if (e && e.originalEvent) {
+        hasUserPannedRef.current = true;
+        setHasUserPanned(true);
+      }
+    });
 
     // High-density OpenStreetMap Standard Tiles (Full place names, neighborhoods, roads & landmarks)
     const osmTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -374,20 +381,51 @@ export default function LeafletRouteMap({
       boundsPoints.push([customPickupPoint.latitude, customPickupPoint.longitude]);
     }
 
-    // 6. Draw Polyline Route
-    if (routeCoordinates && routeCoordinates.length > 0) {
-      const polyline = L.polyline(routeCoordinates, {
-        color: "#059669", // Emerald green
+    // 6. Draw Polyline Route (if passed or calculate automatically from waypoints)
+    const drawRoutePolyline = (coords: [number, number][]) => {
+      if (!map || coords.length < 2) return;
+      if (routePolylineRef.current) {
+        map.removeLayer(routePolylineRef.current);
+      }
+
+      // Dark casing outline for maximum road visibility
+      L.polyline(coords, {
+        color: "#064e3b",
+        weight: 9,
+        opacity: 0.6,
+        lineCap: "round",
+        lineJoin: "round",
+      }).addTo(map);
+
+      // Bright Emerald Green core road line
+      const polyline = L.polyline(coords, {
+        color: "#10b981",
         weight: 5,
-        opacity: 0.85,
+        opacity: 1.0,
         lineCap: "round",
         lineJoin: "round",
       }).addTo(map);
 
       routePolylineRef.current = polyline;
+      coords.forEach((pt) => boundsPoints.push(pt));
+    };
 
-      // Add polyline points to bounds
-      routeCoordinates.forEach((pt) => boundsPoints.push(pt));
+    if (routeCoordinates && routeCoordinates.length > 0) {
+      drawRoutePolyline(routeCoordinates);
+    } else if (startLocation && destination && startLocation.latitude && destination.latitude) {
+      const waypoints = [
+        { latitude: startLocation.latitude, longitude: startLocation.longitude },
+        ...stops.map((s) => ({ latitude: s.latitude, longitude: s.longitude })),
+        { latitude: destination.latitude, longitude: destination.longitude },
+      ];
+
+      import("@/lib/services/routing").then(({ routingService }) => {
+        routingService.calculateRoute(waypoints).then((res) => {
+          if (res && res.coordinates && res.coordinates.length > 0) {
+            drawRoutePolyline(res.coordinates);
+          }
+        });
+      });
     }
 
     // Auto-fit bounds or pan to custom point ONLY if user hasn't manually slid/panned the map

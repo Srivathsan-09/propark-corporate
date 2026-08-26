@@ -1309,6 +1309,7 @@ export default function FindRidePage() {
                   }
                   driverName={liveTrackingRide.driver?.name || "Driver"}
                   driverVehicleType={liveTrackingRide.vehicleType || "Car"}
+                  routeCoordinates={liveEtaResult?.coordinates}
                   panToDriver={true}
                   distanceText={
                     liveEtaResult?.remainingDistanceKm
