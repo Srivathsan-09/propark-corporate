@@ -1003,8 +1003,8 @@ export default function MyRidesPage() {
         <DialogContent className="sm:max-w-3xl max-h-[92vh] overflow-y-auto">
           {trackingModalRide && (
             <div className="space-y-4">
-              <DialogHeader>
-                <div className="flex items-center justify-between">
+              <DialogHeader className="pr-10">
+                <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
                   <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                     <Radio className="h-4 w-4 text-emerald-600 animate-pulse" />
                     Live Driver GPS Tracking
@@ -1074,10 +1074,16 @@ export default function MyRidesPage() {
                     latitude: s.latitude || 12.95,
                     longitude: s.longitude || 80.18,
                   }))}
-                  driverLocation={liveTelemetry?.currentLocation || driverGpsPosition}
+                  driverLocation={
+                    liveTelemetry?.currentLocation ||
+                    driverGpsPosition || {
+                      latitude: liveTelemetry?.startLocation?.latitude || trackingModalRide.startLocation?.latitude || 12.9249,
+                      longitude: liveTelemetry?.startLocation?.longitude || trackingModalRide.startLocation?.longitude || 80.1332,
+                    }
+                  }
                   driverName={liveTelemetry?.driver?.name || "Driver"}
                   driverVehicleType={liveTelemetry?.vehicle?.vehicleType || "Car"}
-                  panToDriver={Boolean(liveTelemetry?.currentLocation)}
+                  panToDriver={true}
                   distanceText={
                     liveEtaResult?.remainingDistanceKm
                       ? `${liveEtaResult.remainingDistanceKm} km`
@@ -1093,18 +1099,6 @@ export default function MyRidesPage() {
                   height="450px"
                   showStats={true}
                 />
-              </div>
-
-              <div className="flex justify-end pt-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsLiveTrackingModalOpen(false)}
-                  className="rounded-xl text-xs font-semibold px-4"
-                >
-                  Close Live Tracker
-                </Button>
               </div>
             </div>
           )}

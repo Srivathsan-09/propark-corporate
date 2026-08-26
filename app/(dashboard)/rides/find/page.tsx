@@ -1207,8 +1207,8 @@ export default function FindRidePage() {
       {/* PASSENGER LIVE GPS TRACKING MODAL */}
       <Dialog open={isLiveTrackingModalOpen} onOpenChange={setIsLiveTrackingModalOpen}>
         <DialogContent className="max-w-2xl bg-white p-4 sm:p-6 rounded-2xl max-h-[92vh] overflow-y-auto">
-          <DialogHeader className="pb-2 border-b border-slate-100">
-            <div className="flex items-center justify-between">
+          <DialogHeader className="pb-2 border-b border-slate-100 pr-10">
+            <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
               <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Navigation className="h-4 w-4 text-emerald-600 animate-pulse" />
                 Live GPS Tracking – Ride Started
@@ -1281,10 +1281,16 @@ export default function FindRidePage() {
                     latitude: s.latitude || 12.95,
                     longitude: s.longitude || 80.18,
                   }))}
-                  driverLocation={liveTelemetry?.currentLocation}
+                  driverLocation={
+                    liveTelemetry?.currentLocation ||
+                    liveTrackingRide.currentLocation || {
+                      latitude: liveTelemetry?.startLocation?.latitude || liveTrackingRide.startLocation?.latitude || 13.048,
+                      longitude: liveTelemetry?.startLocation?.longitude || liveTrackingRide.startLocation?.longitude || 80.091,
+                    }
+                  }
                   driverName={liveTrackingRide.driver?.name || "Driver"}
                   driverVehicleType={liveTrackingRide.vehicleType || "Car"}
-                  panToDriver={Boolean(liveTelemetry?.currentLocation)}
+                  panToDriver={true}
                   distanceText={
                     liveEtaResult?.remainingDistanceKm
                       ? `${liveEtaResult.remainingDistanceKm} km`
@@ -1300,18 +1306,6 @@ export default function FindRidePage() {
                   height="450px"
                   showStats={true}
                 />
-              </div>
-
-              <div className="flex justify-end pt-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsLiveTrackingModalOpen(false)}
-                  className="rounded-xl text-xs font-semibold px-4"
-                >
-                  Close Live Tracker
-                </Button>
               </div>
             </div>
           )}
