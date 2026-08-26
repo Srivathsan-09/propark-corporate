@@ -69,6 +69,10 @@ export default function LeafletRouteMap({
   const routePolylineRef = useRef<L.Polyline | null>(null);
 
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
+  const [hasUserPanned, setHasUserPanned] = useState(false);
+
+  const hasUserPannedRef = useRef(false);
+  const isInitialViewDoneRef = useRef(false);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -84,6 +88,14 @@ export default function LeafletRouteMap({
       zoomControl: true,
       attributionControl: false,
     });
+
+    const handleUserInteraction = () => {
+      hasUserPannedRef.current = true;
+      setHasUserPanned(true);
+    };
+
+    map.on("dragstart", handleUserInteraction);
+    map.on("zoomstart", handleUserInteraction);
 
     // High-density OpenStreetMap Standard Tiles (Full place names, neighborhoods, roads & landmarks)
     const osmTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -140,6 +152,8 @@ export default function LeafletRouteMap({
       clearTimeout(timer1);
       clearTimeout(timer2);
       resizeObserver.disconnect();
+      map.off("dragstart", handleUserInteraction);
+      map.off("zoomstart", handleUserInteraction);
       map.remove();
       mapInstanceRef.current = null;
     };
@@ -376,14 +390,14 @@ export default function LeafletRouteMap({
       routeCoordinates.forEach((pt) => boundsPoints.push(pt));
     }
 
-    // Auto-fit bounds or pan to custom point
-    if (customPickupPoint && customPickupPoint.latitude && customPickupPoint.longitude) {
-      map.setView([customPickupPoint.latitude, customPickupPoint.longitude], Math.max(map.getZoom(), 14), {
-        animate: true,
-      });
-    } else if (boundsPoints.length > 0 && !panToDriver && !isClickPicking && routeCoordinates.length > 0) {
-      // Only fit bounds on initial route load, do not jump view on stop taps
-      if (!mapInstanceRef.current?.hasLayer(routePolylineRef.current!)) {
+    // Auto-fit bounds or pan to custom point ONLY if user hasn't manually slid/panned the map
+    if (!hasUserPannedRef.current) {
+      if (customPickupPoint && customPickupPoint.latitude && customPickupPoint.longitude) {
+        map.setView([customPickupPoint.latitude, customPickupPoint.longitude], Math.max(map.getZoom(), 14), {
+          animate: true,
+        });
+        isInitialViewDoneRef.current = true;
+      } else if (boundsPoints.length > 0 && !isInitialViewDoneRef.current) {
         try {
           const bounds = L.latLngBounds(boundsPoints);
           map.fitBounds(bounds, {
@@ -391,6 +405,7 @@ export default function LeafletRouteMap({
             maxZoom: 14.5,
             animate: false,
           });
+          isInitialViewDoneRef.current = true;
         } catch (err) {
           console.warn("Bounds fitting warning:", err);
         }
@@ -405,6 +420,21 @@ export default function LeafletRouteMap({
     }, 50);
   }, [startLocation, destination, stops, customPickupPoint, driverLocation, routeCoordinates, panToDriver, isClickPicking]);
 
+  const handleRecenterMap = () => {
+    hasUserPannedRef.current = false;
+    isInitialViewDoneRef.current = false;
+    setHasUserPanned(false);
+
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (driverLocation && driverLocation.latitude && driverLocation.longitude) {
+      map.setView([driverLocation.latitude, driverLocation.longitude], 14.5, { animate: true });
+    } else if (startLocation && startLocation.latitude && startLocation.longitude) {
+      map.setView([startLocation.latitude, startLocation.longitude], 14, { animate: true });
+    }
+  };
+
   return (
     <div className={`relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm ${className}`}>
       <div
@@ -412,6 +442,18 @@ export default function LeafletRouteMap({
         style={{ height, width: "100%", background: "#e2e8f0" }}
         className="z-0 cursor-pointer"
       />
+
+      {/* Floating Recenter Map Button when user has panned */}
+      {hasUserPanned && (
+        <button
+          type="button"
+          onClick={handleRecenterMap}
+          className="absolute top-3 right-3 z-10 bg-slate-900/90 hover:bg-slate-800 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow-lg border border-slate-700 flex items-center gap-1.5 transition-all animate-in fade-in-50"
+        >
+          <Navigation2 className="h-3.5 w-3.5 text-emerald-400" />
+          Recenter Map
+        </button>
+      )}
 
       {/* Floating Route Distance & ETA Badge */}
       {showStats && (distanceText || durationText) && (
