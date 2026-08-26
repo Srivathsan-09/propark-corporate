@@ -3,11 +3,9 @@ import { getServerSession } from "next-auth/next";
 import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
-import Ride from "@/models/Ride";
-import RideRequest from "@/models/RideRequest";
 import User from "@/models/User";
-import Notification from "@/models/Notification";
 import { rideRequestSchema } from "@/validations/ride.schema";
+import { workerPool } from "@/lib/concurrency/WorkerPool";
 
 interface RouteParams {
   params: {
@@ -26,8 +24,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const { id } = params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    const { id: rideId } = params;
+    if (!mongoose.Types.ObjectId.isValid(rideId)) {
       return NextResponse.json(
         { success: false, error: "Invalid ride identifier." },
         { status: 400 }
@@ -48,36 +46,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check ride
-    const ride = await Ride.findById(id).populate("driver", "name email phone companyName");
-    if (!ride) {
-      return NextResponse.json(
-        { success: false, error: "Ride not found or no longer available." },
-        { status: 404 }
-      );
-    }
-
-    if (ride.driver._id.toString() === session.user.id) {
-      return NextResponse.json(
-        { success: false, error: "You cannot request a seat on a ride you are driving." },
-        { status: 400 }
-      );
-    }
-
-    if (ride.status !== "scheduled" && ride.status !== "in_progress") {
-      return NextResponse.json(
-        { success: false, error: `This ride is ${ride.status} and cannot accept new bookings.` },
-        { status: 400 }
-      );
-    }
-
-    if (ride.availableSeats <= 0) {
-      return NextResponse.json(
-        { success: false, error: "This ride is fully booked. No seats remaining." },
-        { status: 400 }
-      );
-    }
-
     const body = await req.json();
     const validationResult = rideRequestSchema.safeParse(body);
     if (!validationResult.success) {
@@ -90,69 +58,39 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     const { pickupStop, dropStop, seatsRequested, fare, notes } = validationResult.data;
 
-    if (seatsRequested > ride.availableSeats) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Requested seats (${seatsRequested}) exceed available seats (${ride.availableSeats}).`,
-        },
-        { status: 400 }
-      );
-    }
+    // Idempotency key from header or body
+    const idempotencyKey =
+      req.headers.get("x-idempotency-key") ||
+      (body.idempotencyKey as string) ||
+      `IDEM-${rideId}-${session.user.id}-${Date.now()}`;
 
-    // Check existing request
-    const existingRequest = await RideRequest.findOne({
-      ride: ride._id,
-      passenger: session.user.id,
-      status: { $in: ["pending", "accepted"] },
-    });
-
-    if (existingRequest) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `You already have a ${existingRequest.status} booking request for this ride.`,
-        },
-        { status: 409 }
-      );
-    }
-
-    // Create ride request
-    const newRequest = await RideRequest.create({
-      ride: ride._id,
-      passenger: session.user.id,
-      driver: ride.driver._id,
+    // PROCESS REQUEST THROUGH HIGH-CONCURRENCY PIPELINE
+    // Load Balancer -> Ride-Scoped FIFO Queue -> Concurrent Workers -> Atomic MongoDB Transaction
+    const result = await workerPool.processRequest(rideId, {
+      userId: session.user.id,
+      userName: passenger.name,
+      userEmail: passenger.email,
+      userCampusId: passenger.campusId || (session.user as any).campusId || "CAMP001",
       pickupStop,
-      dropStop: dropStop || ride.destination,
-      seatsRequested,
-      fare,
+      dropStop: dropStop || "Destination",
+      seatsRequested: seatsRequested || 1,
+      fare: fare || 0,
       notes: notes || "",
-      status: "pending",
+      idempotencyKey,
     });
 
-    // Send notification to the driver
-    await Notification.create({
-      recipient: ride.driver._id,
-      sender: session.user.id,
-      title: "New Ride Request Received",
-      message: `${passenger.name} (${passenger.companyName || "Employee"}) requested ${seatsRequested} seat(s) from "${pickupStop}" (Est. Fare: ₹${fare}).`,
-      type: "ride_requested",
-      ride: ride._id,
-      rideRequest: newRequest._id,
-    });
+    const statusCode = result.success ? (result.idempotencyHit ? 200 : 201) : 400;
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Ride request sent to driver! You will be notified once they accept or reject.",
-        request: newRequest,
-      },
-      { status: 201 }
-    );
+    const response = NextResponse.json(result, { status: statusCode });
+    response.headers.set("x-server-node", result.processedByNode || "Server 1");
+    response.headers.set("x-load-balanced-by", "Round-Robin");
+    response.headers.set("x-idempotency-key", idempotencyKey);
+
+    return response;
   } catch (error: unknown) {
-    console.error(" Ride Request API Error:", error);
+    console.error("High-Concurrency Ride Request API Error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to submit ride request. Please try again." },
+      { success: false, error: "Failed to process ride booking request. Please try again." },
       { status: 500 }
     );
   }

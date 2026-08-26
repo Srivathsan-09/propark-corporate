@@ -19,6 +19,7 @@ import {
   Route,
   BarChart3,
   Building2,
+  Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +72,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Rides",
       href: "/admin/rides",
       icon: Route,
+    },
+    {
+      title: "Concurrency Engine",
+      href: "/admin/concurrency",
+      icon: Cpu,
     },
     ...(isSuperAdmin
       ? [
