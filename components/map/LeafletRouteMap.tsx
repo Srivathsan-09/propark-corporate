@@ -285,20 +285,27 @@ export default function LeafletRouteMap({
       typeof driverLocation.longitude === "number"
     ) {
       const isBike = driverVehicleType === "Bike";
+      const vehicleEmoji = isBike ? "🏍️" : "🚗";
       const icon = L.divIcon({
         className: "custom-driver-live-marker",
         html: `
-          <div class="relative flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 cursor-pointer group">
-            <!-- Pulsing outer ring -->
-            <span class="absolute inline-flex h-10 w-10 rounded-full bg-emerald-400 opacity-75 animate-ping"></span>
-            
-            <!-- Core badge -->
-            <div class="relative flex items-center gap-1.5 px-3 py-1 rounded-full shadow-2xl bg-emerald-700 border-2 border-white text-white font-extrabold text-xs">
-              <span class="h-2 w-2 rounded-full bg-emerald-300 animate-pulse"></span>
+          <div class="relative flex items-center justify-center cursor-pointer group" style="transform: translate(-50%, -50%);">
+            <!-- Pulsing outer GPS aura -->
+            <span class="absolute inline-flex h-12 w-12 rounded-full bg-emerald-400 opacity-75 animate-ping"></span>
+            <span class="absolute inline-flex h-9 w-9 rounded-full bg-emerald-500/30"></span>
+
+            <!-- Core Car Icon Circle -->
+            <div class="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-slate-950 via-slate-900 to-emerald-900 border-2 border-white text-white text-xl shadow-2xl transition-transform hover:scale-110">
+              <span class="drop-shadow-md">${vehicleEmoji}</span>
+            </div>
+
+            <!-- Floating Driver Tag Above Car -->
+            <div class="absolute -top-7 whitespace-nowrap px-2 py-0.5 rounded-md bg-slate-950/95 text-white font-extrabold text-[10px] shadow-md border border-slate-700 pointer-events-none flex items-center gap-1">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>${driverName ? driverName.split(" ")[0] : "Driver"}</span>
               ${
                 driverLocation.speed
-                  ? `<span class="text-[10px] text-emerald-200 font-mono">(${Math.round(driverLocation.speed)} km/h)</span>`
+                  ? `<span class="text-[9px] text-emerald-300 font-mono">(${Math.round(driverLocation.speed)} km/h)</span>`
                   : ""
               }
             </div>

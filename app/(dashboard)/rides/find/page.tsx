@@ -904,17 +904,6 @@ export default function FindRidePage() {
               </DialogHeader>
 
               <div className="space-y-4 py-3 text-xs">
-                {/* En-Route Live Status Alert */}
-                {selectedRide.status === "in_progress" && (
-                  <div className="p-3 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-medium flex items-start gap-2.5 shadow-2xs animate-in fade-in-50">
-                    <Navigation2 className="h-4 w-4 text-emerald-600 animate-spin shrink-0 mt-0.5" />
-                    <div>
-                      <strong className="font-bold text-emerald-950 block">Driver is En-Route & Traveling Live!</strong>
-                      <span>The car icon on the map below is broadcasting the driver&apos;s real-time position. You can still select any upcoming stop and request a seat while the driver is traveling.</span>
-                    </div>
-                  </div>
-                )}
-
                 {/* Embedded Interactive Route Map */}
                 <div className="rounded-xl overflow-hidden border border-slate-200">
                   <MapView
