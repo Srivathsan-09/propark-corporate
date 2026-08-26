@@ -627,58 +627,72 @@ export default function FindRidePage() {
               >
                 <div>
                   {/* Top Driver Identity & Company Header */}
-                  <div className="p-4 bg-slate-50/80 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs">
-                        {getInitials(ride.driver.name)}
+                  <div className="p-4 bg-slate-50/80 border-b border-slate-100 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs shadow-xs">
+                          {getInitials(ride.driver.name)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-slate-900 text-sm flex items-center gap-1.5 truncate">
+                            <span className="truncate">{ride.driver.name}</span>
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          </div>
+                          <div className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
+                            <Building2 className="h-3 w-3 text-slate-400 shrink-0" />
+                            <span className="font-semibold text-emerald-800 truncate">{ride.driver.companyName || "Tech Mahindra"}</span>
+                            <span className="truncate">• {ride.driver.department}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setViewProfileUserId(ride.driver._id);
+                              setViewProfileFallback(ride.driver);
+                            }}
+                            className="text-[10px] font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 mt-0.5 hover:underline transition-colors"
+                          >
+                            <User className="h-2.5 w-2.5" /> View Profile
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                          {ride.driver.name}
-                          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                        </div>
-                        <div className="text-[11px] text-slate-500 flex items-center gap-1">
-                          <Building2 className="h-3 w-3 text-slate-400" />
-                          <span className="font-semibold text-emerald-800">{ride.driver.companyName || "Tech Mahindra"}</span>
-                          <span>• {ride.driver.department}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setViewProfileUserId(ride.driver._id);
-                            setViewProfileFallback(ride.driver);
-                          }}
-                          className="text-[10px] font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1 mt-0.5 hover:underline transition-colors"
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isPickup ? (
+                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                            Pickup
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200 whitespace-nowrap">
+                            Drop
+                          </span>
+                        )}
+                        <Badge
+                          className={`text-[10px] font-bold whitespace-nowrap ${
+                            ride.vehicleType === "Bike" ? "bg-blue-600 text-white" : "bg-emerald-600 text-white"
+                          }`}
                         >
-                          <User className="h-2.5 w-2.5" /> View Profile
-                        </button>
+                          {ride.vehicleType}
+                        </Badge>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap shrink-0">
-                      {ride.status === "in_progress" && (
-                        <span className="whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white shadow-xs animate-pulse">
-                          <span className="h-2 w-2 rounded-full bg-white animate-ping" />
-                          Ride Started (Live)
+                    {/* Dedicated Live En-Route Status Ribbon */}
+                    {ride.status === "in_progress" && (
+                      <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-xs animate-in fade-in-50">
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex h-2 w-2 shrink-0">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                          </div>
+                          <span className="font-extrabold text-[11px] tracking-wide">
+                            RIDE STARTED • DRIVER EN-ROUTE
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-white/20 backdrop-blur-xs px-2 py-0.5 rounded-full text-white shrink-0">
+                          Live GPS
                         </span>
-                      )}
-                      {isPickup ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 whitespace-nowrap">
-                          Pickup
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-700 whitespace-nowrap">
-                          Drop
-                        </span>
-                      )}
-                      <Badge
-                        className={`text-[10px] font-bold whitespace-nowrap ${
-                          ride.vehicleType === "Bike" ? "bg-blue-600 text-white" : "bg-emerald-600 text-white"
-                        }`}
-                      >
-                        {ride.vehicleType}
-                      </Badge>
-                    </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Route & Timings Section */}
