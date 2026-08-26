@@ -147,6 +147,64 @@ export default function FindRidePage() {
   const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
   const [viewProfileFallback, setViewProfileFallback] = useState<any | null>(null);
 
+  // Live GPS Tracking Modal State for Passengers
+  const [liveTrackingRide, setLiveTrackingRide] = useState<IRide | null>(null);
+  const [isLiveTrackingModalOpen, setIsLiveTrackingModalOpen] = useState(false);
+  const [liveTelemetry, setLiveTelemetry] = useState<any>(null);
+  const [liveEtaResult, setLiveEtaResult] = useState<any>(null);
+
+  // Poll live driver telemetry when live tracking modal is open
+  useEffect(() => {
+    if (!isLiveTrackingModalOpen || !liveTrackingRide) return;
+
+    const fetchTelemetry = async () => {
+      try {
+        const res = await fetch(`/api/rides/${liveTrackingRide._id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ride) {
+            setLiveTelemetry(data.ride);
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch live telemetry:", err);
+      }
+    };
+
+    fetchTelemetry();
+    const interval = setInterval(fetchTelemetry, 5000);
+    return () => clearInterval(interval);
+  }, [isLiveTrackingModalOpen, liveTrackingRide]);
+
+  // Recalculate Live ETA periodically while tracking modal is open
+  useEffect(() => {
+    if (!isLiveTrackingModalOpen || !liveTrackingRide) return;
+
+    const updateLiveEta = async () => {
+      const { routingService } = await import("@/lib/services/routing");
+      const startPt = {
+        latitude: liveTelemetry?.startLocation?.latitude || liveTrackingRide.startLocation?.latitude || 13.048,
+        longitude: liveTelemetry?.startLocation?.longitude || liveTrackingRide.startLocation?.longitude || 80.091,
+      };
+      const endPt = {
+        latitude: liveTelemetry?.endLocation?.latitude || liveTrackingRide.endLocation?.latitude || 12.8988,
+        longitude: liveTelemetry?.endLocation?.longitude || liveTrackingRide.endLocation?.longitude || 80.2284,
+      };
+      const driverLoc = liveTelemetry?.currentLocation;
+
+      const result = await routingService.calculateRoute(
+        [startPt, endPt],
+        liveTrackingRide.departureTime,
+        driverLoc ? { latitude: driverLoc.latitude, longitude: driverLoc.longitude, speed: (driverLoc as any).speed } : null
+      );
+      setLiveEtaResult(result);
+    };
+
+    updateLiveEta();
+    const interval = setInterval(updateLiveEta, 10000);
+    return () => clearInterval(interval);
+  }, [isLiveTrackingModalOpen, liveTrackingRide, liveTelemetry]);
+
   // Custom Stop Request Mode
   const [isCustomStopMode, setIsCustomStopMode] = useState(false);
   const [customStopText, setCustomStopText] = useState("");
@@ -569,9 +627,9 @@ export default function FindRidePage() {
               >
                 <div>
                   {/* Top Driver Identity & Company Header */}
-                  <div className="p-4 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
+                  <div className="p-4 bg-slate-50/80 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs">
                         {getInitials(ride.driver.name)}
                       </div>
                       <div>
@@ -597,23 +655,24 @@ export default function FindRidePage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap shrink-0">
                       {ride.status === "in_progress" && (
-                        <Badge className="bg-emerald-600 text-white font-bold text-[10px] animate-pulse flex items-center gap-1">
-                          <Navigation2 className="h-3 w-3 animate-spin" /> En-Route (Live)
-                        </Badge>
+                        <span className="whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white shadow-xs animate-pulse">
+                          <span className="h-2 w-2 rounded-full bg-white animate-ping" />
+                          Ride Started (Live)
+                        </span>
                       )}
                       {isPickup ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 whitespace-nowrap">
                           Pickup
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-700">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-700 whitespace-nowrap">
                           Drop
                         </span>
                       )}
                       <Badge
-                        className={`text-[10px] font-bold ${
+                        className={`text-[10px] font-bold whitespace-nowrap ${
                           ride.vehicleType === "Bike" ? "bg-blue-600 text-white" : "bg-emerald-600 text-white"
                         }`}
                       >
@@ -624,6 +683,33 @@ export default function FindRidePage() {
 
                   {/* Route & Timings Section */}
                   <CardContent className="p-4 space-y-3.5 text-xs text-slate-700">
+                    {/* Live Started Ride Banner for Passengers */}
+                    {ride.status === "in_progress" && (
+                      <div className="bg-slate-900 text-white p-3 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-md border border-slate-800">
+                        <div className="flex items-center gap-2.5">
+                          <div className="relative flex h-3 w-3 shrink-0">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                          </div>
+                          <div>
+                            <span className="font-bold text-xs text-white block">Driver Has Started The Ride!</span>
+                            <span className="text-[10px] text-emerald-300">Live GPS position is broadcasting</span>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            setLiveTrackingRide(ride);
+                            setIsLiveTrackingModalOpen(true);
+                          }}
+                          className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-[11px] h-8 px-3 rounded-lg gap-1.5 shadow-xs whitespace-nowrap ml-auto"
+                        >
+                          <Navigation className="h-3.5 w-3.5" />
+                          Track Driver Live GPS
+                        </Button>
+                      </div>
+                    )}
                     {/* Origin -> Destination Box */}
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
                       <div className="flex items-start gap-2">
@@ -1066,6 +1152,120 @@ export default function FindRidePage() {
                 </Button>
               </DialogFooter>
             </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* PASSENGER LIVE GPS TRACKING MODAL */}
+      <Dialog open={isLiveTrackingModalOpen} onOpenChange={setIsLiveTrackingModalOpen}>
+        <DialogContent className="max-w-2xl bg-white p-4 sm:p-6 rounded-2xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader className="pb-2 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Navigation className="h-4 w-4 text-emerald-600 animate-pulse" />
+                Live GPS Tracking – Ride Started
+              </DialogTitle>
+              <span className="whitespace-nowrap px-2.5 py-1 rounded-full text-[10px] font-bold bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs animate-pulse">
+                <span className="h-2 w-2 rounded-full bg-white animate-ping" />
+                Live GPS Broadcasting
+              </span>
+            </div>
+            <DialogDescription className="text-xs text-slate-500">
+              Driver: <strong>{liveTrackingRide?.driver?.name}</strong> • {liveTrackingRide?.vehicle?.vehicleModel || "Vehicle"} ({liveTrackingRide?.vehicle?.registrationNumber || "Plate"})
+            </DialogDescription>
+          </DialogHeader>
+
+          {liveTrackingRide && (
+            <div className="space-y-3 pt-2">
+              {/* Real-time Live Traffic-Aware ETA Header */}
+              <div className="bg-slate-950 text-white p-3 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs shadow-md">
+                <div className="flex items-center gap-2">
+                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Remaining Commute</span>
+                    <strong className="text-sm text-emerald-400 font-bold">
+                      {liveEtaResult?.remainingDistanceKm ?? liveTelemetry?.distanceKm ?? liveTrackingRide.distanceKm ?? 0} km remaining
+                    </strong>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Live Traffic-Aware ETA</span>
+                  <strong className="text-sm text-white font-bold">
+                    {liveEtaResult?.formattedDuration || `${liveTelemetry?.durationMinutes || 20} mins`}{" "}
+                    {liveEtaResult?.formattedEtaTime ? `(${liveEtaResult.formattedEtaTime})` : ""}
+                  </strong>
+                </div>
+
+                {liveEtaResult?.trafficLevel && (
+                  <span
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                      liveEtaResult.trafficBadgeColor === "rose"
+                        ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                        : liveEtaResult.trafficBadgeColor === "amber"
+                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                        : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                    }`}
+                  >
+                    {liveEtaResult.trafficBadgeText}
+                  </span>
+                )}
+              </div>
+
+              {/* Interactive Map with Moving Driver Marker */}
+              <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs">
+                <MapView
+                  startLocation={{
+                    name: liveTelemetry?.startingLocation || liveTrackingRide.startingLocation,
+                    address: liveTelemetry?.startLocation?.address || liveTrackingRide.startingLocation,
+                    latitude: liveTelemetry?.startLocation?.latitude || 13.048,
+                    longitude: liveTelemetry?.startLocation?.longitude || 80.091,
+                  }}
+                  destination={{
+                    name: liveTelemetry?.destination || liveTrackingRide.destination,
+                    address: liveTelemetry?.endLocation?.address || liveTrackingRide.destination,
+                    latitude: liveTelemetry?.endLocation?.latitude || 12.8988,
+                    longitude: liveTelemetry?.endLocation?.longitude || 80.2284,
+                  }}
+                  stops={liveTrackingRide.stops?.map((s: any) => ({
+                    name: s.name,
+                    price: s.price,
+                    latitude: s.latitude || 12.95,
+                    longitude: s.longitude || 80.18,
+                  }))}
+                  driverLocation={liveTelemetry?.currentLocation}
+                  driverName={liveTrackingRide.driver?.name || "Driver"}
+                  driverVehicleType={liveTrackingRide.vehicleType || "Car"}
+                  panToDriver={Boolean(liveTelemetry?.currentLocation)}
+                  distanceText={
+                    liveEtaResult?.remainingDistanceKm
+                      ? `${liveEtaResult.remainingDistanceKm} km`
+                      : liveTelemetry?.distanceKm
+                      ? `${liveTelemetry.distanceKm} km`
+                      : undefined
+                  }
+                  durationText={
+                    liveEtaResult?.formattedDuration ||
+                    (liveTelemetry?.durationMinutes ? `${liveTelemetry.durationMinutes} mins` : undefined)
+                  }
+                  trafficLevel={liveEtaResult?.trafficLevel}
+                  height="450px"
+                  showStats={true}
+                />
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsLiveTrackingModalOpen(false)}
+                  className="rounded-xl text-xs font-semibold px-4"
+                >
+                  Close Live Tracker
+                </Button>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>

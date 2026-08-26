@@ -899,9 +899,10 @@ export default function MyRidesPage() {
 
                       <div className="flex items-center gap-2 text-xs">
                         {isLive && isAccepted ? (
-                          <Badge className="bg-emerald-600 text-white font-bold text-xs gap-1.5">
-                            <Radio className="h-3 w-3 animate-ping" /> Driver is on the way
-                          </Badge>
+                          <span className="whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-600 text-white shadow-xs animate-pulse">
+                            <span className="h-2 w-2 rounded-full bg-white animate-ping" />
+                            Driver is on the way (Live)
+                          </span>
                         ) : (
                           <Badge
                             className={`text-[10px] font-bold ${
