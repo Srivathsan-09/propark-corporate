@@ -78,21 +78,18 @@ export default function LeafletRouteMap({
 
     const map = L.map(mapContainerRef.current, {
       center: [initialLat, initialLng],
-      zoom: 12,
+      zoom: 13.5,
       zoomControl: true,
       attributionControl: false,
     });
 
-    // Esri ArcGIS World Street Map (Ultra-reliable global vector tiles on Akamai CDN, zero 403/404 errors)
-    const esriTileLayer = L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-      {
-        maxZoom: 19,
-        attribution: "&copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap",
-      }
-    );
+    // High-density OpenStreetMap Standard Tiles (Full place names, neighborhoods, roads & landmarks)
+    const osmTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors",
+    });
 
-    const cartoFallbackLayer = L.tileLayer(
+    const cartoTileLayer = L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
       {
         maxZoom: 19,
@@ -101,11 +98,11 @@ export default function LeafletRouteMap({
       }
     );
 
-    esriTileLayer.addTo(map);
+    osmTileLayer.addTo(map);
 
-    esriTileLayer.on("tileerror", () => {
-      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(cartoFallbackLayer)) {
-        cartoFallbackLayer.addTo(mapInstanceRef.current);
+    osmTileLayer.on("tileerror", () => {
+      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(cartoTileLayer)) {
+        cartoTileLayer.addTo(mapInstanceRef.current);
       }
     });
 
@@ -379,8 +376,8 @@ export default function LeafletRouteMap({
       try {
         const bounds = L.latLngBounds(boundsPoints);
         map.fitBounds(bounds, {
-          padding: [45, 45],
-          maxZoom: 15,
+          padding: [35, 35],
+          maxZoom: 14.5,
           animate: false,
         });
       } catch (err) {
