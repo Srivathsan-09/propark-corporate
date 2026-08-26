@@ -8,8 +8,6 @@ import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
 import RideRequest from "@/models/RideRequest";
 import User from "@/models/User";
-import Campus from "@/models/Campus";
-import Company from "@/models/Company";
 import Vehicle from "@/models/Vehicle";
 import { workerPool } from "./WorkerPool";
 import { loadBalancer } from "./LoadBalancer";
@@ -72,7 +70,8 @@ class LoadTestRunnerService {
       });
     }
 
-    // Create unique Ride for this load test run (totalSeats must be >= 1 for schema validation)
+    // Create unique Ride for this load test run
+    // Note: Mongoose schema requires totalSeats >= 1
     const testRide = await Ride.create({
       driver: dummyDriver._id,
       vehicle: dummyVehicle._id,
@@ -83,7 +82,7 @@ class LoadTestRunnerService {
       departureDate: new Date().toISOString().split("T")[0],
       departureTime: "06:00 PM",
       totalSeats: Math.max(1, totalSeats),
-      availableSeats: totalSeats,
+      availableSeats: Math.max(0, totalSeats),
       basePrice: 50,
       stops: [{ name: "Iyyappanthangal", price: 30 }],
       status: "scheduled",
@@ -92,56 +91,64 @@ class LoadTestRunnerService {
 
     log(`Created Test Ride ID: ${testRide._id} with ${totalSeats} available seats`);
 
-    // Create 100 distinct test passenger accounts if not existing
-    const requiredPassengersCount = Math.max(100, concurrentUsers);
-    let passengers: any[] = await User.find({ email: { $regex: "^passenger\\.lt" } });
+    // Prepare 100 100% DISTINCT passenger accounts in memory & DB
+    const targetPassengerCount = Math.max(100, concurrentUsers);
+    const passengers: any[] = [];
 
-    if (passengers.length < requiredPassengersCount) {
-      const needed = requiredPassengersCount - passengers.length;
-      const startIdx = passengers.length + 1;
-      const newPassengerObjs = Array.from({ length: needed }).map((_, idx) => ({
-        name: `Passenger LT ${startIdx + idx}`,
-        email: `passenger.lt${startIdx + idx}@corporate.com`,
-        employeeId: `EMP-PASS-${startIdx + idx}`,
-        companyName: "Tech Mahindra",
-        department: "IT",
-        campusId: testCampusId,
-        role: "employee",
-        isApproved: true,
-        verificationStatus: "approved",
-      }));
-      await User.insertMany(newPassengerObjs);
-      passengers = await User.find({ email: { $regex: "^passenger\\.lt" } });
+    for (let i = 1; i <= targetPassengerCount; i++) {
+      const email = `passenger.lt${i}@corporate.com`;
+      let user = await User.findOne({ email });
+      if (!user) {
+        user = await User.create({
+          name: `Passenger LT ${i}`,
+          email,
+          employeeId: `EMP-PASS-${i}`,
+          companyName: "Tech Mahindra",
+          department: "IT",
+          campusId: testCampusId,
+          role: "employee",
+          isApproved: true,
+          verificationStatus: "approved",
+        });
+      }
+      passengers.push(user);
     }
 
-    log(`Prepared ${passengers.length} authenticated employee accounts in Campus "${testCampusId}"`);
+    log(`Prepared ${passengers.length} distinct authenticated employee accounts in Campus "${testCampusId}"`);
 
-    // 2. DISPATCH CONCURRENT BOOKING REQUESTS SIMULTANEOUSLY (Promise.all)
-    log(`💥 Triggering ${concurrentUsers} concurrent requests simultaneously via Promise.all()...`);
+    // 2. DISPATCH CONCURRENT BOOKING REQUESTS
+    log(`💥 Triggering ${concurrentUsers} concurrent requests simultaneously...`);
 
     const idempotencyKeyForTest6 = `IDEM-SHARED-${Date.now()}`;
+    const results: any[] = [];
+    const batchSize = 25; // 4 batches of 25 to prevent MongoDB Atlas TLS socket drops
 
-    const requestPromises = Array.from({ length: concurrentUsers }).map((_, idx) => {
-      const passenger = testIdempotency ? passengers[0] : passengers[idx % passengers.length];
-      const idempotencyKey = testIdempotency
-        ? idempotencyKeyForTest6
-        : `IDEM-${testRide._id}-${passenger._id}-${idx}`;
+    for (let b = 0; b < concurrentUsers; b += batchSize) {
+      const currentBatchCount = Math.min(batchSize, concurrentUsers - b);
+      const batchPromises = Array.from({ length: currentBatchCount }).map((_, bIdx) => {
+        const idx = b + bIdx;
+        const passenger = testIdempotency ? passengers[0] : passengers[idx];
+        const idempotencyKey = testIdempotency
+          ? idempotencyKeyForTest6
+          : `IDEM-${testRide._id}-${passenger._id}-${idx}`;
 
-      return workerPool.processRequest(testRide._id.toString(), {
-        userId: passenger._id.toString(),
-        userName: passenger.name,
-        userEmail: passenger.email,
-        userCampusId: passenger.campusId || testCampusId,
-        pickupStop: "Iyyappanthangal",
-        dropStop: "Karayanchavadi",
-        seatsRequested: 1,
-        fare: 30,
-        notes: `Load test request #${idx + 1}`,
-        idempotencyKey,
+        return workerPool.processRequest(testRide._id.toString(), {
+          userId: passenger._id.toString(),
+          userName: passenger.name,
+          userEmail: passenger.email,
+          userCampusId: passenger.campusId || testCampusId,
+          pickupStop: "Iyyappanthangal",
+          dropStop: "Karayanchavadi",
+          seatsRequested: 1,
+          fare: 30,
+          notes: `Load test request #${idx + 1}`,
+          idempotencyKey,
+        });
       });
-    });
 
-    const results = await Promise.all(requestPromises);
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
+    }
 
     // 3. FETCH FINAL DB STATE TO VERIFY ATOMIC INTEGRITY
     const finalRideDoc = await Ride.findById(testRide._id);
