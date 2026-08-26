@@ -116,7 +116,7 @@ export default function LeafletRouteMap({
     // Attach ResizeObserver so the map tile canvas NEVER turns white on layout/state changes
     const resizeObserver = new ResizeObserver(() => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.invalidateSize();
+        mapInstanceRef.current.invalidateSize({ animate: false });
       }
     });
 
@@ -124,7 +124,22 @@ export default function LeafletRouteMap({
       resizeObserver.observe(mapContainerRef.current);
     }
 
+    // Force Leaflet to recalculate container bounds after Next.js CSR mount
+    const timer1 = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize({ animate: false });
+      }
+    }, 100);
+
+    const timer2 = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize({ animate: false });
+      }
+    }, 350);
+
     return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
       resizeObserver.disconnect();
       map.remove();
       mapInstanceRef.current = null;
@@ -386,24 +401,8 @@ export default function LeafletRouteMap({
       <div
         ref={mapContainerRef}
         style={{ height, width: "100%", background: "#e2e8f0" }}
-        className={`z-0 ${isClickPicking ? "cursor-crosshair" : ""}`}
+        className="z-0 cursor-pointer"
       />
-
-      {/* Floating Click-to-Pick Banner */}
-      {isClickPicking && (
-        <div className="absolute top-3 left-3 right-3 z-10 bg-slate-900/90 backdrop-blur-xs text-white text-xs py-2 px-3 rounded-xl shadow-lg flex items-center justify-between animate-in fade-in-50">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-emerald-400 animate-bounce" />
-            <span className="font-semibold">{clickPickLabel}</span>
-          </div>
-          {isReverseGeocoding && (
-            <div className="flex items-center gap-1 text-emerald-300 text-[11px] font-medium">
-              <CarLoader size="inline" showRoad={false} className="w-8 h-4 scale-75 origin-right" />
-              <span>Fetching address...</span>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Floating Route Distance & ETA Badge */}
       {showStats && (distanceText || durationText) && (

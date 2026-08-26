@@ -79,9 +79,6 @@ export default function OfferRidePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // Map Click Picking Mode
-  const [mapPickingTarget, setMapPickingTarget] = useState<"origin" | "destination" | "newStop" | null>(null);
-
   // Time-of-day smart default (Morning Pickup vs Evening Drop)
   const currentHour = new Date().getHours();
   const defaultIsMorning = currentHour < 13;
@@ -351,46 +348,51 @@ export default function OfferRidePage() {
   const handleMapClick = async (loc: { address: string; latitude: number; longitude: number }) => {
     const short = loc.address.split(",")[0].trim();
 
-    if (mapPickingTarget === "origin") {
+    // 1. Set Starting Origin if unselected
+    if (!formData.startingLocation || !startPoint.latitude || startPoint.latitude === 0) {
       setFormData((prev) => ({ ...prev, startingLocation: short }));
       setStartPoint({ name: short, address: loc.address, latitude: loc.latitude, longitude: loc.longitude });
-      setMapPickingTarget(null);
-    } else if (mapPickingTarget === "destination") {
+      setSuccessMessage(`Set Starting Origin to "${short}" from map click.`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+      return;
+    }
+
+    // 2. Set Destination if unselected
+    if (!formData.destination || !endPoint.latitude || endPoint.latitude === 0) {
       setFormData((prev) => ({ ...prev, destination: short }));
       setEndPoint({ name: short, address: loc.address, latitude: loc.latitude, longitude: loc.longitude });
-      setMapPickingTarget(null);
-    } else {
-      // Map click for adding stop (when picking target is "newStop" or direct map click)
-      const { validateStopCorridor } = await import("@/lib/services/routeCorridor");
-      const validation = validateStopCorridor(
-        { latitude: loc.latitude, longitude: loc.longitude, name: short },
-        startPoint,
-        endPoint,
-        routeResult?.coordinates || []
-      );
-
-      if (!validation.isValid) {
-        setErrorMessage(validation.reason || "Clicked location is outside your commute corridor.");
-        return;
-      }
-
-      setErrorMessage(null);
-      setStops((prev) => [
-        ...prev,
-        {
-          name: short,
-          address: loc.address,
-          latitude: loc.latitude,
-          longitude: loc.longitude,
-          price: 100,
-        },
-      ]);
-      setSuccessMessage(`Added stop "${short}" directly from map click!`);
+      setSuccessMessage(`Set Destination to "${short}" from map click.`);
       setTimeout(() => setSuccessMessage(null), 3000);
-      if (mapPickingTarget === "newStop") {
-        setMapPickingTarget(null);
-      }
+      return;
     }
+
+    // 3. Both Origin and Destination set: Map click adds intermediate stop along corridor
+    const { validateStopCorridor } = await import("@/lib/services/routeCorridor");
+    const validation = validateStopCorridor(
+      { latitude: loc.latitude, longitude: loc.longitude, name: short },
+      startPoint,
+      endPoint,
+      routeResult?.coordinates || []
+    );
+
+    if (!validation.isValid) {
+      setErrorMessage(validation.reason || "Clicked location is outside your commute corridor.");
+      return;
+    }
+
+    setErrorMessage(null);
+    setStops((prev) => [
+      ...prev,
+      {
+        name: short,
+        address: loc.address,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        price: 100,
+      },
+    ]);
+    setSuccessMessage(`Added stop "${short}" from map click!`);
+    setTimeout(() => setSuccessMessage(null), 3000);
   };
 
   const handleAddStop = async () => {
@@ -715,11 +717,16 @@ export default function OfferRidePage() {
           <div className="order-1 lg:order-2 lg:col-span-5 space-y-4">
             <Card className="border-slate-200 shadow-sm bg-white rounded-2xl overflow-hidden">
               <CardHeader className="pb-3 pt-4 px-4 border-b border-slate-100 flex flex-row items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Route className="h-4 w-4 text-emerald-600" />
-                  <CardTitle className="text-sm font-bold text-slate-900">
-                    Interactive Route Map
-                  </CardTitle>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Route className="h-4 w-4 text-emerald-600" />
+                    <CardTitle className="text-sm font-bold text-slate-900">
+                      Interactive Route Map
+                    </CardTitle>
+                  </div>
+                  <CardDescription className="text-[11px] text-slate-500 mt-0.5">
+                    Tap anywhere on map with hand cursor to set origin, destination, or add route stops
+                  </CardDescription>
                 </div>
                 {isCalculating && (
                   <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 font-medium">
@@ -746,14 +753,6 @@ export default function OfferRidePage() {
                   distanceText={routeResult?.formattedDistance}
                   durationText={routeResult?.formattedDuration}
                   onMapClick={handleMapClick}
-                  isClickPicking={Boolean(mapPickingTarget)}
-                  clickPickLabel={`Click anywhere on map to set ${
-                    mapPickingTarget === "origin"
-                      ? "Starting Origin"
-                      : mapPickingTarget === "destination"
-                      ? "Campus Destination"
-                      : "New Stop"
-                  }`}
                   height="340px"
                 />
               </CardContent>
@@ -848,22 +847,10 @@ export default function OfferRidePage() {
                         <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0 ring-2 ring-emerald-200" />
                         <span>Starting Location (Origin)</span>
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setMapPickingTarget(mapPickingTarget === "origin" ? null : "origin")}
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 ${
-                          mapPickingTarget === "origin"
-                            ? "bg-emerald-600 text-white"
-                            : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                        }`}
-                      >
-                        <MapPin className="h-3 w-3" />
-                        {mapPickingTarget === "origin" ? "Cancel Pick" : "Pick on Map"}
-                      </button>
                     </div>
                     <LocationSearchInput
                       id="startingLocation"
-                      placeholder="Search starting origin or pick on map"
+                      placeholder="Search starting origin or tap location on map"
                       value={formData.startingLocation}
                       showCurrentLocation={false}
                       onChange={async (loc) => {
@@ -914,22 +901,10 @@ export default function OfferRidePage() {
                         <div className="h-2.5 w-2.5 rounded-full bg-blue-500 shrink-0 ring-2 ring-blue-200" />
                         <span>Destination</span>
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setMapPickingTarget(mapPickingTarget === "destination" ? null : "destination")}
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 ${
-                          mapPickingTarget === "destination"
-                            ? "bg-blue-600 text-white"
-                            : "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                        }`}
-                      >
-                        <MapPin className="h-3 w-3" />
-                        {mapPickingTarget === "destination" ? "Cancel Pick" : "Pick on Map"}
-                      </button>
                     </div>
                     <LocationSearchInput
                       id="destination"
-                      placeholder="Search destination or pick on map"
+                      placeholder="Search destination or tap location on map"
                       value={formData.destination}
                       showCurrentLocation={false}
                       onChange={async (loc) => {
@@ -1048,18 +1023,6 @@ export default function OfferRidePage() {
                     >
                       + Add
                     </Button>
-                    <button
-                      type="button"
-                      onClick={() => setMapPickingTarget(mapPickingTarget === "newStop" ? null : "newStop")}
-                      className={`p-2 rounded-xl transition-colors shrink-0 h-9 w-9 flex items-center justify-center border ${
-                        mapPickingTarget === "newStop"
-                          ? "bg-emerald-700 text-white border-emerald-700"
-                          : "bg-white text-slate-500 hover:bg-slate-100 border-slate-200"
-                      }`}
-                      title="Pin stop on map"
-                    >
-                      <Crosshair className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
 
