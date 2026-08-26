@@ -92,17 +92,16 @@ class LoadTestRunnerService {
 
     log(`Created Test Ride ID: ${testRide._id} with ${totalSeats} seats`);
 
-    // Create 100 test passenger accounts if not existing
-    const passengers: any[] = [];
-    const passengerDocs = await User.find({ email: { $regex: "passenger.lt" } }).limit(concurrentUsers);
-    passengers.push(...passengerDocs);
+    // Create distinct test passenger accounts if not existing
+    let passengers: any[] = await User.find({ email: { $regex: "^passenger\\.lt" } });
 
     if (passengers.length < concurrentUsers) {
       const needed = concurrentUsers - passengers.length;
+      const startIdx = passengers.length + 1;
       const newPassengerObjs = Array.from({ length: needed }).map((_, idx) => ({
-        name: `Passenger LT ${passengers.length + idx + 1}`,
-        email: `passenger.lt${passengers.length + idx + 1}@corporate.com`,
-        employeeId: `EMP-PASS-${passengers.length + idx + 1}`,
+        name: `Passenger LT ${startIdx + idx}`,
+        email: `passenger.lt${startIdx + idx}@corporate.com`,
+        employeeId: `EMP-PASS-${startIdx + idx}`,
         companyName: "Tech Mahindra",
         department: "IT",
         campusId: testCampusId,
@@ -110,8 +109,8 @@ class LoadTestRunnerService {
         isApproved: true,
         verificationStatus: "approved",
       }));
-      const created = await User.insertMany(newPassengerObjs);
-      passengers.push(...created);
+      await User.insertMany(newPassengerObjs);
+      passengers = await User.find({ email: { $regex: "^passenger\\.lt" } });
     }
 
     log(`Prepared ${passengers.length} authenticated employee accounts in Campus "${testCampusId}"`);
@@ -122,7 +121,7 @@ class LoadTestRunnerService {
     const idempotencyKeyForTest6 = `IDEM-SHARED-${Date.now()}`;
 
     const requestPromises = Array.from({ length: concurrentUsers }).map((_, idx) => {
-      const passenger = passengers[idx % passengers.length];
+      const passenger = testIdempotency ? passengers[0] : passengers[idx % passengers.length];
       const idempotencyKey = testIdempotency
         ? idempotencyKeyForTest6
         : `IDEM-${testRide._id}-${passenger._id}-${idx}`;
