@@ -882,8 +882,17 @@ export default function MyRidesPage() {
                         </div>
                         <CardDescription className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-1.5">
                           <span>
-                            Driver: <strong>{ride.driver?.name || "Colleague"}</strong> ({ride.driver?.companyName || "Tech Mahindra"}) • Plate: {ride.vehicle?.registrationNumber || "Campus Vehicle"}
+                            Driver: <strong>{ride.driver?.name || "Colleague"}</strong> ({ride.driver?.companyName || "Tech Mahindra"})
                           </span>
+                          {ride.driver?.phone && (
+                            <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                              <Phone className="h-3 w-3 text-emerald-600 shrink-0" />
+                              <a href={`tel:${ride.driver.phone}`} className="hover:underline hover:text-emerald-800">
+                                {ride.driver.phone}
+                              </a>
+                            </span>
+                          )}
+                          <span>• Plate: {ride.vehicle?.registrationNumber || "Campus Vehicle"}</span>
                           <button
                             type="button"
                             onClick={() => {
@@ -898,15 +907,15 @@ export default function MyRidesPage() {
                         </CardDescription>
                       </div>
 
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-xs w-full sm:w-auto">
                         {isLive && isAccepted ? (
-                          <span className="whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold bg-emerald-600 text-white shadow-xs animate-pulse">
-                            <span className="h-2 w-2 rounded-full bg-white animate-ping" />
+                          <span className="whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-extrabold bg-emerald-600 text-white shadow-xs animate-pulse text-center">
+                            <span className="h-2 w-2 rounded-full bg-white animate-ping shrink-0" />
                             Driver is on the way (Live)
                           </span>
                         ) : (
                           <Badge
-                            className={`text-[10px] font-bold ${
+                            className={`text-[10px] font-bold justify-center ${
                               isAccepted
                                 ? "bg-emerald-100 text-emerald-800 border-emerald-300"
                                 : booking.status === "pending"
@@ -925,9 +934,9 @@ export default function MyRidesPage() {
                             onClick={() => handleOpenLiveTracking(ride)}
                             className={`${
                               isLive
-                                ? "bg-emerald-600 hover:bg-emerald-700 text-white animate-bounce"
+                                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                                 : "bg-slate-900 hover:bg-slate-800 text-white"
-                            } font-bold text-xs rounded-xl shadow-xs gap-1.5 h-8`}
+                            } font-bold text-xs rounded-xl shadow-xs gap-1.5 h-8 w-full sm:w-auto`}
                           >
                             <Navigation className="h-3.5 w-3.5" />
                             {isLive ? "Track Driver Live GPS" : "View Route on Map"}

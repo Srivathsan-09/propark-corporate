@@ -647,6 +647,14 @@ export default function FindRidePage() {
                             <span className="font-semibold text-emerald-800 truncate">{ride.driver.companyName || "Tech Mahindra"}</span>
                             <span className="truncate">• {ride.driver.department}</span>
                           </div>
+                          {ride.driver.phone && (
+                            <div className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                              <Phone className="h-3 w-3 text-emerald-600 shrink-0" />
+                              <a href={`tel:${ride.driver.phone}`} className="hover:underline hover:text-emerald-800">
+                                {ride.driver.phone}
+                              </a>
+                            </div>
+                          )}
                           <button
                             type="button"
                             onClick={() => {

@@ -72,40 +72,9 @@ export async function GET(req: NextRequest) {
       .sort({ departureDate: 1, departureTime: 1 })
       .lean();
 
-    const currentUserId = session?.user?.id;
-
-    // Contact Privacy Masking: Mask personal phone and email in public search
-    const securedRides = rides.map((ride: any) => {
-      const isOwner = currentUserId && ride.driver?._id?.toString() === currentUserId;
-      if (!isOwner && ride.driver) {
-        const rawPhone = ride.driver.phone || "";
-        const rawEmail = ride.driver.email || "";
-
-        const maskedPhone = rawPhone.length > 4 
-          ? rawPhone.slice(0, 3) + " ••••• ••" + rawPhone.slice(-2)
-          : "••••••••••";
-
-        const emailParts = rawEmail.split("@");
-        const maskedEmail = emailParts.length === 2 && emailParts[0].length > 2
-          ? emailParts[0][0] + "•••••" + emailParts[0].slice(-1) + "@" + emailParts[1]
-          : "•••••@corporate.com";
-
-        return {
-          ...ride,
-          driver: {
-            ...ride.driver,
-            phone: maskedPhone,
-            email: maskedEmail,
-            isContactMasked: true,
-          },
-        };
-      }
-      return ride;
-    });
-
     return NextResponse.json({
       success: true,
-      rides: securedRides,
+      rides,
     });
   } catch (error: unknown) {
     console.error(" Rides GET API Error:", error);
