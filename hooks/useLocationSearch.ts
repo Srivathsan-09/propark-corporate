@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { geocodingService, LocationResult } from "@/lib/services/geocoding";
 
-export function useLocationSearch(initialQuery: string = "", debounceMs: number = 350) {
+export function useLocationSearch(initialQuery: string = "", debounceMs: number = 150) {
   const [query, setQuery] = useState(initialQuery);
   const [suggestions, setSuggestions] = useState<LocationResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -13,7 +13,7 @@ export function useLocationSearch(initialQuery: string = "", debounceMs: number 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const searchLocations = useCallback(async (searchQuery: string) => {
-    if (!searchQuery || searchQuery.trim().length < 2) {
+    if (!searchQuery || searchQuery.trim().length < 1) {
       setSuggestions([]);
       setIsOpen(false);
       setIsLoading(false);
@@ -43,7 +43,7 @@ export function useLocationSearch(initialQuery: string = "", debounceMs: number 
       clearTimeout(debounceTimerRef.current);
     }
 
-    if (text.trim().length < 2) {
+    if (text.trim().length < 1) {
       setSuggestions([]);
       setIsOpen(false);
       return;

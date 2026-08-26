@@ -83,17 +83,30 @@ export default function LeafletRouteMap({
       attributionControl: false,
     });
 
-    // OpenStreetMap standard tile layer
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    // High-performance CartoDB Voyager vector tiles + OpenStreetMap fallback (never rate-limited or blank)
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
       maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
+      subdomains: "abcd",
+      attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
     }).addTo(map);
 
     const markersGroup = L.layerGroup().addTo(map);
     markersLayerRef.current = markersGroup;
     mapInstanceRef.current = map;
 
+    // Attach ResizeObserver so the map tile canvas NEVER turns white on layout/state changes
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    });
+
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     return () => {
+      resizeObserver.disconnect();
       map.remove();
       mapInstanceRef.current = null;
     };
@@ -340,7 +353,14 @@ export default function LeafletRouteMap({
         console.warn("Bounds fitting warning:", err);
       }
     }
-  }, [startLocation, destination, stops, customPickupPoint, driverLocation, routeCoordinates, panToDriver]);
+
+    // Ensure map tiles redraw properly whenever picking mode or route changes
+    setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 100);
+  }, [startLocation, destination, stops, customPickupPoint, driverLocation, routeCoordinates, panToDriver, isClickPicking]);
 
   return (
     <div className={`relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm ${className}`}>
