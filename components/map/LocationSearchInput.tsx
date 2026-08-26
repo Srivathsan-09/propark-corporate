@@ -102,6 +102,22 @@ export default function LocationSearchInput({
     }
   };
 
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault(); // Prevent accidental form submission
+      if (suggestions.length > 0) {
+        handlePickSuggestion(suggestions[0]);
+      } else if (query.trim().length >= 2) {
+        // Auto-resolve fuzzy prediction on Enter
+        const { resolveFuzzyLocation } = await import("@/lib/services/routeCorridor");
+        const resolved = await resolveFuzzyLocation(query);
+        if (resolved) {
+          handlePickSuggestion(resolved);
+        }
+      }
+    }
+  };
+
   return (
     <div ref={containerRef} className="relative w-full">
       <div className="relative flex items-center">
@@ -112,6 +128,7 @@ export default function LocationSearchInput({
           type="text"
           placeholder={placeholder}
           value={query}
+          onKeyDown={handleKeyDown}
           onChange={(e) => {
             handleQueryChange(e.target.value);
             // Also notify parent of text changes

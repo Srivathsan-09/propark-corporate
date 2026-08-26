@@ -344,7 +344,11 @@ export default function LeafletRouteMap({
 
   return (
     <div className={`relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm ${className}`}>
-      <div ref={mapContainerRef} style={{ height, width: "100%" }} className="z-0" />
+      <div
+        ref={mapContainerRef}
+        style={{ height, width: "100%" }}
+        className={`z-0 ${isClickPicking ? "cursor-crosshair" : ""}`}
+      />
 
       {/* Floating Click-to-Pick Banner */}
       {isClickPicking && (

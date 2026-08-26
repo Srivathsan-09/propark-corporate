@@ -348,7 +348,7 @@ export default function OfferRidePage() {
     setEndPoint(prevStart);
   };
 
-  const handleMapClick = (loc: { address: string; latitude: number; longitude: number }) => {
+  const handleMapClick = async (loc: { address: string; latitude: number; longitude: number }) => {
     const short = loc.address.split(",")[0].trim();
 
     if (mapPickingTarget === "origin") {
@@ -359,26 +359,97 @@ export default function OfferRidePage() {
       setFormData((prev) => ({ ...prev, destination: short }));
       setEndPoint({ name: short, address: loc.address, latitude: loc.latitude, longitude: loc.longitude });
       setMapPickingTarget(null);
-    } else if (mapPickingTarget === "newStop") {
-      setNewStopName(short);
-      setNewStopAddress(loc.address);
-      setNewStopLat(loc.latitude);
-      setNewStopLng(loc.longitude);
-      setMapPickingTarget(null);
+    } else {
+      // Map click for adding stop (when picking target is "newStop" or direct map click)
+      const { validateStopCorridor } = await import("@/lib/services/routeCorridor");
+      const validation = validateStopCorridor(
+        { latitude: loc.latitude, longitude: loc.longitude, name: short },
+        startPoint,
+        endPoint,
+        routeResult?.coordinates || []
+      );
+
+      if (!validation.isValid) {
+        setErrorMessage(validation.reason || "Clicked location is outside your commute corridor.");
+        return;
+      }
+
+      setErrorMessage(null);
+      setStops((prev) => [
+        ...prev,
+        {
+          name: short,
+          address: loc.address,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          price: 100,
+        },
+      ]);
+      setSuccessMessage(`Added stop "${short}" directly from map click!`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+      if (mapPickingTarget === "newStop") {
+        setMapPickingTarget(null);
+      }
     }
   };
 
-  const handleAddStop = () => {
+  const handleAddStop = async () => {
     if (!newStopName.trim()) return;
 
+    setErrorMessage(null);
+    let stopName = newStopName.trim();
+    let stopAddress = newStopAddress || stopName;
+    let stopLat = newStopLat;
+    let stopLng = newStopLng;
+
+    // 1. Auto-predict / resolve coordinates if not selected via dropdown
+    if (!stopLat || !stopLng || (stopLat === 0 && stopLng === 0)) {
+      const { resolveFuzzyLocation } = await import("@/lib/services/routeCorridor");
+      const resolved = await resolveFuzzyLocation(stopName);
+      if (resolved) {
+        stopName = resolved.shortName;
+        stopAddress = resolved.displayName;
+        stopLat = resolved.latitude;
+        stopLng = resolved.longitude;
+      } else {
+        const results = await geocodingService.search(stopName, 1);
+        if (results.length > 0) {
+          stopName = results[0].shortName;
+          stopAddress = results[0].displayName;
+          stopLat = results[0].latitude;
+          stopLng = results[0].longitude;
+        }
+      }
+    }
+
+    if (!stopLat || !stopLng || (stopLat === 0 && stopLng === 0)) {
+      setErrorMessage(`Could not predict location for "${newStopName}". Please check spelling or pick on map.`);
+      return;
+    }
+
+    // 2. Validate Stop Corridor (e.g. Poonamallee -> Tambaram vs Kumbakonam)
+    const { validateStopCorridor } = await import("@/lib/services/routeCorridor");
+    const validation = validateStopCorridor(
+      { latitude: stopLat, longitude: stopLng, name: stopName },
+      startPoint,
+      endPoint,
+      routeResult?.coordinates || []
+    );
+
+    if (!validation.isValid) {
+      setErrorMessage(validation.reason || "Stop is outside your commute corridor.");
+      return;
+    }
+
+    // 3. Add valid stop to route
     setStops((prev) => [
       ...prev,
       {
-        name: newStopName.trim(),
-        address: newStopAddress || newStopName.trim(),
-        latitude: newStopLat || (startPoint.latitude ? startPoint.latitude + 0.01 : 12.95),
-        longitude: newStopLng || (startPoint.longitude ? startPoint.longitude + 0.01 : 80.18),
-        price: Number(newStopPrice) || 0,
+        name: stopName,
+        address: stopAddress,
+        latitude: stopLat,
+        longitude: stopLng,
+        price: Number(newStopPrice) || 100,
       },
     ]);
 
@@ -387,6 +458,7 @@ export default function OfferRidePage() {
     setNewStopLat(0);
     setNewStopLng(0);
     setNewStopPrice(100);
+    setErrorMessage(null);
   };
 
   const handleRemoveStop = (index: number) => {
@@ -794,9 +866,25 @@ export default function OfferRidePage() {
                       placeholder="Search starting origin or pick on map"
                       value={formData.startingLocation}
                       showCurrentLocation={false}
-                      onChange={(loc) => {
-                        setFormData((prev) => ({ ...prev, startingLocation: loc.address }));
-                        setStartPoint({ name: loc.address, address: loc.address, latitude: loc.latitude, longitude: loc.longitude });
+                      onChange={async (loc) => {
+                        let name = loc.address;
+                        let lat = loc.latitude;
+                        let lng = loc.longitude;
+                        setFormData((prev) => ({ ...prev, startingLocation: name }));
+
+                        if ((!lat || !lng) && name.trim().length >= 3) {
+                          const { resolveFuzzyLocation } = await import("@/lib/services/routeCorridor");
+                          const resolved = await resolveFuzzyLocation(name);
+                          if (resolved) {
+                            lat = resolved.latitude;
+                            lng = resolved.longitude;
+                            name = resolved.shortName;
+                          }
+                        }
+
+                        if (lat && lng) {
+                          setStartPoint({ name, address: loc.address, latitude: lat, longitude: lng });
+                        }
                       }}
                       hasError={Boolean(fieldErrors.startingLocation)}
                       className="h-9 text-xs bg-white"
@@ -844,9 +932,25 @@ export default function OfferRidePage() {
                       placeholder="Search destination or pick on map"
                       value={formData.destination}
                       showCurrentLocation={false}
-                      onChange={(loc) => {
-                        setFormData((prev) => ({ ...prev, destination: loc.address }));
-                        setEndPoint({ name: loc.address, address: loc.address, latitude: loc.latitude, longitude: loc.longitude });
+                      onChange={async (loc) => {
+                        let name = loc.address;
+                        let lat = loc.latitude;
+                        let lng = loc.longitude;
+                        setFormData((prev) => ({ ...prev, destination: name }));
+
+                        if ((!lat || !lng) && name.trim().length >= 3) {
+                          const { resolveFuzzyLocation } = await import("@/lib/services/routeCorridor");
+                          const resolved = await resolveFuzzyLocation(name);
+                          if (resolved) {
+                            lat = resolved.latitude;
+                            lng = resolved.longitude;
+                            name = resolved.shortName;
+                          }
+                        }
+
+                        if (lat && lng) {
+                          setEndPoint({ name, address: loc.address, latitude: lat, longitude: lng });
+                        }
                       }}
                       hasError={Boolean(fieldErrors.destination)}
                       className="h-9 text-xs bg-white"
