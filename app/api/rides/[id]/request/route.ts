@@ -64,7 +64,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (ride.status !== "scheduled") {
+    if (ride.status !== "scheduled" && ride.status !== "in_progress") {
       return NextResponse.json(
         { success: false, error: `This ride is ${ride.status} and cannot accept new bookings.` },
         { status: 400 }

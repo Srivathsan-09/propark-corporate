@@ -54,7 +54,7 @@ import {
 import { EmptyState } from "@/components/common/EmptyState";
 import { CarLoader } from "@/components/common/CarLoader";
 import { EmployeeProfileModal } from "@/components/common/EmployeeProfileModal";
-import MapView, { MapPoint } from "@/components/map/MapView";
+import MapView, { MapPoint, DriverLivePoint } from "@/components/map/MapView";
 import LocationSearchInput from "@/components/map/LocationSearchInput";
 import { geocodingService } from "@/lib/services/geocoding";
 import { getInitials } from "@/lib/utils";
@@ -113,6 +113,7 @@ interface IRide {
   stops: IRideStop[];
   notes?: string;
   status: string;
+  currentLocation?: DriverLivePoint | null;
   createdAt: string;
 }
 
@@ -234,6 +235,37 @@ export default function FindRidePage() {
       window.removeEventListener("focus", handleFocus);
     };
   }, [fetchRides]);
+
+  // Real-time Driver GPS Telemetry Polling (Every 3 seconds when booking modal is open)
+  useEffect(() => {
+    if (!isBookingModalOpen || !selectedRide?._id) return;
+
+    const pollDriverLocation = async () => {
+      try {
+        const res = await fetch(`/api/rides/${selectedRide._id}/location`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setSelectedRide((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    currentLocation: data.currentLocation || prev.currentLocation,
+                    status: data.status || prev.status,
+                  }
+                : null
+            );
+          }
+        }
+      } catch (err) {
+        console.warn("Polling driver location error:", err);
+      }
+    };
+
+    pollDriverLocation();
+    const timer = setInterval(pollDriverLocation, 3000);
+    return () => clearInterval(timer);
+  }, [isBookingModalOpen, selectedRide?._id]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -566,6 +598,11 @@ export default function FindRidePage() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                      {ride.status === "in_progress" && (
+                        <Badge className="bg-emerald-600 text-white font-bold text-[10px] animate-pulse flex items-center gap-1">
+                          <Navigation2 className="h-3 w-3 animate-spin" /> En-Route (Live)
+                        </Badge>
+                      )}
                       {isPickup ? (
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
                           Pickup
@@ -763,6 +800,17 @@ export default function FindRidePage() {
               </DialogHeader>
 
               <div className="space-y-4 py-3 text-xs">
+                {/* En-Route Live Status Alert */}
+                {selectedRide.status === "in_progress" && (
+                  <div className="p-3 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-medium flex items-start gap-2.5 shadow-2xs animate-in fade-in-50">
+                    <Navigation2 className="h-4 w-4 text-emerald-600 animate-spin shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="font-bold text-emerald-950 block">Driver is En-Route & Traveling Live!</strong>
+                      <span>The car icon on the map below is broadcasting the driver&apos;s real-time position. You can still select any upcoming stop and request a seat while the driver is traveling.</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Embedded Interactive Route Map */}
                 <div className="rounded-xl overflow-hidden border border-slate-200">
                   <MapView
@@ -785,6 +833,7 @@ export default function FindRidePage() {
                       longitude: s.longitude || 80.18,
                       price: s.price,
                     }))}
+                    driverLocation={selectedRide.currentLocation || null}
                     customPickupPoint={
                       isCustomStopMode && customStopLat && customStopLng
                         ? {

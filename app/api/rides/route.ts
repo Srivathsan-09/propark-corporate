@@ -26,7 +26,8 @@ export async function GET(req: NextRequest) {
     const campusIdParam = searchParams.get("campusId");
 
     const query: Record<string, any> = {
-      status: "scheduled",
+      status: { $in: ["scheduled", "in_progress"] },
+      availableSeats: { $gt: 0 },
     };
 
     // Scoped by physical campus (Campus Isolation)
