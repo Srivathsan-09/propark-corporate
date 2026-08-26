@@ -29,6 +29,7 @@ export interface RouteResult {
  */
 class RoutingService {
   private baseUrl = "https://router.project-osrm.org/route/v1/driving";
+  private routeCache = new Map<string, RouteResult>();
 
   /**
    * Calculate driving route with traffic-aware duration, delay analysis, and route geometry
@@ -50,6 +51,17 @@ class RoutingService {
     );
 
     if (validPoints.length < 2) return null;
+
+    const cacheKey =
+      validPoints.map((p) => `${p.latitude.toFixed(4)},${p.longitude.toFixed(4)}`).join(";") +
+      "_" +
+      (departureDateOrTime || "") +
+      "_" +
+      (driverCurrentLocation ? `${driverCurrentLocation.latitude.toFixed(4)},${driverCurrentLocation.longitude.toFixed(4)}` : "");
+
+    if (this.routeCache.has(cacheKey)) {
+      return this.routeCache.get(cacheKey)!;
+    }
 
     try {
       // OSRM coordinates format: {lon},{lat};{lon},{lat}...
@@ -101,7 +113,7 @@ class RoutingService {
         formattedEtaTime = remaining.formattedEtaTime;
       }
 
-      return {
+      const result: RouteResult = {
         coordinates: coordinates.length > 0 ? coordinates : this.createStraightLines(validPoints),
         distanceKm,
         baseDurationMinutes,
@@ -117,6 +129,9 @@ class RoutingService {
         remainingDurationMinutes,
         formattedEtaTime,
       };
+
+      this.routeCache.set(cacheKey, result);
+      return result;
     } catch (error) {
       console.warn("OSRM routing service failed, falling back to direct line:", error);
       return this.createFallbackRoute(validPoints, departureDateOrTime, driverCurrentLocation);

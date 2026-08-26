@@ -29,6 +29,8 @@ import {
   Check,
   RefreshCw,
   User,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,7 +139,7 @@ export default function FindRidePage() {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedPickupStop, setSelectedPickupStop] = useState<string>("");
   const [selectedFare, setSelectedFare] = useState<number>(100);
-  const [seatsRequested, setSeatsRequested] = useState<number>(1);
+  const [seatsRequested, setSeatsRequested] = useState<number | "">(1);
   const [passengerNotes, setPassengerNotes] = useState<string>("");
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [bookingSuccessMsg, setBookingSuccessMsg] = useState<string | null>(null);
@@ -394,14 +396,16 @@ export default function FindRidePage() {
 
       const pickupName = isCustomStopMode ? `Custom Stop: ${requestedLocation}` : selectedPickupStop;
 
+      const actualSeats = typeof seatsRequested === "number" ? Math.max(1, seatsRequested) : 1;
+
       const res = await fetch(`/api/rides/${selectedRide._id}/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pickupStop: pickupName,
           dropStop: selectedRide.destination,
-          seatsRequested,
-          fare: selectedFare * seatsRequested,
+          seatsRequested: actualSeats,
+          fare: selectedFare * actualSeats,
           notes: `${passengerNotes.trim()}${
             isCustomStopMode && customStopAddress ? ` [Requested Map Pin: ${customStopAddress}]` : ""
           }`,
@@ -1080,19 +1084,60 @@ export default function FindRidePage() {
                         Max: {selectedRide.availableSeats}
                       </span>
                     </div>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={selectedRide.availableSeats}
-                      value={Math.min(seatsRequested, selectedRide.availableSeats)}
-                      onChange={(e) =>
-                        setSeatsRequested(
-                          Math.min(parseInt(e.target.value) || 1, selectedRide.availableSeats)
-                        )
-                      }
-                      className="rounded-xl text-xs"
-                      required
-                    />
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        disabled={(typeof seatsRequested === "number" ? seatsRequested : 1) <= 1}
+                        onClick={() =>
+                          setSeatsRequested((prev) =>
+                            Math.max(1, (typeof prev === "number" ? prev : 1) - 1)
+                          )
+                        }
+                        className="h-9 w-9 shrink-0 rounded-xl border-slate-200 hover:bg-slate-100"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </Button>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={selectedRide.availableSeats}
+                        value={seatsRequested}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "") {
+                            setSeatsRequested("");
+                            return;
+                          }
+                          const parsed = parseInt(val, 10);
+                          if (!isNaN(parsed)) {
+                            setSeatsRequested(Math.max(1, Math.min(parsed, selectedRide.availableSeats)));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (seatsRequested === "" || seatsRequested < 1) {
+                            setSeatsRequested(1);
+                          }
+                        }}
+                        className="rounded-xl text-xs font-bold text-center h-9"
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        disabled={(typeof seatsRequested === "number" ? seatsRequested : 1) >= selectedRide.availableSeats}
+                        onClick={() =>
+                          setSeatsRequested((prev) =>
+                            Math.min(selectedRide.availableSeats, (typeof prev === "number" ? prev : 1) + 1)
+                          )
+                        }
+                        className="h-9 w-9 shrink-0 rounded-xl border-slate-200 hover:bg-slate-100"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">
@@ -1100,7 +1145,7 @@ export default function FindRidePage() {
                       Estimated Total Fare
                     </Label>
                     <div className="h-9 flex items-center px-3 bg-emerald-50 rounded-xl border border-emerald-200 font-bold text-emerald-800 text-sm">
-                      ₹{selectedFare * Math.min(seatsRequested, selectedRide.availableSeats)}
+                      ₹{selectedFare * (typeof seatsRequested === "number" ? Math.min(seatsRequested, selectedRide.availableSeats) : 1)}
                     </div>
                   </div>
                 </div>

@@ -20,6 +20,10 @@ class GeocodingService {
   private defaultLat = 13.048;
   private defaultLon = 80.091;
 
+  // High-Speed In-Memory LRU Caches for zero-latency lookups
+  private searchCache = new Map<string, LocationResult[]>();
+  private reverseCache = new Map<string, LocationResult | null>();
+
   /**
    * Instant Autocomplete & Search for locations matching a query string
    * Resolves results starting from the very first letters typed (e.g. "Karaya" -> "Karayanchavadi")
@@ -27,7 +31,12 @@ class GeocodingService {
   async search(query: string, limit: number = 8): Promise<LocationResult[]> {
     if (!query || query.trim().length < 1) return [];
 
-    const cleanQuery = query.trim();
+    const cleanQuery = query.trim().toLowerCase();
+    const cacheKey = `${cleanQuery}_${limit}`;
+
+    if (this.searchCache.has(cacheKey)) {
+      return this.searchCache.get(cacheKey)!;
+    }
 
     // 1. Try Photon OSM Typeahead API (Built specifically for instant prefix search)
     try {
@@ -135,6 +144,11 @@ class GeocodingService {
    * Reverse geocode coordinates to a human-readable address
    */
   async reverse(latitude: number, longitude: number): Promise<LocationResult | null> {
+    const cacheKey = `${latitude.toFixed(4)}_${longitude.toFixed(4)}`;
+    if (this.reverseCache.has(cacheKey)) {
+      return this.reverseCache.get(cacheKey)!;
+    }
+
     // 1. Try Photon Reverse API first
     try {
       const photonUrl = `${this.photonUrl}/reverse?lat=${latitude}&lon=${longitude}`;
