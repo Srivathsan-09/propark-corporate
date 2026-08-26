@@ -54,6 +54,11 @@ class LoadTestRunnerService {
         isApproved: true,
         verificationStatus: "approved",
       });
+    } else if (!dummyDriver.isApproved || dummyDriver.campusId !== testCampusId) {
+      dummyDriver.isApproved = true;
+      dummyDriver.verificationStatus = "approved";
+      dummyDriver.campusId = testCampusId;
+      await dummyDriver.save();
     }
 
     let dummyVehicle = await Vehicle.findOne({ registrationNumber: "TN-07-LT-9999" });
@@ -91,7 +96,13 @@ class LoadTestRunnerService {
 
     log(`Created Test Ride ID: ${testRide._id} with ${totalSeats} available seats`);
 
-    // Prepare 100 100% DISTINCT passenger accounts in memory & DB
+    // Ensure all test passenger accounts in DB are approved and assigned to CAMP-LOADTEST-01
+    await User.updateMany(
+      { email: { $regex: "^passenger\\.lt" } },
+      { isApproved: true, verificationStatus: "approved", campusId: testCampusId }
+    );
+
+    // Prepare 100 100% DISTINCT approved passenger accounts in memory & DB
     const targetPassengerCount = Math.max(100, concurrentUsers);
     const passengers: any[] = [];
 
@@ -110,45 +121,43 @@ class LoadTestRunnerService {
           isApproved: true,
           verificationStatus: "approved",
         });
+      } else if (!user.isApproved || user.campusId !== testCampusId) {
+        user.isApproved = true;
+        user.verificationStatus = "approved";
+        user.campusId = testCampusId;
+        await user.save();
       }
       passengers.push(user);
     }
 
     log(`Prepared ${passengers.length} distinct authenticated employee accounts in Campus "${testCampusId}"`);
 
-    // 2. DISPATCH CONCURRENT BOOKING REQUESTS
-    log(`💥 Triggering ${concurrentUsers} concurrent requests simultaneously...`);
+    // 2. DISPATCH CONCURRENT BOOKING REQUESTS SIMULTANEOUSLY (Promise.all)
+    log(`💥 Triggering ${concurrentUsers} concurrent requests simultaneously via Promise.all()...`);
 
     const idempotencyKeyForTest6 = `IDEM-SHARED-${Date.now()}`;
-    const results: any[] = [];
-    const batchSize = 25; // 4 batches of 25 to prevent MongoDB Atlas TLS socket drops
 
-    for (let b = 0; b < concurrentUsers; b += batchSize) {
-      const currentBatchCount = Math.min(batchSize, concurrentUsers - b);
-      const batchPromises = Array.from({ length: currentBatchCount }).map((_, bIdx) => {
-        const idx = b + bIdx;
-        const passenger = testIdempotency ? passengers[0] : passengers[idx];
-        const idempotencyKey = testIdempotency
-          ? idempotencyKeyForTest6
-          : `IDEM-${testRide._id}-${passenger._id}-${idx}`;
+    const requestPromises = Array.from({ length: concurrentUsers }).map((_, idx) => {
+      const passenger = testIdempotency ? passengers[0] : passengers[idx % passengers.length];
+      const idempotencyKey = testIdempotency
+        ? idempotencyKeyForTest6
+        : `IDEM-${testRide._id}-${passenger._id}-${idx}`;
 
-        return workerPool.processRequest(testRide._id.toString(), {
-          userId: passenger._id.toString(),
-          userName: passenger.name,
-          userEmail: passenger.email,
-          userCampusId: passenger.campusId || testCampusId,
-          pickupStop: "Iyyappanthangal",
-          dropStop: "Karayanchavadi",
-          seatsRequested: 1,
-          fare: 30,
-          notes: `Load test request #${idx + 1}`,
-          idempotencyKey,
-        });
+      return workerPool.processRequest(testRide._id.toString(), {
+        userId: passenger._id.toString(),
+        userName: passenger.name,
+        userEmail: passenger.email,
+        userCampusId: passenger.campusId || testCampusId,
+        pickupStop: "Iyyappanthangal",
+        dropStop: "Karayanchavadi",
+        seatsRequested: 1,
+        fare: 30,
+        notes: `Load test request #${idx + 1}`,
+        idempotencyKey,
       });
+    });
 
-      const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults);
-    }
+    const results = await Promise.all(requestPromises);
 
     // 3. FETCH FINAL DB STATE TO VERIFY ATOMIC INTEGRITY
     const finalRideDoc = await Ride.findById(testRide._id);
