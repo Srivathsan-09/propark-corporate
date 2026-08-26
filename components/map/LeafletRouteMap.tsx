@@ -372,16 +372,19 @@ export default function LeafletRouteMap({
       map.setView([customPickupPoint.latitude, customPickupPoint.longitude], Math.max(map.getZoom(), 14), {
         animate: true,
       });
-    } else if (boundsPoints.length > 0 && !panToDriver && !isClickPicking) {
-      try {
-        const bounds = L.latLngBounds(boundsPoints);
-        map.fitBounds(bounds, {
-          padding: [35, 35],
-          maxZoom: 14.5,
-          animate: false,
-        });
-      } catch (err) {
-        console.warn("Bounds fitting warning:", err);
+    } else if (boundsPoints.length > 0 && !panToDriver && !isClickPicking && routeCoordinates.length > 0) {
+      // Only fit bounds on initial route load, do not jump view on stop taps
+      if (!mapInstanceRef.current?.hasLayer(routePolylineRef.current!)) {
+        try {
+          const bounds = L.latLngBounds(boundsPoints);
+          map.fitBounds(bounds, {
+            padding: [35, 35],
+            maxZoom: 14.5,
+            animate: false,
+          });
+        } catch (err) {
+          console.warn("Bounds fitting warning:", err);
+        }
       }
     }
 

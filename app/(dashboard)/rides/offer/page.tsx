@@ -266,42 +266,42 @@ export default function OfferRidePage() {
   const selectedVehicle = vehicles.find((v) => v._id === formData.vehicleId);
 
   // Recalculate OSRM Route whenever start, destination, or stops change
+  // Calculate main commute route between Origin & Destination (single OSRM fetch)
   useEffect(() => {
-    const waypoints: MapPoint[] = [];
-
-    if (startPoint && startPoint.latitude && startPoint.longitude) {
-      waypoints.push(startPoint);
+    if (
+      startPoint &&
+      endPoint &&
+      startPoint.latitude &&
+      endPoint.latitude &&
+      startPoint.latitude !== 0 &&
+      endPoint.latitude !== 0
+    ) {
+      calculateRoute([
+        { latitude: startPoint.latitude, longitude: startPoint.longitude, name: startPoint.name },
+        { latitude: endPoint.latitude, longitude: endPoint.longitude, name: endPoint.name },
+      ]);
     }
+  }, [
+    startPoint.latitude,
+    startPoint.longitude,
+    endPoint.latitude,
+    endPoint.longitude,
+    calculateRoute,
+  ]);
 
-    stops.forEach((s) => {
-      if (s.latitude && s.longitude) {
-        waypoints.push({
-          name: s.name,
-          address: s.address,
-          latitude: s.latitude,
-          longitude: s.longitude,
-          price: s.price,
-        });
-      }
-    });
-
-    if (endPoint && endPoint.latitude && endPoint.longitude) {
-      waypoints.push(endPoint);
-    }
-
-    if (waypoints.length >= 2) {
-      calculateRoute(waypoints);
-    }
-  }, [startPoint, endPoint, stops, calculateRoute]);
-
-  // Auto-sort stops chronologically along travel direction whenever route coordinates update
+  // Auto-sort stops chronologically along travel direction in memory (zero network lag)
   useEffect(() => {
-    if (routeResult?.coordinates && routeResult.coordinates.length > 0 && stops.length > 1) {
+    if (routeResult?.coordinates && routeResult.coordinates.length > 1 && stops.length > 1) {
       import("@/lib/services/routeCorridor").then(({ sortStopsByRouteProgress }) => {
-        setStops((prevStops) => sortStopsByRouteProgress(prevStops, routeResult.coordinates));
+        const sorted = sortStopsByRouteProgress(stops, routeResult.coordinates);
+        const currentKeys = stops.map((s) => `${s.name}_${s.latitude}_${s.longitude}`).join("|");
+        const sortedKeys = sorted.map((s) => `${s.name}_${s.latitude}_${s.longitude}`).join("|");
+        if (currentKeys !== sortedKeys) {
+          setStops(sorted);
+        }
       });
     }
-  }, [routeResult?.coordinates]);
+  }, [routeResult?.coordinates, stops]);
 
   const handleVehicleChange = (vId: string) => {
     const v = vehicles.find((veh) => veh._id === vId);
