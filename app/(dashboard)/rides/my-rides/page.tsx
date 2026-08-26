@@ -43,6 +43,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { routingService, RouteResult } from "@/lib/services/routing";
 import { EmptyState } from "@/components/common/EmptyState";
 import { CarLoader } from "@/components/common/CarLoader";
 import { EmployeeProfileModal } from "@/components/common/EmployeeProfileModal";
@@ -466,6 +467,36 @@ export default function MyRidesPage() {
       setActionLoadingId(null);
     }
   };
+
+  const [liveEtaResult, setLiveEtaResult] = useState<RouteResult | null>(null);
+
+  // Recalculate Live Traffic-Aware ETA periodically while tracking modal is open
+  useEffect(() => {
+    if (!isLiveTrackingModalOpen || !trackingModalRide) return;
+
+    const updateLiveEta = async () => {
+      const startPt = {
+        latitude: trackingModalRide.startLocation?.latitude || 13.048,
+        longitude: trackingModalRide.startLocation?.longitude || 80.091,
+      };
+      const endPt = {
+        latitude: trackingModalRide.endLocation?.latitude || 12.8988,
+        longitude: trackingModalRide.endLocation?.longitude || 80.2284,
+      };
+      const driverLoc = liveTelemetry?.currentLocation || driverGpsPosition;
+
+      const result = await routingService.calculateRoute(
+        [startPt, endPt],
+        trackingModalRide.departureTime,
+        driverLoc ? { latitude: driverLoc.latitude, longitude: driverLoc.longitude, speed: (driverLoc as any).speed } : null
+      );
+      setLiveEtaResult(result);
+    };
+
+    updateLiveEta();
+    const interval = setInterval(updateLiveEta, 10000); // 10s periodic refresh
+    return () => clearInterval(interval);
+  }, [isLiveTrackingModalOpen, trackingModalRide, liveTelemetry, driverGpsPosition]);
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-300 max-w-6xl mx-auto">
@@ -986,6 +1017,41 @@ export default function MyRidesPage() {
                 </DialogDescription>
               </DialogHeader>
 
+              {/* Real-time Live Traffic-Aware ETA Header */}
+              <div className="bg-slate-950 text-white p-3 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs shadow-md">
+                <div className="flex items-center gap-2">
+                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <div>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Remaining Commute</span>
+                    <strong className="text-sm text-emerald-400 font-bold">
+                      {liveEtaResult?.remainingDistanceKm ?? liveTelemetry?.distanceKm ?? 0} km remaining
+                    </strong>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Live Traffic-Aware ETA</span>
+                  <strong className="text-sm text-white font-bold">
+                    {liveEtaResult?.formattedDuration || `${liveTelemetry?.durationMinutes || 20} mins`}{" "}
+                    {liveEtaResult?.formattedEtaTime ? `(${liveEtaResult.formattedEtaTime})` : ""}
+                  </strong>
+                </div>
+
+                {liveEtaResult?.trafficLevel && (
+                  <span
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                      liveEtaResult.trafficBadgeColor === "rose"
+                        ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                        : liveEtaResult.trafficBadgeColor === "amber"
+                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                        : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                    }`}
+                  >
+                    {liveEtaResult.trafficBadgeText}
+                  </span>
+                )}
+              </div>
+
               {/* Real-time Map with Moving Driver Marker */}
               <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs">
                 <MapView
@@ -1011,9 +1077,19 @@ export default function MyRidesPage() {
                   driverName={liveTelemetry?.driver?.name || "Driver"}
                   driverVehicleType={liveTelemetry?.vehicle?.vehicleType || "Car"}
                   panToDriver={Boolean(liveTelemetry?.currentLocation)}
-                  distanceText={liveTelemetry?.distanceKm ? `${liveTelemetry.distanceKm} km` : undefined}
-                  durationText={liveTelemetry?.durationMinutes ? `${liveTelemetry.durationMinutes} mins` : undefined}
-                  height="480px"
+                  distanceText={
+                    liveEtaResult?.remainingDistanceKm
+                      ? `${liveEtaResult.remainingDistanceKm} km`
+                      : liveTelemetry?.distanceKm
+                      ? `${liveTelemetry.distanceKm} km`
+                      : undefined
+                  }
+                  durationText={
+                    liveEtaResult?.formattedDuration ||
+                    (liveTelemetry?.durationMinutes ? `${liveTelemetry.durationMinutes} mins` : undefined)
+                  }
+                  trafficLevel={liveEtaResult?.trafficLevel}
+                  height="450px"
                   showStats={true}
                 />
               </div>

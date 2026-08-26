@@ -19,6 +19,7 @@ export interface MapViewProps {
   routeCoordinates?: [number, number][];
   distanceText?: string;
   durationText?: string;
+  trafficLevel?: "Light" | "Moderate" | "Heavy";
   onMapClick?: (location: { address: string; latitude: number; longitude: number }) => void;
   isClickPicking?: boolean;
   clickPickLabel?: string;

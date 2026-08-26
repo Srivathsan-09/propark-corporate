@@ -34,6 +34,7 @@ interface LeafletRouteMapProps {
   routeCoordinates?: [number, number][];
   distanceText?: string;
   durationText?: string;
+  trafficLevel?: "Light" | "Moderate" | "Heavy";
   onMapClick?: (location: { address: string; latitude: number; longitude: number }) => void;
   isClickPicking?: boolean;
   clickPickLabel?: string;
@@ -54,6 +55,7 @@ export default function LeafletRouteMap({
   routeCoordinates = [],
   distanceText,
   durationText,
+  trafficLevel,
   onMapClick,
   isClickPicking = false,
   clickPickLabel = "Click anywhere on the map to set location",
@@ -406,7 +408,7 @@ export default function LeafletRouteMap({
 
       {/* Floating Route Distance & ETA Badge */}
       {showStats && (distanceText || durationText) && (
-        <div className="absolute bottom-3 right-3 z-10 bg-white/95 backdrop-blur-xs text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-3 text-xs">
+        <div className="absolute bottom-3 right-3 z-10 bg-white/95 backdrop-blur-xs text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-2.5 text-xs">
           {distanceText && (
             <div className="flex items-center gap-1">
               <Navigation2 className="h-3.5 w-3.5 text-emerald-600" />
@@ -415,9 +417,22 @@ export default function LeafletRouteMap({
           )}
           {durationText && (
             <div className="flex items-center gap-1 border-l border-slate-200 pl-2 text-slate-600">
-              <span>Est.</span>
-              <strong className="text-emerald-700">{durationText}</strong>
+              <span>ETA</span>
+              <strong className="text-emerald-700 font-bold">{durationText}</strong>
             </div>
+          )}
+          {trafficLevel && (
+            <span
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
+                trafficLevel === "Heavy"
+                  ? "bg-rose-50 text-rose-700 border-rose-200"
+                  : trafficLevel === "Moderate"
+                  ? "bg-amber-50 text-amber-800 border-amber-200"
+                  : "bg-emerald-50 text-emerald-800 border-emerald-200"
+              }`}
+            >
+              {trafficLevel} Traffic
+            </span>
           )}
         </div>
       )}

@@ -625,17 +625,42 @@ export default function OfferRidePage() {
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">Estimated Duration:</span>
-            <span className="font-semibold text-white">
+            <span className="text-slate-400">Traffic-Aware Duration:</span>
+            <span className="font-bold text-white">
               {routeResult?.formattedDuration || "Calculating..."}
             </span>
           </div>
+
+          {routeResult?.trafficLevel && (
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400">Traffic Condition:</span>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                  routeResult.trafficBadgeColor === "rose"
+                    ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                    : routeResult.trafficBadgeColor === "amber"
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                    : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                }`}
+              >
+                {routeResult.trafficBadgeText}
+              </span>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <span className="text-slate-400">Departure:</span>
             <span className="font-semibold text-white">
               {formData.departureDate} at {formData.departureTime}
             </span>
           </div>
+
+          {routeResult?.lastUpdated && (
+            <div className="flex items-center justify-end gap-1.5 pt-1">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[10px] text-slate-400 font-mono">Updated {routeResult.lastUpdated}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-slate-400">Seats Offered:</span>
             <span className="font-bold text-emerald-400">{formData.availableSeats} Seats</span>
@@ -765,6 +790,7 @@ export default function OfferRidePage() {
                   routeCoordinates={routeResult?.coordinates || []}
                   distanceText={routeResult?.formattedDistance}
                   durationText={routeResult?.formattedDuration}
+                  trafficLevel={routeResult?.trafficLevel}
                   onMapClick={handleMapClick}
                   height="340px"
                 />

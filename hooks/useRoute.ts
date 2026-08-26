@@ -8,27 +8,34 @@ export function useRoute() {
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const calculateRoute = useCallback(async (waypoints: LatLngPoint[]): Promise<RouteResult | null> => {
-    if (!waypoints || waypoints.length < 2) {
-      setRouteResult(null);
-      return null;
-    }
+  const calculateRoute = useCallback(
+    async (
+      waypoints: LatLngPoint[],
+      departureTime?: string,
+      driverLocation?: LatLngPoint | null
+    ): Promise<RouteResult | null> => {
+      if (!waypoints || waypoints.length < 2) {
+        setRouteResult(null);
+        return null;
+      }
 
-    setIsCalculating(true);
-    setError(null);
+      setIsCalculating(true);
+      setError(null);
 
-    try {
-      const result = await routingService.calculateRoute(waypoints);
-      setRouteResult(result);
-      setIsCalculating(false);
-      return result;
-    } catch (err: any) {
-      console.warn("Route calculation failed:", err);
-      setError("Unable to compute route between selected points.");
-      setIsCalculating(false);
-      return null;
-    }
-  }, []);
+      try {
+        const result = await routingService.calculateRoute(waypoints, departureTime, driverLocation);
+        setRouteResult(result);
+        setIsCalculating(false);
+        return result;
+      } catch (err: any) {
+        console.warn("Route calculation failed:", err);
+        setError("Unable to compute route between selected points.");
+        setIsCalculating(false);
+        return null;
+      }
+    },
+    []
+  );
 
   return {
     routeResult,
