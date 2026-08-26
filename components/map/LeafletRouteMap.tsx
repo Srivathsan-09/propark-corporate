@@ -526,25 +526,15 @@ export default function LeafletRouteMap({
   };
 
   return (
-    <div
-      className={`relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm ${className}`}
-      onPointerDown={(e) => e.stopPropagation()}
-      onTouchStart={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-      onTouchMove={(e) => e.stopPropagation()}
-      onMouseMove={(e) => {
-        if (e.buttons === 1) e.stopPropagation();
-      }}
-    >
+    <div className={`relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm ${className}`}>
       <div
         ref={mapContainerRef}
         style={{
           height,
           width: "100%",
           background: "#e2e8f0",
-          touchAction: "none",
+          touchAction: "pan-x pan-y pinch-zoom",
           pointerEvents: "auto",
-          userSelect: "none",
         }}
         className="z-0 cursor-grab active:cursor-grabbing"
       />
