@@ -117,26 +117,26 @@ export default function LeafletRouteMap({
       }
     });
 
-    // High-definition Google Maps style CARTO Voyager Tiles (Vibrant place names, roads, landmarks & typography)
-    const cartoTileLayer = L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+    // Esri World Street Map - 100% Free, Zero Watermarks, Clean Google Maps Style with crisp street & place names up to zoom level 19
+    const esriStreetTileLayer = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
       {
         maxZoom: 19,
-        subdomains: "abcd",
-        attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+        attribution: "&copy; Esri, HERE, Garmin, USGS, NGA, EPA, USDA, NPS",
       }
     );
 
-    const osmTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    // OpenStreetMap HOT - Vibrant colors, full place detail, 100% free, zero watermarks
+    const osmHotTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap contributors",
     });
 
-    cartoTileLayer.addTo(map);
+    esriStreetTileLayer.addTo(map);
 
-    cartoTileLayer.on("tileerror", () => {
-      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(osmTileLayer)) {
-        osmTileLayer.addTo(mapInstanceRef.current);
+    esriStreetTileLayer.on("tileerror", () => {
+      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(osmHotTileLayer)) {
+        osmHotTileLayer.addTo(mapInstanceRef.current);
       }
     });
 
