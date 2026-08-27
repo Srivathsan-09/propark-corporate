@@ -122,6 +122,10 @@ export default function LeafletRouteMap({
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
       {
         maxZoom: 19,
+        minZoom: 2,
+        keepBuffer: 4,
+        updateWhenIdle: false,
+        updateWhenZooming: true,
         attribution: "&copy; Esri, HERE, Garmin, USGS, NGA, EPA, USDA, NPS",
       }
     );
@@ -129,6 +133,10 @@ export default function LeafletRouteMap({
     // OpenStreetMap HOT - Vibrant colors, full place detail, 100% free, zero watermarks
     const osmHotTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
       maxZoom: 19,
+      minZoom: 2,
+      keepBuffer: 4,
+      updateWhenIdle: false,
+      updateWhenZooming: true,
       attribution: "&copy; OpenStreetMap contributors",
     });
 
