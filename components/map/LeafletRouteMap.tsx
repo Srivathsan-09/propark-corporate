@@ -117,12 +117,7 @@ export default function LeafletRouteMap({
       }
     });
 
-    // High-density OpenStreetMap Standard Tiles (Full place names, neighborhoods, roads & landmarks)
-    const osmTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
-    });
-
+    // High-definition Google Maps style CARTO Voyager Tiles (Vibrant place names, roads, landmarks & typography)
     const cartoTileLayer = L.tileLayer(
       "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
       {
@@ -132,11 +127,16 @@ export default function LeafletRouteMap({
       }
     );
 
-    osmTileLayer.addTo(map);
+    const osmTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors",
+    });
 
-    osmTileLayer.on("tileerror", () => {
-      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(cartoTileLayer)) {
-        cartoTileLayer.addTo(mapInstanceRef.current);
+    cartoTileLayer.addTo(map);
+
+    cartoTileLayer.on("tileerror", () => {
+      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(osmTileLayer)) {
+        osmTileLayer.addTo(mapInstanceRef.current);
       }
     });
 
@@ -439,18 +439,18 @@ export default function LeafletRouteMap({
         routeLayerGroupRef.current = L.layerGroup().addTo(map);
       }
 
-      // Dark casing outline for maximum road visibility
+      // Crisp white casing outline for Google Maps style
       const casing = L.polyline(coords, {
-        color: "#064e3b",
-        weight: 8,
-        opacity: 0.5,
+        color: "#FFFFFF",
+        weight: 9,
+        opacity: 0.95,
         lineCap: "round",
         lineJoin: "round",
       });
 
-      // Bright Emerald Green core road line
+      // Google Maps Navigation Blue core road line
       const polyline = L.polyline(coords, {
-        color: "#10b981",
+        color: "#1A73E8",
         weight: 5,
         opacity: 1.0,
         lineCap: "round",
@@ -483,7 +483,7 @@ export default function LeafletRouteMap({
     // Auto-fit bounds or pan to custom point ONLY if user hasn't manually slid/panned the map
     if (!hasUserPannedRef.current) {
       if (customPickupPoint && customPickupPoint.latitude && customPickupPoint.longitude) {
-        map.setView([customPickupPoint.latitude, customPickupPoint.longitude], Math.max(map.getZoom(), 14), {
+        map.setView([customPickupPoint.latitude, customPickupPoint.longitude], Math.max(map.getZoom(), 14.5), {
           animate: true,
         });
         isInitialViewDoneRef.current = true;
@@ -491,8 +491,8 @@ export default function LeafletRouteMap({
         try {
           const bounds = L.latLngBounds(boundsPoints);
           map.fitBounds(bounds, {
-            padding: [35, 35],
-            maxZoom: 14.5,
+            padding: [45, 45],
+            maxZoom: 15,
             animate: false,
           });
           isInitialViewDoneRef.current = true;

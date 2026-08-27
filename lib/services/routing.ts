@@ -63,79 +63,83 @@ class RoutingService {
       return this.routeCache.get(cacheKey)!;
     }
 
-    try {
-      // OSRM coordinates format: {lon},{lat};{lon},{lat}...
-      const coordString = validPoints
-        .map((p) => `${p.longitude},${p.latitude}`)
-        .join(";");
+    const endpoints = [
+      "https://router.project-osrm.org/route/v1/driving",
+      "https://routing.openstreetmap.de/routed-car/route/v1/driving",
+    ];
 
-      const url = `${this.baseUrl}/${coordString}?overview=full&geometries=geojson&annotations=distance,duration`;
+    const coordString = validPoints.map((p) => `${p.longitude},${p.latitude}`).join(";");
 
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`OSRM HTTP status: ${res.status}`);
+    for (const endpoint of endpoints) {
+      try {
+        const url = `${endpoint}/${coordString}?overview=full&geometries=geojson&annotations=distance,duration`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        if (!res.ok) continue;
+
+        const data = await res.json();
+        if (!data.routes || data.routes.length === 0) continue;
+
+        const primaryRoute = data.routes[0];
+        const distanceMeters = primaryRoute.distance || 0;
+        const baseDurationSeconds = primaryRoute.duration || 0;
+
+        const coordinates: [number, number][] = (
+          primaryRoute.geometry?.coordinates || []
+        ).map((coord: [number, number]) => [coord[1], coord[0]]);
+
+        if (coordinates.length < 2) continue;
+
+        const distanceKm = Math.round((distanceMeters / 1000) * 10) / 10;
+        const baseDurationMinutes = Math.max(1, Math.round(baseDurationSeconds / 60));
+
+        const trafficInfo = this.evaluateTrafficConditions(
+          distanceKm,
+          baseDurationMinutes,
+          departureDateOrTime,
+          driverCurrentLocation
+        );
+
+        let remainingDistanceKm = distanceKm;
+        let remainingDurationMinutes = trafficInfo.trafficDurationMinutes;
+        let formattedEtaTime = this.calculateArrivalTime(trafficInfo.trafficDurationMinutes);
+
+        if (driverCurrentLocation && driverCurrentLocation.latitude && coordinates.length > 0) {
+          const remaining = this.calculateRemainingLiveRoute(
+            driverCurrentLocation,
+            coordinates,
+            trafficInfo.trafficMultiplier
+          );
+          remainingDistanceKm = remaining.remainingDistanceKm;
+          remainingDurationMinutes = remaining.remainingDurationMinutes;
+          formattedEtaTime = remaining.formattedEtaTime;
+        }
+
+        const result: RouteResult = {
+          coordinates,
+          distanceKm,
+          baseDurationMinutes,
+          durationMinutes: trafficInfo.trafficDurationMinutes,
+          trafficLevel: trafficInfo.trafficLevel,
+          trafficDelayMinutes: trafficInfo.trafficDelayMinutes,
+          trafficBadgeText: trafficInfo.trafficBadgeText,
+          trafficBadgeColor: trafficInfo.trafficBadgeColor,
+          formattedDistance: `${distanceKm} km`,
+          formattedDuration: this.formatDuration(trafficInfo.trafficDurationMinutes),
+          lastUpdated: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          remainingDistanceKm,
+          remainingDurationMinutes,
+          formattedEtaTime,
+        };
+
+        this.routeCache.set(cacheKey, result);
+        return result;
+      } catch (e) {
+        // Try next endpoint
       }
-
-      const data = await res.json();
-      if (!data.routes || data.routes.length === 0) {
-        return this.createFallbackRoute(validPoints, departureDateOrTime, driverCurrentLocation);
-      }
-
-      const primaryRoute = data.routes[0];
-      const distanceMeters = primaryRoute.distance || 0;
-      const baseDurationSeconds = primaryRoute.duration || 0;
-
-      // Convert geojson [lon, lat] coordinates to Leaflet [lat, lng]
-      const coordinates: [number, number][] = (
-        primaryRoute.geometry?.coordinates || []
-      ).map((coord: [number, number]) => [coord[1], coord[0]]);
-
-      const distanceKm = Math.round((distanceMeters / 1000) * 10) / 10;
-      const baseDurationMinutes = Math.max(1, Math.round(baseDurationSeconds / 60));
-
-      // Calculate Real-Time Traffic Conditions
-      const trafficInfo = this.evaluateTrafficConditions(
-        distanceKm,
-        baseDurationMinutes,
-        departureDateOrTime,
-        driverCurrentLocation
-      );
-
-      // Remaining live ETA if driver is actively traveling
-      let remainingDistanceKm = distanceKm;
-      let remainingDurationMinutes = trafficInfo.trafficDurationMinutes;
-      let formattedEtaTime = this.calculateArrivalTime(trafficInfo.trafficDurationMinutes);
-
-      if (driverCurrentLocation && driverCurrentLocation.latitude && coordinates.length > 0) {
-        const remaining = this.calculateRemainingLiveRoute(driverCurrentLocation, coordinates, trafficInfo.trafficMultiplier);
-        remainingDistanceKm = remaining.remainingDistanceKm;
-        remainingDurationMinutes = remaining.remainingDurationMinutes;
-        formattedEtaTime = remaining.formattedEtaTime;
-      }
-
-      const result: RouteResult = {
-        coordinates: coordinates.length > 0 ? coordinates : this.createStraightLines(validPoints),
-        distanceKm,
-        baseDurationMinutes,
-        durationMinutes: trafficInfo.trafficDurationMinutes,
-        trafficLevel: trafficInfo.trafficLevel,
-        trafficDelayMinutes: trafficInfo.trafficDelayMinutes,
-        trafficBadgeText: trafficInfo.trafficBadgeText,
-        trafficBadgeColor: trafficInfo.trafficBadgeColor,
-        formattedDistance: `${distanceKm} km`,
-        formattedDuration: this.formatDuration(trafficInfo.trafficDurationMinutes),
-        lastUpdated: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        remainingDistanceKm,
-        remainingDurationMinutes,
-        formattedEtaTime,
-      };
-
-      this.routeCache.set(cacheKey, result);
-      return result;
-    } catch (error) {
-      console.warn("OSRM routing service failed, falling back to direct line:", error);
-      return this.createFallbackRoute(validPoints, departureDateOrTime, driverCurrentLocation);
     }
+
+    console.warn("All OSRM routing endpoints timed out, generating road-aligned path");
+    return this.createFallbackRoute(validPoints, departureDateOrTime, driverCurrentLocation);
   }
 
   /**
