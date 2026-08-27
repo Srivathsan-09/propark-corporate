@@ -892,16 +892,7 @@ export default function FindRidePage() {
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           {selectedRide && (
             <form onSubmit={handleSubmitBooking}>
-              <DialogHeader className="pr-10 pb-1 border-b border-slate-100">
-                <DialogTitle className="text-base font-bold text-slate-900">
-                  Book Ride & Select Boarding Stop
-                </DialogTitle>
-                <DialogDescription className="text-xs text-slate-500">
-                  Review route, select your pickup point, and confirm seats
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4 py-3 text-xs">
+              <div className="space-y-4 pt-1 text-xs">
                 {/* Embedded Interactive Route Map */}
                 <div className="rounded-xl overflow-hidden border border-slate-200">
                   <MapView
@@ -1020,11 +1011,11 @@ export default function FindRidePage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={selectedRide.startingLocation}>
-                            🚩 {selectedRide.startingLocation} (Origin) — ₹{selectedRide.basePrice || 100}
+                            {selectedRide.startingLocation} (Origin) — ₹{selectedRide.basePrice || 100}
                           </SelectItem>
                           {selectedRide.stops?.map((stop, idx) => (
                             <SelectItem key={idx} value={stop.name}>
-                              📍 {stop.name} (Stop {idx + 1}) — ₹{stop.price}
+                              {stop.name} (Stop {idx + 1}) — ₹{stop.price}
                             </SelectItem>
                           ))}
                         </SelectContent>
