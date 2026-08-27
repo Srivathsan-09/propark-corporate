@@ -538,15 +538,19 @@ export default function LeafletRouteMap({
   };
 
   return (
-    <div className={`relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm ${className}`}>
+    <div
+      className={`relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm ${className}`}
+      style={{ height, minHeight: height }}
+    >
       <div
         ref={mapContainerRef}
         style={{
-          height,
           width: "100%",
-          background: "#e2e8f0",
+          height: "100%",
+          minHeight: "100%",
           touchAction: "pan-x pan-y pinch-zoom",
-          pointerEvents: "auto",
+          transform: "translate3d(0,0,0)",
+          willChange: "transform",
         }}
         className="z-0 cursor-grab active:cursor-grabbing"
       />

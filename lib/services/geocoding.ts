@@ -286,20 +286,22 @@ export function resolvePlaceCoordinates(
   existingLng?: number,
   isOrigin: boolean = true
 ): { latitude: number; longitude: number } {
+  const name = (placeName || "").toLowerCase().trim();
+
+  // 1. Locality name matching takes absolute priority over stale fallback coordinates
   if (
-    typeof existingLat === "number" &&
-    !isNaN(existingLat) &&
-    existingLat !== 0 &&
-    typeof existingLng === "number" &&
-    !isNaN(existingLng) &&
-    existingLng !== 0
+    name.includes("karayanchavadi") ||
+    name.includes("karayan") ||
+    name.includes("poonamallee") ||
+    name.includes("kumunanchavadi")
   ) {
-    return { latitude: existingLat, longitude: existingLng };
+    return { latitude: 13.048, longitude: 80.091 };
   }
 
-  const name = (placeName || "").toLowerCase();
+  if (name.includes("porur")) {
+    return { latitude: 13.0382, longitude: 80.1565 };
+  }
 
-  // Tech Park / Campus / Sholinganallur / OMR / Siruseri
   if (
     name.includes("tech park") ||
     name.includes("sholinganallur") ||
@@ -310,42 +312,53 @@ export function resolvePlaceCoordinates(
     return { latitude: 12.8988, longitude: 80.2284 };
   }
 
-  // Karayanchavadi / Poonamallee
-  if (
-    name.includes("karayanchavadi") ||
-    name.includes("karayan") ||
-    name.includes("poonamallee") ||
-    name.includes("kumunanchavadi")
-  ) {
-    return { latitude: 13.048, longitude: 80.091 };
-  }
-
-  // Porur
-  if (name.includes("porur")) {
-    return { latitude: 13.0382, longitude: 80.1565 };
-  }
-
-  // Guindy
   if (name.includes("guindy")) {
     return { latitude: 13.0067, longitude: 80.202 };
   }
 
-  // Mugalivakkam
+  if (name.includes("kattupakkam")) {
+    return { latitude: 13.0456, longitude: 80.1214 };
+  }
+
   if (name.includes("mugalivakkam")) {
     return { latitude: 13.0238, longitude: 80.1691 };
   }
 
-  // Iyyappanthangal
   if (name.includes("iyyappanthangal")) {
     return { latitude: 13.0418, longitude: 80.1417 };
   }
 
-  // Tambaram
+  if (name.includes("maduravoyal")) {
+    return { latitude: 13.0645, longitude: 80.1627 };
+  }
+
+  if (name.includes("velachery")) {
+    return { latitude: 12.9815, longitude: 80.218 };
+  }
+
+  if (name.includes("t. nagar") || name.includes("tnagar")) {
+    return { latitude: 13.0418, longitude: 80.2341 };
+  }
+
   if (name.includes("tambaram")) {
     return { latitude: 12.9249, longitude: 80.1332 };
   }
 
-  // Fallback defaults if unmapped
+  // 2. If valid coordinates are explicitly passed and placeName has no special locality mapping, return coords
+  if (
+    typeof existingLat === "number" &&
+    !isNaN(existingLat) &&
+    existingLat > 8 &&
+    existingLat < 38 &&
+    typeof existingLng === "number" &&
+    !isNaN(existingLng) &&
+    existingLng > 68 &&
+    existingLng < 98
+  ) {
+    return { latitude: existingLat, longitude: existingLng };
+  }
+
+  // 3. Fallback defaults
   return isOrigin ? { latitude: 12.8988, longitude: 80.2284 } : { latitude: 13.048, longitude: 80.091 };
 }
 
