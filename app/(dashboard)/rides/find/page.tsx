@@ -838,16 +838,19 @@ export default function FindRidePage() {
                       </div>
                     )}
 
-                    {/* Driver Contact & Privacy Masking */}
+                    {/* Driver Contact & Direct Phone Call Button */}
                     {ride.driver.phone && (
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                        <div className="flex items-center gap-1.5">
-                          <Phone className="h-3 w-3 text-slate-400" />
-                          <span>Contact: <span className="font-mono text-slate-600">{ride.driver.phone}</span></span>
+                      <div className="flex items-center justify-between text-xs bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200">
+                        <div className="flex items-center gap-2 font-bold text-slate-900">
+                          <Phone className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          <span>Driver Mobile: <span className="font-mono text-emerald-950">{ride.driver.phone}</span></span>
                         </div>
-                        <span className="text-[10px] text-purple-700 font-semibold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 flex items-center gap-1">
-                          <ShieldCheck className="h-3 w-3" /> Unlocks on Booking
-                        </span>
+                        <a
+                          href={`tel:${ride.driver.phone}`}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition-colors shrink-0"
+                        >
+                          <Phone className="h-3 w-3" /> Call Driver
+                        </a>
                       </div>
                     )}
 
