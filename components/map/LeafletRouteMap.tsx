@@ -225,11 +225,11 @@ export default function LeafletRouteMap({
 
       try {
         const rev = await geocodingService.reverse(lat, lng);
-        const address = rev?.displayName || `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`;
+        const address = rev?.displayName || rev?.shortName || "Selected Commute Stop";
         onMapClick({ address, latitude: lat, longitude: lng });
       } catch (err) {
         onMapClick({
-          address: `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+          address: "Selected Commute Stop",
           latitude: lat,
           longitude: lng,
         });
@@ -544,7 +544,7 @@ export default function LeafletRouteMap({
           width: "100%",
           height: "100%",
           minHeight: "100%",
-          touchAction: "pan-x pan-y pinch-zoom",
+          touchAction: "none",
           transform: "translate3d(0,0,0)",
           willChange: "transform",
         }}
