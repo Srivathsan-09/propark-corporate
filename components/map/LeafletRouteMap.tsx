@@ -117,21 +117,8 @@ export default function LeafletRouteMap({
       }
     });
 
-    // Esri World Street Map - 100% Free, Zero Watermarks, Clean Google Maps Style with crisp street & place names up to zoom level 19
-    const esriStreetTileLayer = L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-      {
-        maxZoom: 19,
-        minZoom: 2,
-        keepBuffer: 4,
-        updateWhenIdle: false,
-        updateWhenZooming: true,
-        attribution: "&copy; Esri, HERE, Garmin, USGS, NGA, EPA, USDA, NPS",
-      }
-    );
-
-    // OpenStreetMap HOT - Vibrant colors, full place detail, 100% free, zero watermarks
-    const osmHotTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
+    // OpenStreetMap Standard & OSM France Tiles - High-contrast bold place names, neighborhoods & area labels
+    const osmStandardTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       minZoom: 2,
       keepBuffer: 4,
@@ -140,11 +127,20 @@ export default function LeafletRouteMap({
       attribution: "&copy; OpenStreetMap contributors",
     });
 
-    esriStreetTileLayer.addTo(map);
+    const osmFranceTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      minZoom: 2,
+      keepBuffer: 4,
+      updateWhenIdle: false,
+      updateWhenZooming: true,
+      attribution: "&copy; OpenStreetMap France & contributors",
+    });
 
-    esriStreetTileLayer.on("tileerror", () => {
-      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(osmHotTileLayer)) {
-        osmHotTileLayer.addTo(mapInstanceRef.current);
+    osmStandardTileLayer.addTo(map);
+
+    osmStandardTileLayer.on("tileerror", () => {
+      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(osmFranceTileLayer)) {
+        osmFranceTileLayer.addTo(mapInstanceRef.current);
       }
     });
 
