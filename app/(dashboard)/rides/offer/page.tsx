@@ -289,6 +289,25 @@ export default function OfferRidePage() {
     calculateRoute,
   ]);
 
+  // Automatically sync Starting Location (Origin) as a Route Stop for both Pickup & Drop modes
+  useEffect(() => {
+    if (startPoint && startPoint.latitude && startPoint.latitude !== 0 && startPoint.name) {
+      const shortName = startPoint.name.split(",")[0].trim();
+      setStops((prev) => {
+        const exists = prev.some((s) => s.name === shortName || (s.latitude === startPoint.latitude && s.longitude === startPoint.longitude));
+        if (exists) return prev;
+        const originStop: IStopItem = {
+          name: shortName,
+          address: startPoint.address || startPoint.name,
+          latitude: startPoint.latitude,
+          longitude: startPoint.longitude,
+          price: 100,
+        };
+        return [originStop, ...prev];
+      });
+    }
+  }, [startPoint.name, startPoint.latitude, startPoint.longitude]);
+
   // Auto-sort stops chronologically along travel direction in memory (zero network lag)
   useEffect(() => {
     if (routeResult?.coordinates && routeResult.coordinates.length > 1 && stops.length > 1) {

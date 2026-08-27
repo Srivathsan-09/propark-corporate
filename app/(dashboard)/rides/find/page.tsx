@@ -892,22 +892,12 @@ export default function FindRidePage() {
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           {selectedRide && (
             <form onSubmit={handleSubmitBooking}>
-              <DialogHeader className="pr-10">
-                <div className="flex flex-wrap items-center justify-between gap-2 pr-2">
-                  <DialogTitle className="text-lg font-bold text-slate-900">
-                    Ride Route with {selectedRide.driver.name}
-                  </DialogTitle>
-                  <div className="flex items-center gap-1.5">
-                    <Badge className="bg-emerald-600 text-white font-bold text-xs">
-                      {selectedRide.availableSeats} of {selectedRide.totalSeats} Seats Left
-                    </Badge>
-                    <Badge className="bg-slate-900 text-white font-bold text-xs">
-                      {selectedRide.vehicleType}
-                    </Badge>
-                  </div>
-                </div>
+              <DialogHeader className="pr-10 pb-1 border-b border-slate-100">
+                <DialogTitle className="text-base font-bold text-slate-900">
+                  Book Ride & Select Boarding Stop
+                </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500">
-                  {selectedRide.driver.companyName} • {selectedRide.vehicle.vehicleModel} ({selectedRide.vehicle.registrationNumber})
+                  Review route, select your pickup point, and confirm seats
                 </DialogDescription>
               </DialogHeader>
 
