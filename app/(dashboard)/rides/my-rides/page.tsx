@@ -973,7 +973,7 @@ export default function MyRidesPage() {
                     )}
 
                     {/* Boarding Security PIN Card */}
-                    {isAccepted && booking.boardingPin && (
+                    {isAccepted && (
                       <div className="p-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-2.5">
                           <div className="p-2 bg-purple-600 text-white rounded-lg font-bold">
@@ -986,7 +986,7 @@ export default function MyRidesPage() {
                         </div>
                         <div className="flex items-center gap-2 self-end sm:self-center">
                           <div className="font-mono text-xl font-bold tracking-widest bg-white px-3.5 py-1 rounded-lg border-2 border-purple-300 text-purple-900 shadow-2xs">
-                            {booking.boardingPin}
+                            {booking.boardingPin || String(1000 + (parseInt(booking._id.slice(-4), 16) % 9000))}
                           </div>
                           {booking.isBoarded ? (
                             <Badge className="bg-emerald-600 text-white text-[10px] font-bold py-1 px-2">

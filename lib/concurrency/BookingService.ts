@@ -163,6 +163,7 @@ class BookingConcurrencyService {
             fare,
             notes: noteContent,
             status: "accepted", // High-concurrency auto-allocated booking
+            boardingPin: String(Math.floor(1000 + Math.random() * 9000)),
             responseNote: `Confirmed by CommuteX High-Concurrency Engine (${processedByNode})`,
           },
         ],

@@ -62,8 +62,24 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 })
       .lean();
 
-    const validBookedRides = rawBookedRides.filter(
-      (b) => b && b.ride && (b.ride as any).driver && (b.ride as any).vehicle
+    const validBookedRides = await Promise.all(
+      rawBookedRides
+        .filter((b) => b && b.ride && (b.ride as any).driver && (b.ride as any).vehicle)
+        .map(async (b: any) => {
+          let pin = b.boardingPin;
+          if (b.status === "accepted" && (!pin || pin.trim() === "")) {
+            const hexVal = parseInt(b._id.toString().slice(-4), 16);
+            const mathPin = Math.floor(1000 + Math.random() * 9000);
+            pin = String(!isNaN(hexVal) ? 1000 + (hexVal % 9000) : mathPin);
+            try {
+              await RideRequest.updateOne({ _id: b._id }, { $set: { boardingPin: pin } });
+            } catch (e) {}
+          }
+          return {
+            ...b,
+            boardingPin: pin || (b.status === "accepted" ? "4829" : ""),
+          };
+        })
     );
 
     return NextResponse.json({

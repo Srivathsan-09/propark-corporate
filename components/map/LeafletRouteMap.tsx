@@ -66,7 +66,7 @@ export default function LeafletRouteMap({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
-  const routePolylineRef = useRef<L.Polyline | null>(null);
+  const routeLayerGroupRef = useRef<L.LayerGroup | null>(null);
 
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [hasUserPanned, setHasUserPanned] = useState(false);
@@ -141,7 +141,9 @@ export default function LeafletRouteMap({
     });
 
     const markersGroup = L.layerGroup().addTo(map);
+    const routeGroup = L.layerGroup().addTo(map);
     markersLayerRef.current = markersGroup;
+    routeLayerGroupRef.current = routeGroup;
     mapInstanceRef.current = map;
 
     // Attach ResizeObserver so the map tile canvas NEVER turns white on layout/state changes
@@ -254,9 +256,8 @@ export default function LeafletRouteMap({
 
     markersGroup.clearLayers();
 
-    if (routePolylineRef.current) {
-      map.removeLayer(routePolylineRef.current);
-      routePolylineRef.current = null;
+    if (routeLayerGroupRef.current) {
+      routeLayerGroupRef.current.clearLayers();
     }
 
     const boundsPoints: L.LatLngExpression[] = [];
@@ -432,18 +433,20 @@ export default function LeafletRouteMap({
     // 6. Draw Polyline Route (if passed or calculate automatically from waypoints)
     const drawRoutePolyline = (coords: [number, number][]) => {
       if (!map || coords.length < 2) return;
-      if (routePolylineRef.current) {
-        map.removeLayer(routePolylineRef.current);
+      if (routeLayerGroupRef.current) {
+        routeLayerGroupRef.current.clearLayers();
+      } else {
+        routeLayerGroupRef.current = L.layerGroup().addTo(map);
       }
 
       // Dark casing outline for maximum road visibility
-      L.polyline(coords, {
+      const casing = L.polyline(coords, {
         color: "#064e3b",
-        weight: 9,
-        opacity: 0.6,
+        weight: 8,
+        opacity: 0.5,
         lineCap: "round",
         lineJoin: "round",
-      }).addTo(map);
+      });
 
       // Bright Emerald Green core road line
       const polyline = L.polyline(coords, {
@@ -452,9 +455,10 @@ export default function LeafletRouteMap({
         opacity: 1.0,
         lineCap: "round",
         lineJoin: "round",
-      }).addTo(map);
+      });
 
-      routePolylineRef.current = polyline;
+      routeLayerGroupRef.current.addLayer(casing);
+      routeLayerGroupRef.current.addLayer(polyline);
       coords.forEach((pt) => boundsPoints.push(pt));
     };
 
