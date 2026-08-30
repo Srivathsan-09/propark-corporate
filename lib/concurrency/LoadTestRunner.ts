@@ -104,28 +104,37 @@ class LoadTestRunnerService {
       { $set: { isApproved: true, verificationStatus: "approved", campusId: testCampusId } }
     );
 
-    // Prepare 100 100% DISTINCT approved passenger accounts in memory & DB
+    // Fast batch passenger preparation using bulk query and insertion
     const targetPassengerCount = Math.max(100, concurrentUsers);
-    const passengers: any[] = [];
+    const expectedEmails = Array.from({ length: targetPassengerCount }, (_, i) => `passenger.lt${i + 1}@corporate.com`);
 
+    const existingUsers = await User.find({ email: { $in: expectedEmails } });
+    const existingMap = new Map(existingUsers.map((u) => [u.email, u]));
+
+    const missingUsers = [];
     for (let i = 1; i <= targetPassengerCount; i++) {
       const email = `passenger.lt${i}@corporate.com`;
-      let user = await User.findOne({ email });
-      if (!user) {
-        user = await User.create({
+      if (!existingMap.has(email)) {
+        missingUsers.push({
           name: `Passenger LT ${i}`,
           email,
           employeeId: `EMP-PASS-${i}`,
           companyName: "Tech Mahindra",
           department: "IT",
           campusId: testCampusId,
-          role: "employee",
+          role: "employee" as const,
           isApproved: true,
-          verificationStatus: "approved",
+          verificationStatus: "approved" as const,
         });
       }
-      passengers.push(user);
     }
+
+    if (missingUsers.length > 0) {
+      const created = await User.insertMany(missingUsers);
+      created.forEach((u: any) => existingMap.set(u.email, u));
+    }
+
+    const passengers = expectedEmails.map((email) => existingMap.get(email)).filter(Boolean);
 
     log(`Prepared ${passengers.length} distinct authenticated employee accounts in Campus "${testCampusId}"`);
 
@@ -134,13 +143,13 @@ class LoadTestRunnerService {
 
     const idempotencyKeyForTest6 = `IDEM-SHARED-${Date.now()}`;
 
-    const requestPromises = Array.from({ length: concurrentUsers }).map((_, idx) => {
-      const passenger = testIdempotency ? passengers[0] : passengers[idx % passengers.length];
+    const requestPromises = Array.from({ length: concurrentUsers }).map(async (_, idx) => {
+      const passenger = (testIdempotency ? passengers[0] : passengers[idx % passengers.length]) || dummyDriver;
       const idempotencyKey = testIdempotency
         ? idempotencyKeyForTest6
         : `IDEM-${testRide._id}-${passenger._id}-${idx}`;
 
-      return workerPool.processRequest(testRide._id.toString(), {
+      const payload = {
         userId: passenger._id.toString(),
         userName: passenger.name,
         userEmail: passenger.email,
@@ -151,7 +160,15 @@ class LoadTestRunnerService {
         fare: 30,
         notes: `Load test request #${idx + 1}`,
         idempotencyKey,
-      });
+      };
+
+      try {
+        return await workerPool.processRequest(testRide._id.toString(), payload);
+      } catch (err: any) {
+        // Retry once on transient SSL socket connection pool drops
+        await new Promise((res) => setTimeout(res, 50));
+        return await workerPool.processRequest(testRide._id.toString(), payload);
+      }
     });
 
     const results = await Promise.all(requestPromises);
