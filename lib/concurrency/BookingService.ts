@@ -12,8 +12,9 @@ import Notification from "@/models/Notification";
 import { IBookingPayload, IBookingResult } from "./types";
 import { realtimeEventBus } from "./RealtimeEventBus";
 
-// In-memory idempotency cache for 0ms fast lookup + MongoDB persistence
+// In-memory idempotency cache for 0ms fast lookup + concurrent promise deduplication
 const idempotencyStore = new Map<string, IBookingResult>();
+const activeIdempotencyPromises = new Map<string, Promise<IBookingResult>>();
 
 class BookingConcurrencyService {
   /**
@@ -23,9 +24,9 @@ class BookingConcurrencyService {
     payload: IBookingPayload,
     processedByNode: string = "Server 1"
   ): Promise<IBookingResult> {
-    const { rideId, userId, pickupStop, dropStop, seatsRequested = 1, fare = 0, notes, idempotencyKey } = payload;
+    const { idempotencyKey } = payload;
 
-    // 1. IDEMPOTENCY CHECK: If idempotencyKey exists and was already processed, return existing result immediately
+    // 1. IDEMPOTENCY CHECK: Fast in-memory lookup & concurrent promise deduplication
     if (idempotencyKey) {
       const cachedResult = idempotencyStore.get(idempotencyKey);
       if (cachedResult) {
@@ -35,7 +36,38 @@ class BookingConcurrencyService {
           message: "Idempotent request returned existing booking result.",
         };
       }
+
+      const activePromise = activeIdempotencyPromises.get(idempotencyKey);
+      if (activePromise) {
+        const promiseResult = await activePromise;
+        return {
+          ...promiseResult,
+          idempotencyHit: true,
+          message: "Idempotent request returned existing booking result.",
+        };
+      }
     }
+
+    if (idempotencyKey) {
+      const executionPromise = this.performBooking(payload, processedByNode);
+      activeIdempotencyPromises.set(idempotencyKey, executionPromise);
+      try {
+        const res = await executionPromise;
+        idempotencyStore.set(idempotencyKey, res);
+        return res;
+      } finally {
+        activeIdempotencyPromises.delete(idempotencyKey);
+      }
+    } else {
+      return await this.performBooking(payload, processedByNode);
+    }
+  }
+
+  private async performBooking(
+    payload: IBookingPayload,
+    processedByNode: string
+  ): Promise<IBookingResult> {
+    const { rideId, userId, pickupStop, dropStop, seatsRequested = 1, fare = 0, notes, idempotencyKey } = payload;
 
     await connectToDatabase();
 
@@ -193,6 +225,7 @@ class BookingConcurrencyService {
    */
   public resetIdempotencyStore() {
     idempotencyStore.clear();
+    activeIdempotencyPromises.clear();
   }
 }
 
