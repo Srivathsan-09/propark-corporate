@@ -139,9 +139,14 @@ function LoginForm() {
 
       <CardContent className="space-y-4 px-6">
         {registeredMsg && (
-          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3.5 text-xs sm:text-sm text-emerald-800 border border-emerald-200">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-            <span>Registration submitted! Please sign in with your corporate credentials.</span>
+          <div className="flex items-start gap-2 rounded-xl bg-emerald-50 p-3.5 text-xs sm:text-sm text-emerald-900 border border-emerald-200">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+            <div>
+              <strong className="block font-bold text-emerald-950">Registration Verified & Complete!</strong>
+              <span>
+                You can now sign in using your corporate password OR click <strong>Continue with Google</strong> below using your registered email address {prefillEmail ? <strong className="font-mono text-emerald-950">({prefillEmail})</strong> : null}.
+              </span>
+            </div>
           </div>
         )}
 
