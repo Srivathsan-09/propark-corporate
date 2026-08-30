@@ -20,6 +20,18 @@ if (!global.mongooseCache) {
   global.mongooseCache = cached;
 }
 
+export async function resetMongoConnection(): Promise<void> {
+  cached.conn = null;
+  cached.promise = null;
+  try {
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+  } catch (e) {
+    // Ignore disconnect error
+  }
+}
+
 export async function connectToDatabase(): Promise<typeof mongoose> {
   const uri = process.env.MONGODB_URI;
 
@@ -30,7 +42,14 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
   }
 
   if (cached.conn && mongoose.connection.readyState === 1) {
-    return cached.conn;
+    try {
+      // Ping DB to ensure socket is alive and not dropped by Atlas
+      await mongoose.connection.db?.admin().ping();
+      return cached.conn;
+    } catch (pingError) {
+      console.warn("MongoDB ping failed (TLS socket stale/dropped). Reconnecting...");
+      await resetMongoConnection();
+    }
   }
 
   if (!cached.promise) {
