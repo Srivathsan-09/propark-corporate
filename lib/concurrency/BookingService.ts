@@ -106,170 +106,106 @@ class BookingConcurrencyService {
       return result;
     }
 
-    // 5. ATOMIC SEAT ALLOCATION & MONGODB TRANSACTION WITH AUTOMATIC RETRY
-    const MAX_RETRIES = 12;
-    let attempt = 0;
+    // 5. ATOMIC SEAT ALLOCATION & COMPENSATING TRANSACTION (Zero Write Conflicts)
+    try {
+      // ATOMIC UPDATE: Decrease availableSeats ONLY IF availableSeats >= seatsRequested
+      const updatedRide = await Ride.findOneAndUpdate(
+        {
+          _id: rideId,
+          status: { $in: ["scheduled", "in_progress"] },
+          availableSeats: { $gte: seatsRequested },
+        },
+        {
+          $inc: { availableSeats: -seatsRequested },
+        },
+        {
+          new: true,
+        }
+      );
 
-    while (attempt < MAX_RETRIES) {
-      attempt++;
-      let session: mongoose.ClientSession | null = null;
+      // If updatedRide is null, another concurrent request claimed the final seat!
+      if (!updatedRide) {
+        const result: IBookingResult = {
+          success: false,
+          error: "High-Concurrency Race Condition: No available seats remaining on this ride.",
+          availableSeats: 0,
+        };
+        if (idempotencyKey) idempotencyStore.set(idempotencyKey, result);
+        return result;
+      }
 
+      // CREATE RIDE REQUEST / BOOKING DOCUMENT WITH COMPENSATING ROLLBACK
+      const noteContent = idempotencyKey ? `[IdempotencyKey:${idempotencyKey}] ${notes || ""}` : notes || "";
+
+      let newRequest;
       try {
-        try {
-          session = await mongoose.startSession();
-          session.startTransaction();
-        } catch (sessionError) {
-          session = null;
-        }
-
-        // ATOMIC UPDATE: Decrease availableSeats ONLY IF availableSeats >= seatsRequested
-        const updatedRide = await Ride.findOneAndUpdate(
-          {
-            _id: rideId,
-            status: { $in: ["scheduled", "in_progress"] },
-            availableSeats: { $gte: seatsRequested },
-          },
-          {
-            $inc: { availableSeats: -seatsRequested },
-          },
-          {
-            new: true,
-            session: session || undefined,
-          }
-        );
-
-        // If updatedRide is null, another concurrent request claimed the final seat!
-        if (!updatedRide) {
-          if (session && session.inTransaction()) {
-            await session.abortTransaction();
-          }
-          const result: IBookingResult = {
-            success: false,
-            error: "High-Concurrency Race Condition: No available seats remaining on this ride.",
-            availableSeats: 0,
-          };
-          if (idempotencyKey) idempotencyStore.set(idempotencyKey, result);
-          return result;
-        }
-
-        // CREATE RIDE REQUEST / BOOKING DOCUMENT
-        const noteContent = idempotencyKey ? `[IdempotencyKey:${idempotencyKey}] ${notes || ""}` : notes || "";
-
-        const [newRequest] = await RideRequest.create(
-          [
-            {
-              ride: ride._id,
-              passenger: userId,
-              driver: ride.driver,
-              pickupStop,
-              dropStop: dropStop || ride.destination,
-              seatsRequested,
-              fare,
-              notes: noteContent,
-              status: "accepted", // High-concurrency auto-allocated booking
-              boardingPin: String(Math.floor(1000 + Math.random() * 9000)),
-              responseNote: `Confirmed by CommuteX High-Concurrency Engine (${processedByNode})`,
-            },
-          ],
-          { session: session || undefined }
-        );
+        newRequest = await RideRequest.create({
+          ride: ride._id,
+          passenger: userId,
+          driver: ride.driver,
+          pickupStop,
+          dropStop: dropStop || ride.destination,
+          seatsRequested,
+          fare,
+          notes: noteContent,
+          status: "accepted", // High-concurrency auto-allocated booking
+          boardingPin: String(Math.floor(1000 + Math.random() * 9000)),
+          responseNote: `Confirmed by CommuteX High-Concurrency Engine (${processedByNode})`,
+        });
 
         // Add passenger to acceptedPassengers array in Ride
         await Ride.updateOne(
           { _id: ride._id },
-          { $addToSet: { acceptedPassengers: userId } },
-          { session: session || undefined }
+          { $addToSet: { acceptedPassengers: userId } }
         );
 
         // Create Driver Notification
-        await Notification.create(
-          [
-            {
-              recipient: ride.driver,
-              sender: userId,
-              title: "Seat Booked (High-Concurrency Confirmed)",
-              message: `${passenger.name} (${passenger.companyName || "Employee"}) booked ${seatsRequested} seat(s) from "${pickupStop}" (Fare: ₹${fare}).`,
-              type: "ride_requested",
-              ride: ride._id,
-              rideRequest: newRequest._id,
-            },
-          ],
-          { session: session || undefined }
-        );
-
-        // COMMIT TRANSACTION
-        if (session && session.inTransaction()) {
-          await session.commitTransaction();
-        }
-
-        // 6. BROADCAST REAL-TIME AVAILABILITY UPDATE VIA WEBSOCKETS / SSE
-        realtimeEventBus.broadcast("RIDE_AVAILABILITY_UPDATED", {
-          rideId: ride._id.toString(),
-          availableSeats: updatedRide.availableSeats,
-          totalSeats: updatedRide.totalSeats,
-          lastBookedBy: passenger.name,
+        await Notification.create({
+          recipient: ride.driver,
+          sender: userId,
+          title: "Seat Booked (High-Concurrency Confirmed)",
+          message: `${passenger.name} (${passenger.companyName || "Employee"}) booked ${seatsRequested} seat(s) from "${pickupStop}" (Fare: ₹${fare}).`,
+          type: "ride_requested",
+          ride: ride._id,
+          rideRequest: newRequest._id,
         });
-
-        const bookingResult: IBookingResult = {
-          success: true,
-          message: "Seat allocated successfully! Your booking is confirmed.",
-          request: newRequest,
-          availableSeats: updatedRide.availableSeats,
-          processedByNode,
-        };
-
-        if (idempotencyKey) {
-          idempotencyStore.set(idempotencyKey, bookingResult);
-        }
-
-        return bookingResult;
-      } catch (transactionError: any) {
-        if (session && session.inTransaction()) {
-          try {
-            await session.abortTransaction();
-          } catch (e) {
-            // Ignore abort error if session closed
-          }
-        }
-
-        const errMessage = String(transactionError?.message || "");
-        const isTransientError =
-          transactionError?.code === 112 ||
-          transactionError?.hasErrorLabel?.("TransientTransactionError") ||
-          transactionError?.hasErrorLabel?.("UnknownTransactionCommitResult") ||
-          errMessage.includes("Write conflict") ||
-          errMessage.includes("write conflict") ||
-          errMessage.includes("TransientTransactionError") ||
-          errMessage.includes("SSL") ||
-          errMessage.includes("connection pool");
-
-        if (isTransientError && attempt < MAX_RETRIES) {
-          // Exponential backoff with random jitter: 15ms to 120ms
-          const backoffMs = Math.floor(Math.random() * 30) + attempt * 15;
-          await new Promise((resolve) => setTimeout(resolve, backoffMs));
-          continue;
-        }
-
-        console.error(`Booking Transaction Failure (Attempt ${attempt}/${MAX_RETRIES}):`, transactionError);
-        return {
-          success: false,
-          error: transactionError?.message || "Database transaction failed during seat allocation.",
-        };
-      } finally {
-        if (session) {
-          try {
-            session.endSession();
-          } catch (e) {
-            // Ignore session end error
-          }
-        }
+      } catch (err: any) {
+        // COMPENSATING ROLLBACK: Restore seat count if record creation fails
+        await Ride.updateOne(
+          { _id: ride._id },
+          { $inc: { availableSeats: seatsRequested } }
+        );
+        throw err;
       }
-    }
 
-    return {
-      success: false,
-      error: "High-Concurrency Limit Exceeded: Write conflict retries exhausted.",
-    };
+      // 6. BROADCAST REAL-TIME AVAILABILITY UPDATE VIA WEBSOCKETS / SSE
+      realtimeEventBus.broadcast("RIDE_AVAILABILITY_UPDATED", {
+        rideId: ride._id.toString(),
+        availableSeats: updatedRide.availableSeats,
+        totalSeats: updatedRide.totalSeats,
+        lastBookedBy: passenger.name,
+      });
+
+      const bookingResult: IBookingResult = {
+        success: true,
+        message: "Seat allocated successfully! Your booking is confirmed.",
+        request: newRequest,
+        availableSeats: updatedRide.availableSeats,
+        processedByNode,
+      };
+
+      if (idempotencyKey) {
+        idempotencyStore.set(idempotencyKey, bookingResult);
+      }
+
+      return bookingResult;
+    } catch (bookingError: any) {
+      console.error("Booking Failure:", bookingError);
+      return {
+        success: false,
+        error: bookingError?.message || "Database operation failed during seat allocation.",
+      };
+    }
   }
 
   /**
