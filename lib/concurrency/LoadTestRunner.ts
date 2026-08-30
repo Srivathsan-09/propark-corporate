@@ -195,9 +195,9 @@ class LoadTestRunnerService {
     const finalBookingsInDb = await RideRequest.find({ ride: testRide._id, status: "accepted" });
 
     const durationMs = Date.now() - startTime;
-    const successfulBookings = results.filter((r: any) => r.success).length;
+    const successfulNewBookings = results.filter((r: any) => r.success && !r.idempotencyHit).length;
+    const idempotentReplays = results.filter((r: any) => r.success && r.idempotencyHit).length;
     const failedBookings = results.filter((r: any) => !r.success).length;
-    const idempotentHits = results.filter((r: any) => r.idempotencyHit).length;
 
     // Check duplicate passenger IDs in confirmed bookings in DB
     const passengerIdsInDb = finalBookingsInDb.map((b) => b.passenger.toString());
@@ -207,27 +207,32 @@ class LoadTestRunnerService {
       : passengerIdsInDb.length - uniquePassengerIdsInDb.size;
 
     const remainingSeatsInDb = finalRideDoc?.availableSeats ?? 0;
-    const expectedSuccess = Math.min(totalSeats, testIdempotency ? 1 : concurrentUsers);
+    const expectedNewBookings = testIdempotency ? 1 : Math.min(totalSeats, concurrentUsers);
+
+    const isDbVerified =
+      finalBookingsInDb.length === expectedNewBookings &&
+      remainingSeatsInDb === Math.max(0, totalSeats - expectedNewBookings) &&
+      duplicateBookings === 0;
 
     const isConcurrencySafe =
-      successfulBookings === expectedSuccess &&
-      remainingSeatsInDb === Math.max(0, totalSeats - expectedSuccess) &&
-      duplicateBookings === 0 &&
-      remainingSeatsInDb >= 0;
+      successfulNewBookings === expectedNewBookings &&
+      (testIdempotency ? idempotentReplays === (concurrentUsers - 1) : true) &&
+      isDbVerified;
 
     log(`----------------------------------------`);
     log(`TEST SUMMARY: ${testId.toUpperCase()}`);
     log(`----------------------------------------`);
     log(`Initial Seats:       ${totalSeats}`);
     log(`Concurrent Users:   ${concurrentUsers}`);
-    log(`Successful:          ${successfulBookings}`);
+    log(`Successful New:      ${successfulNewBookings}`);
+    log(`Idempotent Replays:  ${idempotentReplays}`);
     log(`Failed/Queued:       ${failedBookings}`);
     log(`Remaining Seats:     ${remainingSeatsInDb}`);
     log(`Duplicates:          ${duplicateBookings}`);
     log(`Write Conflicts:     0`);
     log(`Successful Retries:  0`);
     log(`DB Connection:   HEALTHY`);
-    log(`Database Verified:   ${isConcurrencySafe ? "YES" : "NO"}`);
+    log(`Database Verified:   ${isDbVerified ? "YES" : "NO"}`);
     log(`Status:              ${isConcurrencySafe ? "PASS" : "FAIL"}`);
     log(`----------------------------------------`);
 
@@ -257,11 +262,11 @@ class LoadTestRunnerService {
       testName: testNameMap[testId] || testId,
       totalSeats,
       concurrentUsers,
-      successfulBookings,
+      successfulBookings: successfulNewBookings,
       failedBookings,
       duplicateBookings,
       remainingSeats: remainingSeatsInDb,
-      idempotentHits,
+      idempotentHits: idempotentReplays,
       durationMs,
       avgLatencyMs: Math.round(durationMs / Math.max(1, concurrentUsers)),
       peakLatencyMs: Math.round(durationMs * 0.4),

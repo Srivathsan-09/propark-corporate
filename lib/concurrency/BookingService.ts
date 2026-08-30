@@ -73,7 +73,9 @@ class BookingConcurrencyService {
 
     // Check DB for existing idempotency request
     if (idempotencyKey) {
-      const existingDbReq = await RideRequest.findOne({ notes: { $regex: idempotencyKey } });
+      const existingDbReq = await RideRequest.findOne({
+        $or: [{ idempotencyKey }, { notes: { $regex: idempotencyKey } }],
+      });
       if (existingDbReq) {
         const result: IBookingResult = {
           success: true,
@@ -166,6 +168,7 @@ class BookingConcurrencyService {
         seatsRequested,
         fare,
         notes: noteContent,
+        idempotencyKey,
         status: "accepted",
         boardingPin: String(Math.floor(1000 + Math.random() * 9000)),
         responseNote: `Confirmed by CommuteX High-Concurrency Engine (${processedByNode})`,

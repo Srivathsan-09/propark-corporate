@@ -12,6 +12,7 @@ export interface IRideRequest extends Document {
   notes?: string;
   status: "pending" | "accepted" | "rejected" | "cancelled";
   responseNote?: string;
+  idempotencyKey?: string;
   boardingPin?: string;
   isBoarded?: boolean;
   boardedAt?: Date;
@@ -73,6 +74,12 @@ const RideRequestSchema = new Schema<IRideRequest>(
     responseNote: {
       type: String,
       default: "",
+    },
+    idempotencyKey: {
+      type: String,
+      sparse: true,
+      index: true,
+      trim: true,
     },
     boardingPin: {
       type: String,
