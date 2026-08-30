@@ -144,7 +144,7 @@ class BookingConcurrencyService {
         { $addToSet: { acceptedPassengers: userId } }
       );
 
-      await Notification.create({
+      Notification.create({
         recipient: updatedRide.driver,
         sender: userId,
         title: "Seat Booked (High-Concurrency Confirmed)",
@@ -152,7 +152,7 @@ class BookingConcurrencyService {
         type: "ride_requested",
         ride: updatedRide._id,
         rideRequest: newRequest._id,
-      });
+      }).catch((e) => console.warn("Background notification error:", e));
 
       // 5. BROADCAST REAL-TIME AVAILABILITY UPDATE
       realtimeEventBus.broadcast("RIDE_AVAILABILITY_UPDATED", {

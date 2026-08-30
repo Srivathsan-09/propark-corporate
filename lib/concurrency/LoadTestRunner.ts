@@ -162,13 +162,29 @@ class LoadTestRunnerService {
         idempotencyKey,
       };
 
-      try {
-        return await workerPool.processRequest(testRide._id.toString(), payload);
-      } catch (err: any) {
-        // Retry once on transient SSL socket connection pool drops
-        await new Promise((res) => setTimeout(res, 50));
-        return await workerPool.processRequest(testRide._id.toString(), payload);
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        try {
+          return await workerPool.processRequest(testRide._id.toString(), payload);
+        } catch (err: any) {
+          const errMsg = String(err?.message || "");
+          if (attempt < 4 && (errMsg.includes("SSL") || errMsg.includes("pool") || errMsg.includes("tlsv1") || errMsg.includes("cleared"))) {
+            try {
+              await connectToDatabase();
+            } catch (e) {}
+            await new Promise((res) => setTimeout(res, 40 * attempt));
+            continue;
+          }
+          return {
+            success: false,
+            error: err?.message || "Concurrent request database execution error",
+          };
+        }
       }
+
+      return {
+        success: false,
+        error: "Request retries exhausted due to connection pool limits",
+      };
     });
 
     log(`[INFO] Starting ${testId.toUpperCase()} with ${concurrentUsers} concurrent requests`);
@@ -181,12 +197,12 @@ class LoadTestRunnerService {
     const finalBookingsInDb = await RideRequest.find({ ride: testRide._id, status: "accepted" });
 
     const durationMs = Date.now() - startTime;
-    const successfulBookings = results.filter((r) => r.success).length;
-    const failedBookings = results.filter((r) => !r.success).length;
-    const idempotentHits = results.filter((r) => r.idempotencyHit).length;
+    const successfulBookings = results.filter((r: any) => r.success).length;
+    const failedBookings = results.filter((r: any) => !r.success).length;
+    const idempotentHits = results.filter((r: any) => r.idempotencyHit).length;
 
     // Log sample success & rejection events
-    results.slice(0, 5).forEach((r, idx) => {
+    results.slice(0, 5).forEach((r: any, idx) => {
       if (r.success) {
         log(`[SUCCESS] Request #${idx + 1} booking confirmed (Seats remaining: ${r.availableSeats})`);
       } else {
