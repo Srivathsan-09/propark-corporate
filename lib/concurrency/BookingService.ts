@@ -55,61 +55,10 @@ class BookingConcurrencyService {
       }
     }
 
-    // 2. FETCH PASSENGER & VERIFY CAMPUS ISOLATION
-    const passenger = await User.findById(userId);
-    if (!passenger) {
-      return { success: false, error: "Passenger profile not found." };
-    }
-
-    if (!passenger.isApproved && passenger.role !== "admin") {
-      return {
-        success: false,
-        error: "Your employee profile is awaiting campus verification before you can book rides.",
-      };
-    }
-
-    // 3. FETCH RIDE & VERIFY CAMPUS ISOLATION
-    const ride = await Ride.findById(rideId);
-    if (!ride) {
-      return { success: false, error: "Ride not found or no longer available." };
-    }
-
-    // CAMPUS ISOLATION: Passenger campusId MUST match Ride campusId
-    if (ride.campusId && passenger.campusId && ride.campusId !== passenger.campusId) {
-      return {
-        success: false,
-        error: `Campus Isolation Policy: You cannot book a ride belonging to campus "${ride.campusId}" from campus "${passenger.campusId}".`,
-      };
-    }
-
-    if (ride.driver.toString() === userId) {
-      return { success: false, error: "You cannot request a seat on a ride you are driving." };
-    }
-
-    if (ride.status !== "scheduled" && ride.status !== "in_progress") {
-      return { success: false, error: `This ride is ${ride.status} and cannot accept new bookings.` };
-    }
-
-    // 4. DUPLICATE ACTIVE BOOKING CHECK
-    const existingActiveRequest = await RideRequest.findOne({
-      ride: ride._id,
-      passenger: userId,
-      status: { $in: ["pending", "accepted"] },
-    });
-
-    if (existingActiveRequest) {
-      const result: IBookingResult = {
-        success: false,
-        error: `Duplicate Booking Blocked: You already have an active (${existingActiveRequest.status}) booking request for this ride.`,
-      };
-      if (idempotencyKey) idempotencyStore.set(idempotencyKey, result);
-      return result;
-    }
-
-    // 5. ATOMIC SEAT ALLOCATION & COMPENSATING TRANSACTION (Zero Write Conflicts)
+    // 2. ATOMIC SEAT ALLOCATION (Executes first at 0ms latency)
+    let updatedRide;
     try {
-      // ATOMIC UPDATE: Decrease availableSeats ONLY IF availableSeats >= seatsRequested
-      const updatedRide = await Ride.findOneAndUpdate(
+      updatedRide = await Ride.findOneAndUpdate(
         {
           _id: rideId,
           status: { $in: ["scheduled", "in_progress"] },
@@ -122,65 +71,92 @@ class BookingConcurrencyService {
           new: true,
         }
       );
+    } catch (dbErr: any) {
+      console.error("Atomic update error:", dbErr);
+      return { success: false, error: dbErr?.message || "Database connection error during seat reservation." };
+    }
 
-      // If updatedRide is null, another concurrent request claimed the final seat!
-      if (!updatedRide) {
+    // If updatedRide is null, another concurrent request claimed the final seat!
+    if (!updatedRide) {
+      const result: IBookingResult = {
+        success: false,
+        error: "High-Concurrency Race Condition: No available seats remaining on this ride.",
+        availableSeats: 0,
+      };
+      if (idempotencyKey) idempotencyStore.set(idempotencyKey, result);
+      return result;
+    }
+
+    // 3. PASSENGER VALIDATION & DUPLICATE BOOKING CHECK (With Compensating Rollback)
+    try {
+      const passenger = await User.findById(userId);
+      if (!passenger) {
+        throw new Error("Passenger profile not found.");
+      }
+
+      if (!passenger.isApproved && passenger.role !== "admin") {
+        throw new Error("Your employee profile is awaiting campus verification before you can book rides.");
+      }
+
+      if (updatedRide.driver.toString() === userId) {
+        throw new Error("You cannot request a seat on a ride you are driving.");
+      }
+
+      if (updatedRide.campusId && passenger.campusId && updatedRide.campusId !== passenger.campusId) {
+        throw new Error(`Campus Isolation Policy: You cannot book a ride belonging to campus "${updatedRide.campusId}" from campus "${passenger.campusId}".`);
+      }
+
+      const existingActiveRequest = await RideRequest.findOne({
+        ride: updatedRide._id,
+        passenger: userId,
+        status: { $in: ["pending", "accepted"] },
+      });
+
+      if (existingActiveRequest) {
+        const errorMsg = `Duplicate Booking Blocked: You already have an active (${existingActiveRequest.status}) booking request for this ride.`;
         const result: IBookingResult = {
           success: false,
-          error: "High-Concurrency Race Condition: No available seats remaining on this ride.",
-          availableSeats: 0,
+          error: errorMsg,
         };
         if (idempotencyKey) idempotencyStore.set(idempotencyKey, result);
-        return result;
+        throw new Error(errorMsg);
       }
 
-      // CREATE RIDE REQUEST / BOOKING DOCUMENT WITH COMPENSATING ROLLBACK
+      // 4. CREATE RIDE REQUEST & NOTIFICATION
       const noteContent = idempotencyKey ? `[IdempotencyKey:${idempotencyKey}] ${notes || ""}` : notes || "";
 
-      let newRequest;
-      try {
-        newRequest = await RideRequest.create({
-          ride: ride._id,
-          passenger: userId,
-          driver: ride.driver,
-          pickupStop,
-          dropStop: dropStop || ride.destination,
-          seatsRequested,
-          fare,
-          notes: noteContent,
-          status: "accepted", // High-concurrency auto-allocated booking
-          boardingPin: String(Math.floor(1000 + Math.random() * 9000)),
-          responseNote: `Confirmed by CommuteX High-Concurrency Engine (${processedByNode})`,
-        });
+      const newRequest = await RideRequest.create({
+        ride: updatedRide._id,
+        passenger: userId,
+        driver: updatedRide.driver,
+        pickupStop,
+        dropStop: dropStop || updatedRide.destination,
+        seatsRequested,
+        fare,
+        notes: noteContent,
+        status: "accepted",
+        boardingPin: String(Math.floor(1000 + Math.random() * 9000)),
+        responseNote: `Confirmed by CommuteX High-Concurrency Engine (${processedByNode})`,
+      });
 
-        // Add passenger to acceptedPassengers array in Ride
-        await Ride.updateOne(
-          { _id: ride._id },
-          { $addToSet: { acceptedPassengers: userId } }
-        );
+      await Ride.updateOne(
+        { _id: updatedRide._id },
+        { $addToSet: { acceptedPassengers: userId } }
+      );
 
-        // Create Driver Notification
-        await Notification.create({
-          recipient: ride.driver,
-          sender: userId,
-          title: "Seat Booked (High-Concurrency Confirmed)",
-          message: `${passenger.name} (${passenger.companyName || "Employee"}) booked ${seatsRequested} seat(s) from "${pickupStop}" (Fare: ₹${fare}).`,
-          type: "ride_requested",
-          ride: ride._id,
-          rideRequest: newRequest._id,
-        });
-      } catch (err: any) {
-        // COMPENSATING ROLLBACK: Restore seat count if record creation fails
-        await Ride.updateOne(
-          { _id: ride._id },
-          { $inc: { availableSeats: seatsRequested } }
-        );
-        throw err;
-      }
+      await Notification.create({
+        recipient: updatedRide.driver,
+        sender: userId,
+        title: "Seat Booked (High-Concurrency Confirmed)",
+        message: `${passenger.name} (${passenger.companyName || "Employee"}) booked ${seatsRequested} seat(s) from "${pickupStop}" (Fare: ₹${fare}).`,
+        type: "ride_requested",
+        ride: updatedRide._id,
+        rideRequest: newRequest._id,
+      });
 
-      // 6. BROADCAST REAL-TIME AVAILABILITY UPDATE VIA WEBSOCKETS / SSE
+      // 5. BROADCAST REAL-TIME AVAILABILITY UPDATE
       realtimeEventBus.broadcast("RIDE_AVAILABILITY_UPDATED", {
-        rideId: ride._id.toString(),
+        rideId: updatedRide._id.toString(),
         availableSeats: updatedRide.availableSeats,
         totalSeats: updatedRide.totalSeats,
         lastBookedBy: passenger.name,
@@ -199,11 +175,15 @@ class BookingConcurrencyService {
       }
 
       return bookingResult;
-    } catch (bookingError: any) {
-      console.error("Booking Failure:", bookingError);
+    } catch (valErr: any) {
+      // COMPENSATING ROLLBACK: Restore reserved seat if validation or document creation fails
+      await Ride.updateOne(
+        { _id: rideId },
+        { $inc: { availableSeats: seatsRequested } }
+      );
       return {
         success: false,
-        error: bookingError?.message || "Database operation failed during seat allocation.",
+        error: valErr?.message || "Booking creation failed.",
       };
     }
   }

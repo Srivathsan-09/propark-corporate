@@ -171,6 +171,9 @@ class LoadTestRunnerService {
       }
     });
 
+    log(`[INFO] Starting ${testId.toUpperCase()} with ${concurrentUsers} concurrent requests`);
+    log(`[INFO] Initial Seats: ${totalSeats}, Concurrent Requests: ${concurrentUsers}`);
+
     const results = await Promise.all(requestPromises);
 
     // 3. FETCH FINAL DB STATE TO VERIFY ATOMIC INTEGRITY
@@ -182,11 +185,14 @@ class LoadTestRunnerService {
     const failedBookings = results.filter((r) => !r.success).length;
     const idempotentHits = results.filter((r) => r.idempotencyHit).length;
 
-    // Log sample errors if any failed unexpectedly
-    const sampleErrors = results.filter((r) => !r.success).map((r) => r.error).filter(Boolean);
-    if (sampleErrors.length > 0 && totalSeats > 0 && successfulBookings < Math.min(totalSeats, concurrentUsers)) {
-      log(`Sample error note: ${sampleErrors[0]}`);
-    }
+    // Log sample success & rejection events
+    results.slice(0, 5).forEach((r, idx) => {
+      if (r.success) {
+        log(`[SUCCESS] Request #${idx + 1} booking confirmed (Seats remaining: ${r.availableSeats})`);
+      } else {
+        log(`[REJECTED] Request #${idx + 1} rejected: ${r.error}`);
+      }
+    });
 
     // Check duplicate passenger IDs in confirmed bookings in DB
     const passengerIdsInDb = finalBookingsInDb.map((b) => b.passenger.toString());
@@ -205,8 +211,8 @@ class LoadTestRunnerService {
       remainingSeatsInDb >= 0;
 
     log(`🏁 Load Test Complete in ${durationMs}ms`);
-    log(`Result Summary: Successful Bookings = ${successfulBookings}, Failed = ${failedBookings}, Remaining Seats in DB = ${remainingSeatsInDb}`);
-    log(`Idempotent Hits = ${idempotentHits}, Duplicate Bookings in DB = ${duplicateBookings}`);
+    log(`[SUMMARY] Initial Seats: ${totalSeats} | Concurrent Requests: ${concurrentUsers}`);
+    log(`[SUMMARY] Successful: ${successfulBookings} | Rejected/Queued: ${failedBookings} | Remaining Seats: ${remainingSeatsInDb} | Duplicates: ${duplicateBookings}`);
 
     if (isConcurrencySafe) {
       log(`✅ CONCURRENCY SAFETY VERIFIED: ZERO double bookings, ZERO negative seats, ZERO lost requests!`);
