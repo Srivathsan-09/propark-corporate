@@ -42,6 +42,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { routingService, RouteResult } from "@/lib/services/routing";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -186,6 +187,10 @@ export default function MyRidesPage() {
   const [enteredBoardingPin, setEnteredBoardingPin] = useState("");
   const [isVerifyingPin, setIsVerifyingPin] = useState(false);
   const [pinModalError, setPinModalError] = useState<string | null>(null);
+
+  // Custom Delete Confirmation Modal State
+  const [deleteConfirmRideId, setDeleteConfirmRideId] = useState<string | null>(null);
+  const [isDeletingRide, setIsDeletingRide] = useState(false);
 
   const handleVerifyPassengerPin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -370,28 +375,26 @@ export default function MyRidesPage() {
     }
   };
 
-  // Handle Driver Delete Offered Ride
-  const handleDeleteRide = async (rideId: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this offered ride? Any coworker seat requests will be automatically cancelled."
-      )
-    ) {
-      return;
-    }
+  // Handle Driver Delete Offered Ride - Open Custom Modal
+  const handleDeleteRide = (rideId: string) => {
+    setDeleteConfirmRideId(rideId);
+  };
 
-    setActionLoadingId(rideId);
+  const confirmDeleteRide = async () => {
+    if (!deleteConfirmRideId) return;
+    setIsDeletingRide(true);
     setActionSuccessMsg(null);
     setActionErrorMsg(null);
 
     try {
-      const res = await fetch(`/api/rides/${rideId}`, {
+      const res = await fetch(`/api/rides/${deleteConfirmRideId}`, {
         method: "DELETE",
       });
 
       const data = await res.json();
       if (res.ok) {
         setActionSuccessMsg("Ride deleted successfully.");
+        setDeleteConfirmRideId(null);
         fetchMyRides(true);
       } else {
         setActionErrorMsg(data.error || "Failed to delete ride.");
@@ -400,7 +403,7 @@ export default function MyRidesPage() {
       console.error("Delete ride error:", err);
       setActionErrorMsg("Failed to delete ride. Please try again.");
     } finally {
-      setActionLoadingId(null);
+      setIsDeletingRide(false);
     }
   };
 
@@ -1210,6 +1213,55 @@ export default function MyRidesPage() {
         userId={viewProfileUserId}
         fallbackData={viewProfileFallback}
       />
+
+      {/* CUSTOM RIDE DELETE CONFIRMATION MODAL */}
+      <Dialog open={Boolean(deleteConfirmRideId)} onOpenChange={(open) => !open && setDeleteConfirmRideId(null)}>
+        <DialogContent className="sm:max-w-md bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
+          <DialogHeader className="space-y-3 text-center sm:text-left">
+            <div className="mx-auto sm:mx-0 flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 ring-8 ring-rose-50">
+              <Trash2 className="h-6 w-6" />
+            </div>
+            <div>
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                Delete Commute Ride Offer?
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Are you sure you want to delete this ride offer? Any active coworker seat requests for this route will be automatically cancelled.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-slate-100 mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteConfirmRideId(null)}
+              disabled={isDeletingRide}
+              className="rounded-xl text-xs font-semibold h-10 border-slate-200"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmDeleteRide}
+              disabled={isDeletingRide}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs h-10 gap-1.5 shadow-xs"
+            >
+              {isDeletingRide ? (
+                <span className="flex items-center justify-center gap-1.5">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                  <span>Deleting Ride...</span>
+                </span>
+              ) : (
+                <>
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Yes, Delete Ride</span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
