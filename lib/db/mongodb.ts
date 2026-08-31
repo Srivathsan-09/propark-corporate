@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
 
 /**
- * Global is used here to maintain a cached connection across hot reloads
- * in development and serverless invocations in production (Vercel).
+ * CommuteX Global MongoDB Connection Manager
+ * Reuses Mongoose connection pool across all load tests and requests.
+ * Never disconnects active sockets during concurrent test executions.
  */
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -20,18 +21,6 @@ if (!global.mongooseCache) {
   global.mongooseCache = cached;
 }
 
-export async function resetMongoConnection(): Promise<void> {
-  cached.conn = null;
-  cached.promise = null;
-  try {
-    if (mongoose.connection.readyState !== 0) {
-      await mongoose.disconnect();
-    }
-  } catch (e) {
-    // Ignore disconnect error
-  }
-}
-
 export async function connectToDatabase(): Promise<typeof mongoose> {
   const uri = process.env.MONGODB_URI;
 
@@ -41,25 +30,20 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
     );
   }
 
+  // 1. If connection is open and ready (readyState === 1), reuse existing pool immediately
   if (cached.conn && mongoose.connection.readyState === 1) {
-    try {
-      // Ping DB to ensure socket is alive and not dropped by Atlas
-      await mongoose.connection.db?.admin().ping();
-      return cached.conn;
-    } catch (pingError) {
-      console.warn("MongoDB ping failed (TLS socket stale/dropped). Reconnecting...");
-      await resetMongoConnection();
-    }
+    return cached.conn;
   }
 
+  // 2. If connection promise is not active, initiate pool connection
   if (!cached.promise) {
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
       maxPoolSize: 100,
-      minPoolSize: 5,
-      serverSelectionTimeoutMS: 15000,
+      minPoolSize: 10,
+      serverSelectionTimeoutMS: 30000,
       socketTimeoutMS: 45000,
-      connectTimeoutMS: 15000,
+      connectTimeoutMS: 30000,
       retryWrites: true,
       retryReads: true,
     };
@@ -71,7 +55,7 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
       })
       .catch((error) => {
         cached.promise = null;
-        console.error(" MongoDB Atlas Connection Error:", error);
+        console.error("MongoDB Atlas Connection Error:", error);
         throw error;
       });
   }

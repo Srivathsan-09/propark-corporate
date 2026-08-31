@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { loadTestRunner } from "@/lib/concurrency/LoadTestRunner";
 import { loadBalancer } from "@/lib/concurrency/LoadBalancer";
-import { resetMongoConnection } from "@/lib/db/mongodb";
 
 export const dynamic = "force-dynamic";
 
@@ -61,19 +60,7 @@ export async function POST(req: NextRequest) {
         break;
     }
 
-    let result;
-    try {
-      result = await loadTestRunner.runTest(config as any);
-    } catch (err: any) {
-      const errMsg = String(err?.message || "");
-      if (errMsg.includes("SSL") || errMsg.includes("tlsv1") || errMsg.includes("cleared")) {
-        console.warn("SSL connection reset detected. Re-establishing MongoDB connection and retrying test...");
-        await resetMongoConnection();
-        result = await loadTestRunner.runTest(config as any);
-      } else {
-        throw err;
-      }
-    }
+    const result = await loadTestRunner.runTest(config as any);
 
     return NextResponse.json({
       success: true,

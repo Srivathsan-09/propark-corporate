@@ -487,21 +487,26 @@ export default function AdminConcurrencyPage() {
                 <div className="flex items-center gap-2">
                   {testResult.isConcurrencySafe ? (
                     <Badge className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 gap-1">
-                      <ShieldCheck className="h-4 w-4" /> CONCURRENCY SAFE
+                      <ShieldCheck className="h-4 w-4" /> PASS ✓
                     </Badge>
                   ) : (
-                    <Badge className="bg-amber-600 text-white text-xs font-bold px-3 py-1 gap-1">
-                      <AlertTriangle className="h-4 w-4" /> REVIEW COUNTS
+                    <Badge className="bg-rose-600 text-white text-xs font-bold px-3 py-1 gap-1">
+                      <XCircle className="h-4 w-4" /> FAIL ✗
                     </Badge>
                   )}
                 </div>
               </div>
 
               {/* Metrics Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
-                  <span className="text-[10px] text-emerald-800 font-bold uppercase block">Successful Bookings</span>
+                  <span className="text-[10px] text-emerald-800 font-bold uppercase block">New Bookings</span>
                   <strong className="text-lg font-extrabold text-emerald-700">{testResult.successfulBookings}</strong>
+                </div>
+
+                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-center">
+                  <span className="text-[10px] text-indigo-800 font-bold uppercase block">Idempotent Replays</span>
+                  <strong className="text-lg font-extrabold text-indigo-700">{testResult.idempotentHits || 0}</strong>
                 </div>
 
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
