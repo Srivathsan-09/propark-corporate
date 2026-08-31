@@ -74,6 +74,9 @@ interface IPassengerRequest {
   boardingPin?: string;
   isBoarded?: boolean;
   boardedAt?: string;
+  paymentStatus?: "paid" | "partially_paid" | "not_paid";
+  amountPaid?: number;
+  paymentUpdatedAt?: string;
   createdAt: string;
 }
 
@@ -154,6 +157,9 @@ interface IBookedRide {
   boardingPin?: string;
   isBoarded?: boolean;
   boardedAt?: string;
+  paymentStatus?: "paid" | "partially_paid" | "not_paid";
+  amountPaid?: number;
+  paymentUpdatedAt?: string;
   createdAt: string;
 }
 
@@ -191,6 +197,49 @@ export default function MyRidesPage() {
   // Custom Delete Confirmation Modal State
   const [deleteConfirmRideId, setDeleteConfirmRideId] = useState<string | null>(null);
   const [isDeletingRide, setIsDeletingRide] = useState(false);
+
+  // Post-Ride Fare Payment Status Modal State for Driver
+  const [partialPaymentModalReq, setPartialPaymentModalReq] = useState<IPassengerRequest | null>(null);
+  const [partialPaymentAmount, setPartialPaymentAmount] = useState<string>("");
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState<boolean>(false);
+  const [paymentModalError, setPaymentModalError] = useState<string | null>(null);
+  const [liveEtaResult, setLiveEtaResult] = useState<RouteResult | null>(null);
+
+  const handleUpdatePaymentStatus = async (
+    requestId: string,
+    paymentStatus: "paid" | "partially_paid" | "not_paid",
+    amountPaid?: number
+  ) => {
+    setActionLoadingId(requestId);
+    setActionSuccessMsg(null);
+    setActionErrorMsg(null);
+
+    try {
+      const res = await fetch(`/api/rides/requests/${requestId}/payment`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentStatus, amountPaid }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setActionErrorMsg(data.error || "Failed to update fare payment status.");
+        setActionLoadingId(null);
+        return;
+      }
+
+      setActionSuccessMsg(data.message || "Fare payment status updated successfully.");
+      fetchMyRides(true);
+      setPartialPaymentModalReq(null);
+    } catch (err) {
+      console.error("Payment status update error:", err);
+      setActionErrorMsg("Network error. Please try again.");
+    } finally {
+      setActionLoadingId(null);
+      setIsUpdatingPayment(false);
+    }
+  };
 
   const handleVerifyPassengerPin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -472,8 +521,6 @@ export default function MyRidesPage() {
     }
   };
 
-  const [liveEtaResult, setLiveEtaResult] = useState<RouteResult | null>(null);
-
   // Recalculate Live Traffic-Aware ETA periodically while tracking modal is open
   useEffect(() => {
     if (!isLiveTrackingModalOpen || !trackingModalRide) return;
@@ -597,6 +644,11 @@ export default function MyRidesPage() {
               const isPickup = ride.rideType !== "drop";
               const isLive = ride.status === "in_progress" || activeTrackingRideId === ride._id;
               const isCompleted = ride.status === "completed";
+
+              const acceptedReqs = ride.requests.filter((r) => r.status === "accepted");
+              const totalExpectedFare = acceptedReqs.reduce((sum, r) => sum + (r.fare || 0), 0);
+              const totalCollected = acceptedReqs.reduce((sum, r) => sum + (r.amountPaid || 0), 0);
+              const outstandingAmount = Math.max(0, totalExpectedFare - totalCollected);
 
               return (
                 <Card
@@ -731,12 +783,43 @@ export default function MyRidesPage() {
                     </div>
 
                     {/* Passenger Requests Manifest */}
-                    <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <div className="pt-2 border-t border-slate-100 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
                           Coworker Requests ({ride.requests.length})
                         </span>
                       </div>
+
+                      {/* Post-Ride Fare Payment & Collection Summary Ledger for Completed Rides */}
+                      {isCompleted && acceptedReqs.length > 0 && (
+                        <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-3 shadow-md border border-slate-800 my-2">
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                              <IndianRupee className="h-4 w-4 text-emerald-400" /> Post-Ride Fare Collection Ledger
+                            </span>
+                            <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                              Ride Completed
+                            </Badge>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-center">
+                            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Total Expected Fare</span>
+                              <strong className="text-base text-white font-extrabold">₹{totalExpectedFare}</strong>
+                            </div>
+
+                            <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/40">
+                              <span className="text-[10px] text-emerald-400 uppercase font-semibold block">Total Collected</span>
+                              <strong className="text-base text-emerald-300 font-extrabold">₹{totalCollected}</strong>
+                            </div>
+
+                            <div className={`p-3 rounded-xl border ${outstandingAmount > 0 ? "bg-rose-950/80 border-rose-500/40 text-rose-300" : "bg-slate-800/80 border-slate-700 text-emerald-400"}`}>
+                              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Outstanding Amount</span>
+                              <strong className="text-base font-extrabold">₹{outstandingAmount}</strong>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {ride.requests.length === 0 ? (
                         <p className="text-xs text-slate-400 italic py-2">No passenger requests received yet.</p>
@@ -749,90 +832,168 @@ export default function MyRidesPage() {
                             return (
                               <div
                                 key={req._id}
-                                className={`p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs ${
+                                className={`p-3 text-xs space-y-2 ${
                                   isAccepted ? "bg-emerald-50/20" : isPending ? "bg-amber-50/20" : ""
                                 }`}
                               >
-                                <div>
-                                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                    {req.passenger.name}
-                                    <span className="text-[10px] text-slate-500 font-mono">({req.passenger.employeeId})</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setViewProfileUserId(req.passenger._id);
-                                        setViewProfileFallback(req.passenger);
-                                      }}
-                                      className="text-[10px] font-bold text-purple-700 hover:text-purple-900 ml-1 hover:underline flex items-center gap-0.5"
-                                    >
-                                      View Profile
-                                    </button>
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                  <div>
+                                    <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                      {req.passenger.name}
+                                      <span className="text-[10px] text-slate-500 font-mono">({req.passenger.employeeId})</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setViewProfileUserId(req.passenger._id);
+                                          setViewProfileFallback(req.passenger);
+                                        }}
+                                        className="text-[10px] font-bold text-purple-700 hover:text-purple-900 ml-1 hover:underline flex items-center gap-0.5"
+                                      >
+                                        View Profile
+                                      </button>
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                                      <span className="font-semibold text-emerald-800">{req.passenger.companyName || "Tech Mahindra"}</span>
+                                      <span>• {req.passenger.department}</span>
+                                      {req.passenger.phone && <span>• {req.passenger.phone}</span>}
+                                    </div>
+                                    <div className="text-[11px] text-slate-600 mt-1">
+                                      Boarding: <strong className="text-slate-800">{req.pickupStop}</strong> • Seats: <strong>{req.seatsRequested}</strong> • Fare: <strong>₹{req.fare}</strong>
+                                    </div>
+                                    {req.notes && (
+                                      <div className="text-[10px] text-slate-500 italic mt-0.5">&ldquo;{req.notes}&rdquo;</div>
+                                    )}
                                   </div>
-                                  <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
-                                    <span className="font-semibold text-emerald-800">{req.passenger.companyName || "Tech Mahindra"}</span>
-                                    <span>• {req.passenger.department}</span>
-                                    {req.passenger.phone && <span>• {req.passenger.phone}</span>}
-                                  </div>
-                                  <div className="text-[11px] text-slate-600 mt-1">
-                                    Boarding: <strong className="text-slate-800">{req.pickupStop}</strong> • Seats: <strong>{req.seatsRequested}</strong> • Fare: <strong>₹{req.fare}</strong>
-                                  </div>
-                                  {req.notes && (
-                                    <div className="text-[10px] text-slate-500 italic mt-0.5">&ldquo;{req.notes}&rdquo;</div>
-                                  )}
-                                </div>
 
-                                <div className="flex items-center gap-2">
-                                  {isPending ? (
-                                    <>
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleRequestAction(req._id, "accept")}
-                                        disabled={actionLoadingId === req._id}
-                                        className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1"
-                                      >
-                                        {actionLoadingId === req._id ? (
-                                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                          <Check className="h-3.5 w-3.5" />
-                                        )}
-                                        Accept
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleRequestAction(req._id, "reject")}
-                                        disabled={actionLoadingId === req._id}
-                                        className="h-8 border-rose-200 text-rose-700 hover:bg-rose-50 text-xs rounded-xl gap-1"
-                                      >
-                                        <X className="h-3.5 w-3.5" /> Reject
-                                      </Button>
-                                    </>
-                                  ) : isAccepted ? (
-                                    <div className="flex items-center gap-1.5">
-                                      {req.isBoarded ? (
-                                        <Badge className="bg-emerald-600 text-white text-[10px] font-bold py-0.5 px-2 gap-1">
-                                          <Check className="h-3 w-3" /> Boarded
-                                        </Badge>
-                                      ) : (
+                                  <div className="flex items-center gap-2">
+                                    {isPending ? (
+                                      <>
                                         <Button
                                           size="sm"
-                                          onClick={() => {
-                                            setPinModalRequest({ ...req, rideId: ride._id });
-                                            setEnteredBoardingPin("");
-                                            setPinModalError(null);
-                                          }}
-                                          className="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg gap-1 shadow-2xs"
+                                          onClick={() => handleRequestAction(req._id, "accept")}
+                                          disabled={actionLoadingId === req._id}
+                                          className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1"
                                         >
-                                          <ShieldCheck className="h-3.5 w-3.5" /> Verify PIN
+                                          {actionLoadingId === req._id ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                          ) : (
+                                            <Check className="h-3.5 w-3.5" />
+                                          )}
+                                          Accept
                                         </Button>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <Badge className="text-[10px] font-bold bg-rose-100 text-rose-800">
-                                      {req.status.toUpperCase()}
-                                    </Badge>
-                                  )}
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleRequestAction(req._id, "reject")}
+                                          disabled={actionLoadingId === req._id}
+                                          className="h-8 border-rose-200 text-rose-700 hover:bg-rose-50 text-xs rounded-xl gap-1"
+                                        >
+                                          <X className="h-3.5 w-3.5" /> Reject
+                                        </Button>
+                                      </>
+                                    ) : isAccepted ? (
+                                      <div className="flex items-center gap-1.5">
+                                        {req.isBoarded ? (
+                                          <Badge className="bg-emerald-600 text-white text-[10px] font-bold py-0.5 px-2 gap-1">
+                                            <Check className="h-3 w-3" /> Boarded
+                                          </Badge>
+                                        ) : (
+                                          <Button
+                                            size="sm"
+                                            onClick={() => {
+                                              setPinModalRequest({ ...req, rideId: ride._id });
+                                              setEnteredBoardingPin("");
+                                              setPinModalError(null);
+                                            }}
+                                            className="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg gap-1 shadow-2xs"
+                                          >
+                                            <ShieldCheck className="h-3.5 w-3.5" /> Verify PIN
+                                          </Button>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <Badge className="text-[10px] font-bold bg-rose-100 text-rose-800">
+                                        {req.status.toUpperCase()}
+                                      </Badge>
+                                    )}
+                                  </div>
                                 </div>
+
+                                {/* Post-Ride Payment Status Action UI for Driver on Completed Rides */}
+                                {isCompleted && isAccepted && (
+                                  <div className="pt-2 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 mt-1">
+                                    <div className="space-y-1 text-xs">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold text-slate-700">Payment Status:</span>
+                                        {req.paymentStatus === "paid" ? (
+                                          <Badge className="bg-emerald-600 text-white font-bold text-[10px] px-2 py-0.5 gap-1">
+                                            <CheckCircle2 className="h-3 w-3" /> Paid (₹{req.fare})
+                                          </Badge>
+                                        ) : req.paymentStatus === "partially_paid" ? (
+                                          <Badge className="bg-amber-600 text-white font-bold text-[10px] px-2 py-0.5 gap-1">
+                                            <AlertCircle className="h-3 w-3" /> Partially Paid (₹{req.amountPaid || 0})
+                                          </Badge>
+                                        ) : (
+                                          <Badge className="bg-rose-600 text-white font-bold text-[10px] px-2 py-0.5 gap-1">
+                                            <X className="h-3 w-3" /> Not Paid (Remaining: ₹{req.fare})
+                                          </Badge>
+                                        )}
+                                      </div>
+
+                                      <div className="text-[11px] text-slate-600 flex flex-wrap items-center gap-3">
+                                        <span>Total Fare: <strong>₹{req.fare}</strong></span>
+                                        <span>Paid: <strong className="text-emerald-700">₹{req.amountPaid || 0}</strong></span>
+                                        <span>Remaining: <strong className={(req.fare - (req.amountPaid || 0)) > 0 ? "text-rose-600 font-bold" : "text-emerald-600 font-bold"}>₹{Math.max(0, req.fare - (req.amountPaid || 0))}</strong></span>
+                                      </div>
+                                    </div>
+
+                                    {/* Driver Fare Status Action Buttons */}
+                                    <div className="flex items-center gap-1.5 self-end sm:self-center">
+                                      <Button
+                                        size="sm"
+                                        disabled={actionLoadingId === req._id}
+                                        onClick={() => handleUpdatePaymentStatus(req._id, "paid")}
+                                        className={`h-7 text-[11px] font-bold rounded-lg ${
+                                          req.paymentStatus === "paid"
+                                            ? "bg-emerald-700 text-white ring-2 ring-emerald-500 shadow-2xs"
+                                            : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300"
+                                        }`}
+                                      >
+                                        Paid
+                                      </Button>
+
+                                      <Button
+                                        size="sm"
+                                        disabled={actionLoadingId === req._id}
+                                        onClick={() => {
+                                          setPartialPaymentModalReq(req);
+                                          setPartialPaymentAmount(String(req.amountPaid || Math.round(req.fare / 2)));
+                                          setPaymentModalError(null);
+                                        }}
+                                        className={`h-7 text-[11px] font-bold rounded-lg ${
+                                          req.paymentStatus === "partially_paid"
+                                            ? "bg-amber-600 text-white ring-2 ring-amber-400 shadow-2xs"
+                                            : "bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-300"
+                                        }`}
+                                      >
+                                        Partially Paid
+                                      </Button>
+
+                                      <Button
+                                        size="sm"
+                                        disabled={actionLoadingId === req._id}
+                                        onClick={() => handleUpdatePaymentStatus(req._id, "not_paid")}
+                                        className={`h-7 text-[11px] font-bold rounded-lg ${
+                                          req.paymentStatus === "not_paid" || !req.paymentStatus
+                                            ? "bg-rose-700 text-white ring-2 ring-rose-500 shadow-2xs"
+                                            : "bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-300"
+                                        }`}
+                                      >
+                                        Not Paid
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -998,6 +1159,36 @@ export default function MyRidesPage() {
                           ) : (
                             <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px] font-semibold py-1 px-2">
                               Awaiting Boarding
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Read-Only Post-Ride Fare Payment Status for Passengers on Completed Rides */}
+                    {ride.status === "completed" && isAccepted && (
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div className="space-y-0.5">
+                          <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                            <IndianRupee className="h-3.5 w-3.5 text-emerald-600" /> Fare Payment Status
+                          </span>
+                          <span className="text-[11px] text-slate-500">
+                            Total Fare: <strong>₹{booking.fare}</strong> • Paid: <strong className="text-emerald-700">₹{booking.amountPaid || 0}</strong> • Remaining: <strong className={(booking.fare - (booking.amountPaid || 0)) > 0 ? "text-rose-600 font-bold" : "text-emerald-600 font-bold"}>₹{Math.max(0, booking.fare - (booking.amountPaid || 0))}</strong>
+                          </span>
+                        </div>
+
+                        <div>
+                          {booking.paymentStatus === "paid" ? (
+                            <Badge className="bg-emerald-600 text-white font-bold text-[10px] py-1 px-2.5 gap-1">
+                              <CheckCircle2 className="h-3 w-3" /> Paid (₹{booking.fare})
+                            </Badge>
+                          ) : booking.paymentStatus === "partially_paid" ? (
+                            <Badge className="bg-amber-600 text-white font-bold text-[10px] py-1 px-2.5 gap-1">
+                              <AlertCircle className="h-3 w-3" /> Partially Paid (₹{booking.amountPaid || 0})
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-rose-600 text-white font-bold text-[10px] py-1 px-2.5 gap-1">
+                              <X className="h-3 w-3" /> Not Paid (Remaining: ₹{booking.fare})
                             </Badge>
                           )}
                         </div>
@@ -1262,6 +1453,109 @@ export default function MyRidesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* PARTIAL PAYMENT AMOUNT ENTRY MODAL FOR DRIVER */}
+      {partialPaymentModalReq && (
+        <Dialog open={Boolean(partialPaymentModalReq)} onOpenChange={(open) => !open && setPartialPaymentModalReq(null)}>
+          <DialogContent className="sm:max-w-md rounded-2xl p-6 bg-white shadow-xl border border-slate-100">
+            <DialogHeader className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-100 text-amber-700 font-bold">
+                  <IndianRupee className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-base font-bold text-slate-900">
+                    Record Partial Payment
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-500 mt-0.5">
+                    Passenger: <strong>{partialPaymentModalReq.passenger.name}</strong> • Total Fare: <strong>₹{partialPaymentModalReq.fare}</strong>
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs flex justify-between items-center">
+                <span className="text-slate-600 font-medium">Total Commute Fare:</span>
+                <strong className="text-slate-900 font-extrabold text-sm">₹{partialPaymentModalReq.fare}</strong>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">Amount Paid (₹)</label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={partialPaymentModalReq.fare - 1}
+                  value={partialPaymentAmount}
+                  onChange={(e) => {
+                    setPartialPaymentAmount(e.target.value);
+                    setPaymentModalError(null);
+                  }}
+                  placeholder={`Enter amount between ₹1 and ₹${partialPaymentModalReq.fare - 1}`}
+                  className="h-10 rounded-xl border-slate-300 font-bold text-sm focus:border-amber-500"
+                />
+              </div>
+
+              {/* Real-time Calculation Breakdown */}
+              {partialPaymentAmount !== "" && !isNaN(Number(partialPaymentAmount)) && (
+                <div className="p-3 rounded-xl text-xs space-y-1 bg-amber-50/80 border border-amber-200 text-amber-900 font-medium">
+                  <div className="flex justify-between">
+                    <span>Total Fare:</span>
+                    <strong className="font-bold">₹{partialPaymentModalReq.fare}</strong>
+                  </div>
+                  <div className="flex justify-between text-emerald-800">
+                    <span>Amount Paid:</span>
+                    <strong className="font-bold">₹{Number(partialPaymentAmount)}</strong>
+                  </div>
+                  <div className="flex justify-between text-rose-700 border-t border-amber-200/60 pt-1">
+                    <span>Remaining Amount:</span>
+                    <strong className="font-bold">₹{Math.max(0, partialPaymentModalReq.fare - Number(partialPaymentAmount))}</strong>
+                  </div>
+                </div>
+              )}
+
+              {paymentModalError && (
+                <div className="text-xs text-rose-700 font-semibold bg-rose-50 p-2.5 rounded-xl border border-rose-200 flex items-center gap-1.5">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                  <span>{paymentModalError}</span>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPartialPaymentModalReq(null)}
+                className="rounded-xl text-xs font-semibold h-9 border-slate-200"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={isUpdatingPayment}
+                onClick={() => {
+                  const val = Number(partialPaymentAmount);
+                  if (isNaN(val) || val <= 0) {
+                    setPaymentModalError("Amount paid for Partial Payment must be greater than ₹0.");
+                    return;
+                  }
+                  if (val >= partialPaymentModalReq.fare) {
+                    setPaymentModalError(`Amount paid must be less than total fare of ₹${partialPaymentModalReq.fare}. Select 'Paid' for full payment.`);
+                    return;
+                  }
+                  setIsUpdatingPayment(true);
+                  handleUpdatePaymentStatus(partialPaymentModalReq._id, "partially_paid", val);
+                }}
+                className="rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white h-9 gap-1.5 shadow-xs"
+              >
+                {isUpdatingPayment ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                Save Partial Payment
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

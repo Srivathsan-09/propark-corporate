@@ -16,6 +16,9 @@ export interface IRideRequest extends Document {
   boardingPin?: string;
   isBoarded?: boolean;
   boardedAt?: Date;
+  paymentStatus?: "paid" | "partially_paid" | "not_paid";
+  amountPaid?: number;
+  paymentUpdatedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -91,6 +94,20 @@ const RideRequestSchema = new Schema<IRideRequest>(
       default: false,
     },
     boardedAt: {
+      type: Date,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["paid", "partially_paid", "not_paid"],
+      default: "not_paid",
+      index: true,
+    },
+    amountPaid: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    paymentUpdatedAt: {
       type: Date,
     },
   },
