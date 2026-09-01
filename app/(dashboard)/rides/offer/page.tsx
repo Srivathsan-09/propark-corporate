@@ -164,9 +164,14 @@ export default function OfferRidePage() {
   // Routing Hook
   const { routeResult, isCalculating, calculateRoute } = useRoute();
 
-  // Load User Profile & Setup Initial Locations
+  const hasInitializedProfileRef = React.useRef(false);
+
+  // Load User Profile & Setup Initial Locations (ONCE on mount)
   useEffect(() => {
     async function loadProfileAndDefaults() {
+      if (hasInitializedProfileRef.current) return;
+      hasInitializedProfileRef.current = true;
+
       try {
         const res = await fetch("/api/profile");
         if (res.ok) {
@@ -257,7 +262,7 @@ export default function OfferRidePage() {
       }
     }
 
-    if (session?.user) {
+    if (session?.user && !hasInitializedProfileRef.current) {
       loadProfileAndDefaults();
     }
   }, [session, defaultIsMorning]);

@@ -21,15 +21,43 @@ export async function GET(req: NextRequest) {
 
     await connectToDatabase();
 
+    let dbUserId = session.user.id;
+    if (session.user.email) {
+      const userDoc = await User.findOne({ email: session.user.email.toLowerCase().trim() }).select("_id").lean();
+      if (userDoc) {
+        dbUserId = userDoc._id.toString();
+      }
+    }
+
+    const driverQuery = [
+      { driver: dbUserId },
+      { driver: session.user.id },
+    ];
+    if (dbUserId !== session.user.id) {
+      try {
+        const { ObjectId } = require("mongoose").Types;
+        driverQuery.push({ driver: new ObjectId(dbUserId) });
+      } catch {}
+    }
+
     // 1. Fetch rides offered by user (Driver view)
-    const offeredRides = await Ride.find({ driver: session.user.id })
+    const offeredRides = await Ride.find({
+      $or: driverQuery,
+    })
       .populate("vehicle", "vehicleModel vehicleType registrationNumber vehiclePhoto seatingCapacity availableSeats")
       .populate("requests.passenger", "name email phone companyName department profileImage employeeId")
       .sort({ createdAt: -1 })
       .lean();
 
+    const passengerQuery = [
+      { "requests.passenger": dbUserId },
+      { "requests.passenger": session.user.id },
+    ];
+
     // 2. Fetch rides requested / booked by user (Passenger view)
-    const passengerRides = await Ride.find({ "requests.passenger": session.user.id })
+    const passengerRides = await Ride.find({
+      $or: passengerQuery,
+    })
       .populate("driver", "name email phone companyName department profileImage employeeId")
       .populate("vehicle", "vehicleModel vehicleType registrationNumber vehiclePhoto")
       .populate("requests.passenger", "name email phone companyName department profileImage employeeId")
@@ -39,7 +67,10 @@ export async function GET(req: NextRequest) {
     const validBookedRides: any[] = [];
     passengerRides.forEach((ride: any) => {
       const myRequests = (ride.requests || []).filter(
-        (r: any) => (r.passenger?._id || r.passenger)?.toString() === session.user.id
+        (r: any) => {
+          const pId = (r.passenger?._id || r.passenger)?.toString();
+          return pId === dbUserId || pId === session.user.id;
+        }
       );
 
       myRequests.forEach((req: any) => {
