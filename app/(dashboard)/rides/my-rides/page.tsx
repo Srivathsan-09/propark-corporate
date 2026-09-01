@@ -778,7 +778,7 @@ export default function MyRidesPage() {
           <div className="space-y-6">
             {offeredRides.map((ride) => {
               const isPickup = ride.rideType !== "drop";
-              const isLive = ride.status === "in_progress" || activeTrackingRideId === ride._id;
+              const isLive = ride.status === "in_progress";
               const isCompleted = ride.status === "completed";
 
               const acceptedReqs = ride.requests.filter((r) => r.status === "accepted");
@@ -815,23 +815,12 @@ export default function MyRidesPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-xs">
-                      {isLive ? (
-                        <Badge className="bg-emerald-600 text-white font-bold text-xs gap-1.5 animate-pulse">
-                          <Radio className="h-3.5 w-3.5 animate-ping" /> Live GPS Active
-                        </Badge>
-                      ) : (
-                        <Badge
-                          className={`font-bold text-[10px] ${
-                            isCompleted ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          {ride.status.toUpperCase()}
-                        </Badge>
-                      )}
-
-                      {/* START RIDE / COMPLETE RIDE / DELETE BUTTONS FOR DRIVER */}
+                      {/* SCHEDULED RIDE ACTIONS */}
                       {ride.status === "scheduled" && (
                         <div className="flex flex-wrap items-center gap-2">
+                          <Badge className="font-bold text-[10px] bg-slate-100 text-slate-700">
+                            SCHEDULED
+                          </Badge>
                           <Button
                             size="sm"
                             onClick={() => handleOpenLiveTracking(ride)}
@@ -844,7 +833,7 @@ export default function MyRidesPage() {
                             onClick={() => startDriverGpsTracking(ride._id, true)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs gap-1.5 h-8"
                           >
-                            <Play className="h-3.5 w-3.5 fill-current" /> Start Ride & GPS
+                            <Play className="h-3.5 w-3.5 fill-current" /> Start Ride
                           </Button>
                           <Button
                             size="sm"
@@ -863,30 +852,16 @@ export default function MyRidesPage() {
                         </div>
                       )}
 
-                      {(ride.status === "completed" || ride.status === "cancelled") && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteRide(ride._id)}
-                          disabled={actionLoadingId === ride._id}
-                          className="text-slate-400 hover:text-rose-600 text-xs rounded-xl gap-1 h-8 px-2"
-                          title="Delete Ride Record"
-                        >
-                          {actionLoadingId === ride._id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
-                          <span className="hidden sm:inline">Delete</span>
-                        </Button>
-                      )}
-
-                      {isLive && (
-                        <div className="flex items-center gap-2">
+                      {/* IN PROGRESS RIDE ACTIONS */}
+                      {ride.status === "in_progress" && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge className="bg-emerald-600 text-white font-bold text-xs gap-1.5 animate-pulse py-1 px-2.5">
+                            <Radio className="h-3.5 w-3.5 animate-ping" /> Live GPS Active
+                          </Badge>
                           <Button
                             size="sm"
                             onClick={() => handleOpenLiveTracking(ride)}
-                            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl gap-1.5 h-8"
+                            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl gap-1.5 h-8 border border-slate-700 shadow-xs"
                           >
                             <MapIcon className="h-3.5 w-3.5 text-emerald-400" /> Driver GPS Map
                           </Button>
@@ -895,9 +870,37 @@ export default function MyRidesPage() {
                             variant="destructive"
                             onClick={() => handleCompleteRide(ride._id)}
                             disabled={actionLoadingId === ride._id}
-                            className="text-xs font-bold rounded-xl gap-1.5 h-8"
+                            className="text-xs font-bold rounded-xl gap-1.5 h-8 shadow-xs"
                           >
                             <Square className="h-3.5 w-3.5 fill-current" /> Complete Ride
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* COMPLETED / CANCELLED RIDE ACTIONS */}
+                      {(ride.status === "completed" || ride.status === "cancelled") && (
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            className={`font-bold text-[10px] ${
+                              isCompleted ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {ride.status.toUpperCase()}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteRide(ride._id)}
+                            disabled={actionLoadingId === ride._id}
+                            className="text-slate-400 hover:text-rose-600 text-xs rounded-xl gap-1 h-8 px-2"
+                            title="Delete Ride Record"
+                          >
+                            {actionLoadingId === ride._id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                            <span className="hidden sm:inline">Delete</span>
                           </Button>
                         </div>
                       )}
