@@ -485,7 +485,7 @@ export default function LeafletRouteMap({
       boundsPoints.push([customPickupPoint.latitude, customPickupPoint.longitude]);
     }
 
-    // 6. Draw Polyline Route (if passed or calculate automatically from waypoints)
+    // 6. Draw Polyline Route with Stale Route Protection
     const drawRoutePolyline = (coords: [number, number][]) => {
       if (!map || coords.length < 2) return;
       if (routeLayerGroupRef.current) {
@@ -517,7 +517,19 @@ export default function LeafletRouteMap({
       coords.forEach((pt) => boundsPoints.push(pt));
     };
 
-    if (routeCoordinates && routeCoordinates.length > 0) {
+    const isRouteValidForEndpoints = (coords: [number, number][]) => {
+      if (!coords || coords.length < 2 || !startLocation?.latitude || !destination?.latitude) return true;
+      const firstPt = coords[0];
+      const lastPt = coords[coords.length - 1];
+
+      // Distance from first coordinate to startLocation and last coordinate to destination
+      const distToStart = Math.hypot(firstPt[0] - startLocation.latitude, firstPt[1] - startLocation.longitude);
+      const distToEnd = Math.hypot(lastPt[0] - destination.latitude, lastPt[1] - destination.longitude);
+
+      return distToStart < 0.08 && distToEnd < 0.08; // ~5-7km threshold
+    };
+
+    if (routeCoordinates && routeCoordinates.length > 0 && isRouteValidForEndpoints(routeCoordinates)) {
       drawRoutePolyline(routeCoordinates);
     } else if (startLocation && destination && startLocation.latitude && destination.latitude) {
       const waypoints = [

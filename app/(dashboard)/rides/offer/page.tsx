@@ -43,7 +43,7 @@ import {
 import LocationSearchInput from "@/components/map/LocationSearchInput";
 import MapView, { MapPoint } from "@/components/map/MapView";
 import { CarLoader } from "@/components/common/CarLoader";
-import { geocodingService } from "@/lib/services/geocoding";
+import { geocodingService, resolvePlaceCoordinates } from "@/lib/services/geocoding";
 import { useRoute } from "@/hooks/useRoute";
 import { offerRideSchema } from "@/validations/ride.schema";
 
@@ -938,9 +938,13 @@ export default function OfferRidePage() {
                           }
                         }
 
-                        if (lat && lng) {
-                          setStartPoint({ name, address: loc.address, latitude: lat, longitude: lng });
-                        }
+                        const resolvedCoords = resolvePlaceCoordinates(name, lat, lng, true);
+                        setStartPoint({
+                          name: name.split(",")[0].trim(),
+                          address: loc.address,
+                          latitude: resolvedCoords.latitude,
+                          longitude: resolvedCoords.longitude,
+                        });
                       }}
                       hasError={Boolean(fieldErrors.startingLocation)}
                       className="h-9 text-xs bg-white"
@@ -992,9 +996,13 @@ export default function OfferRidePage() {
                           }
                         }
 
-                        if (lat && lng) {
-                          setEndPoint({ name, address: loc.address, latitude: lat, longitude: lng });
-                        }
+                        const resolvedCoords = resolvePlaceCoordinates(name, lat, lng, false);
+                        setEndPoint({
+                          name: name.split(",")[0].trim(),
+                          address: loc.address,
+                          latitude: resolvedCoords.latitude,
+                          longitude: resolvedCoords.longitude,
+                        });
                       }}
                       hasError={Boolean(fieldErrors.destination)}
                       className="h-9 text-xs bg-white"
