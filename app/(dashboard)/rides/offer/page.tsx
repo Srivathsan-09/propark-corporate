@@ -887,28 +887,41 @@ export default function OfferRidePage() {
                           <div className="grid grid-cols-1 gap-1.5">
                             {routeResult.alternativeRoutes.map((alt) => {
                               const isSelected = selectedRouteIndex === alt.index;
+                              const isBest = alt.index === 0;
                               return (
                                 <button
                                   key={alt.index}
                                   type="button"
                                   onClick={() => setSelectedRouteIndex(alt.index)}
                                   className={cn(
-                                    "flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all border text-xs",
+                                    "flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all border text-xs gap-2",
                                     isSelected
-                                      ? "bg-emerald-500 text-slate-950 border-emerald-600 font-bold shadow-sm"
+                                      ? "bg-slate-900 text-white border-slate-900 font-bold shadow-sm"
                                       : "bg-white text-slate-700 border-slate-200 hover:border-emerald-300 hover:bg-slate-50"
                                   )}
                                 >
-                                  <div className="flex items-center gap-2 truncate">
+                                  <div className="flex items-center gap-2 truncate min-w-0">
                                     <div
                                       className={cn(
                                         "h-2 w-2 rounded-full shrink-0",
-                                        isSelected ? "bg-slate-950 ring-2 ring-emerald-300" : "bg-slate-400"
+                                        isSelected ? "bg-emerald-400 ring-2 ring-emerald-300" : "bg-slate-400"
                                       )}
                                     />
-                                    <span className="truncate font-semibold">{alt.name}</span>
+                                    <div className="truncate">
+                                      <div className="flex items-center gap-1.5 truncate">
+                                        <span className="truncate font-semibold">{alt.name}</span>
+                                        {isBest && (
+                                          <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-500 text-slate-950 uppercase shrink-0">
+                                            BEST ROUTE
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0 font-bold">
+                                    <span className={alt.trafficLevel === "Heavy" ? "text-rose-400" : alt.trafficLevel === "Moderate" ? "text-amber-400" : "text-emerald-400"}>
+                                      {alt.trafficLevel}
+                                    </span>
                                     <span>{alt.formattedDistance}</span>
                                     <span className="opacity-80">• {alt.formattedDuration}</span>
                                   </div>
