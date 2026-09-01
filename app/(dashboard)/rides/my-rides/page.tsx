@@ -572,6 +572,42 @@ export default function MyRidesPage() {
     }
   }, [isLiveTrackingModalOpen]);
 
+  // Auto Background Live GPS Broadcast for Passenger with active accepted booking
+  useEffect(() => {
+    if (!bookedRides || bookedRides.length === 0) return;
+
+    const activeBooking = bookedRides.find(
+      (b: any) => b.status === "accepted" && b.ride && b.ride.status !== "completed" && b.ride.status !== "cancelled"
+    );
+
+    if (!activeBooking || !activeBooking._id) return;
+
+    const stopFn = locationService.watchPosition(
+      async (newPos) => {
+        try {
+          await fetch(`/api/rides/requests/${activeBooking._id}/location`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              latitude: newPos.latitude,
+              longitude: newPos.longitude,
+              heading: newPos.heading,
+              speed: newPos.speed,
+              accuracy: newPos.accuracy,
+            }),
+          });
+        } catch (e) {
+          console.warn("Background passenger GPS sync error:", e);
+        }
+      },
+      (err) => console.warn("Background passenger GPS watch error:", err)
+    );
+
+    return () => {
+      if (stopFn) stopFn();
+    };
+  }, [bookedRides]);
+
   // Real-time polling for passenger tracking modal
   useEffect(() => {
     if (!isLiveTrackingModalOpen || !trackingModalRide) return;
@@ -795,7 +831,14 @@ export default function MyRidesPage() {
 
                       {/* START RIDE / COMPLETE RIDE / DELETE BUTTONS FOR DRIVER */}
                       {ride.status === "scheduled" && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenLiveTracking(ride)}
+                            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl gap-1.5 h-8 border border-slate-700 shadow-xs"
+                          >
+                            <MapIcon className="h-3.5 w-3.5 text-emerald-400" /> View Passenger Map
+                          </Button>
                           <Button
                             size="sm"
                             onClick={() => startDriverGpsTracking(ride._id, true)}
@@ -993,6 +1036,13 @@ export default function MyRidesPage() {
                                       </>
                                     ) : isAccepted ? (
                                       <div className="flex items-center gap-1.5">
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleOpenLiveTracking(ride, req)}
+                                          className="h-7 text-[11px] bg-slate-900 text-white hover:bg-slate-800 font-semibold rounded-lg gap-1 border border-slate-700 shadow-2xs"
+                                        >
+                                          <Radio className="h-3 w-3 text-emerald-400 animate-pulse" /> Live Map
+                                        </Button>
                                         {req.isBoarded ? (
                                           <Badge className="bg-emerald-600 text-white text-[10px] font-bold py-0.5 px-2 gap-1">
                                             <Check className="h-3 w-3" /> Boarded
