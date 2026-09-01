@@ -129,7 +129,7 @@ class RoutingService {
         }
 
         // Parse alternative routes (if returned by OSRM)
-        const alternativeRoutes: AlternativeRoute[] = (data.routes || []).map((r: any, idx: number) => {
+        const rawAlternatives: AlternativeRoute[] = (data.routes || []).map((r: any, idx: number) => {
           const rCoords: [number, number][] = (r.geometry?.coordinates || []).map(
             (c: [number, number]) => [c[1], c[0]]
           );
@@ -140,7 +140,7 @@ class RoutingService {
 
           return {
             index: idx,
-            name: idx === 0 ? `${legSummary} (Fastest)` : legSummary,
+            name: legSummary,
             summary: legSummary,
             coordinates: rCoords,
             distanceKm: rDistKm,
@@ -148,21 +148,56 @@ class RoutingService {
             formattedDistance: `${rDistKm} km`,
             formattedDuration: this.formatDuration(rTraffic.trafficDurationMinutes),
             trafficLevel: rTraffic.trafficLevel,
-            isRecommended: idx === 0,
+            isRecommended: false,
           };
         });
 
-        const result: RouteResult = {
+        // Sort routes: Shortest travel duration first!
+        // If durations are within 2 mins of each other, sort by shorter distance!
+        rawAlternatives.sort((a, b) => {
+          const durDiff = a.durationMinutes - b.durationMinutes;
+          if (Math.abs(durDiff) > 2) return durDiff;
+          return a.distanceKm - b.distanceKm;
+        });
+
+        // Re-assign indices, names, and set isRecommended = true for rank 0!
+        const alternativeRoutes: AlternativeRoute[] = rawAlternatives.map((alt, newIdx) => {
+          const isFastest = newIdx === 0;
+          const displayName = isFastest
+            ? alt.summary !== `Route ${newIdx + 1}`
+              ? `${alt.summary} (Fastest)`
+              : `Fastest Route`
+            : alt.summary;
+
+          return {
+            ...alt,
+            index: newIdx,
+            name: displayName,
+            isRecommended: isFastest,
+          };
+        });
+
+        // Use top ranked route (true fastest) for primary result
+        const topRoute = alternativeRoutes[0] || {
           coordinates,
           distanceKm,
-          baseDurationMinutes,
           durationMinutes: trafficInfo.trafficDurationMinutes,
           trafficLevel: trafficInfo.trafficLevel,
+          formattedDistance: `${distanceKm} km`,
+          formattedDuration: this.formatDuration(trafficInfo.trafficDurationMinutes),
+        };
+
+        const result: RouteResult = {
+          coordinates: topRoute.coordinates,
+          distanceKm: topRoute.distanceKm,
+          baseDurationMinutes,
+          durationMinutes: topRoute.durationMinutes,
+          trafficLevel: topRoute.trafficLevel,
           trafficDelayMinutes: trafficInfo.trafficDelayMinutes,
           trafficBadgeText: trafficInfo.trafficBadgeText,
           trafficBadgeColor: trafficInfo.trafficBadgeColor,
-          formattedDistance: `${distanceKm} km`,
-          formattedDuration: this.formatDuration(trafficInfo.trafficDurationMinutes),
+          formattedDistance: topRoute.formattedDistance,
+          formattedDuration: topRoute.formattedDuration,
           lastUpdated: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           remainingDistanceKm,
           remainingDurationMinutes,
