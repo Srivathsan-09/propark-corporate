@@ -286,23 +286,9 @@ export function resolvePlaceCoordinates(
   existingLng?: number,
   isOrigin: boolean = true
 ): { latitude: number; longitude: number } {
-  // 1. If valid real coordinates are explicitly passed, return them immediately
-  if (
-    typeof existingLat === "number" &&
-    !isNaN(existingLat) &&
-    existingLat > 8 &&
-    existingLat < 38 &&
-    typeof existingLng === "number" &&
-    !isNaN(existingLng) &&
-    existingLng > 68 &&
-    existingLng < 98
-  ) {
-    return { latitude: existingLat, longitude: existingLng };
-  }
-
   const name = (placeName || "").toLowerCase().trim();
 
-  // 2. Specific Chennai / Tamil Nadu locality fallback lookup
+  // 1. Specific Chennai / Tamil Nadu locality keyword lookup
   if (
     name.includes("karayanchavadi") ||
     name.includes("karayan") ||
@@ -316,7 +302,7 @@ export function resolvePlaceCoordinates(
     return { latitude: 13.0382, longitude: 80.1565 };
   }
 
-  if (name.includes("guindy")) {
+  if (name.includes("guindy") || name.includes("tech park") || name.includes("campus")) {
     return { latitude: 13.0067, longitude: 80.202 };
   }
 
@@ -332,7 +318,7 @@ export function resolvePlaceCoordinates(
     return { latitude: 13.0456, longitude: 80.1214 };
   }
 
-  if (name.includes("iyyappanthangal")) {
+  if (name.includes("iyyappanthangal") || name.includes("iyapanthangal")) {
     return { latitude: 13.0418, longitude: 80.1417 };
   }
 
@@ -354,6 +340,20 @@ export function resolvePlaceCoordinates(
 
   if (name.includes("tambaram")) {
     return { latitude: 12.9249, longitude: 80.1332 };
+  }
+
+  // 2. If valid real numeric coordinates are explicitly passed, return them
+  if (
+    typeof existingLat === "number" &&
+    !isNaN(existingLat) &&
+    existingLat > 8 &&
+    existingLat < 38 &&
+    typeof existingLng === "number" &&
+    !isNaN(existingLng) &&
+    existingLng > 68 &&
+    existingLng < 98
+  ) {
+    return { latitude: existingLat, longitude: existingLng };
   }
 
   // 3. Fallback defaults (Karayanchavadi / Poonamallee -> Guindy / Tech Park Chennai)
