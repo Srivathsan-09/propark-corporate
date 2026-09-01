@@ -1290,37 +1290,6 @@ export default function MyRidesPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <Button
                               size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setPassengerGpsStatus("UPDATING");
-                                locationService
-                                  .getCurrentPosition()
-                                  .then((pos) => {
-                                    setPassengerGpsPosition({ latitude: pos.latitude, longitude: pos.longitude });
-                                    setPassengerGpsStatus("ACTIVE");
-                                    if (booking._id) {
-                                      fetch(`/api/rides/requests/${booking._id}/location`, {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                          latitude: pos.latitude,
-                                          longitude: pos.longitude,
-                                        }),
-                                      }).catch(() => {});
-                                    }
-                                  })
-                                  .catch((err) => {
-                                    setPassengerGpsStatus("DENIED");
-                                    alert(err.message || "Location access denied. Please turn ON location in your browser.");
-                                  });
-                              }}
-                              className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 font-bold text-xs rounded-xl gap-1.5 h-8"
-                            >
-                              <Radio className={`h-3.5 w-3.5 ${passengerGpsStatus === "ACTIVE" ? "text-emerald-600 animate-pulse" : "text-slate-400"}`} />
-                              {passengerGpsStatus === "ACTIVE" ? "GPS Live Sharing Active" : "Enable Passenger Live Location"}
-                            </Button>
-                            <Button
-                              size="sm"
                               onClick={() => handleOpenLiveTracking(ride)}
                               className={`${
                                 isLive
@@ -1493,78 +1462,41 @@ export default function MyRidesPage() {
             const proximity = calculateProximity(driverLiveLoc, passengerLiveLoc);
 
             return (
-              <div className="space-y-4">
-                <DialogHeader className="pr-10">
-                  <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
-                    <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                      <Radio className="h-4 w-4 text-emerald-600 animate-pulse" />
-                      Two-Way Real-Time Location Tracking
-                    </DialogTitle>
-                    <Badge className="bg-emerald-600 text-white font-bold text-xs">
-                      {liveTelemetry?.status === "in_progress" ? "Live Commute Active" : "Accepted & Tracking"}
-                    </Badge>
-                  </div>
-                  <DialogDescription className="text-xs text-slate-500">
-                    {driverName} • {liveTelemetry?.vehicle?.vehicleModel || "Vehicle"} ({liveTelemetry?.vehicle?.registrationNumber || "Corporate Carpool"})
-                  </DialogDescription>
-                </DialogHeader>
-
-                {/* Real-time Driver <-> Passenger Distance & ETA Banner (Ola/Uber/Rapido Experience) */}
-                <div className="bg-slate-950 text-white p-3.5 rounded-2xl border border-slate-800 space-y-2.5 shadow-lg">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
-                        {isDriverUser ? <Users className="h-4 w-4" /> : <Car className="h-4 w-4" />}
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block">
-                          {isDriverUser ? `Target Passenger (${passengerName})` : `En Route Driver (${driverName})`}
-                        </span>
-                        <strong className="text-sm text-emerald-400 font-extrabold flex items-center gap-1.5">
-                          {proximity ? (
-                            <>
-                              <span>{proximity.distanceText}</span>
-                              <span className="text-slate-500">•</span>
-                              <span>{proximity.etaText}</span>
-                            </>
-                          ) : passengerGpsStatus === "DENIED" ? (
-                            <span className="text-amber-300 text-xs">Enable location access to use live tracking</span>
-                          ) : (
-                            <span className="text-slate-300 text-xs animate-pulse">Updating location...</span>
-                          )}
-                        </strong>
-                      </div>
+              <div className="space-y-3">
+                {/* En Route Distance & ETA Proximity Banner at the top of the popup */}
+                <div className="bg-slate-950 text-white p-3 sm:p-3.5 rounded-2xl border border-slate-800 flex items-center justify-between gap-3 shadow-md">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 shrink-0">
+                      {isDriverUser ? <Users className="h-4 w-4" /> : <Car className="h-4 w-4" />}
                     </div>
-
-                    <div className="text-right">
-                      <span className="text-[10px] text-slate-400 uppercase font-semibold block">Route Commute ETA</span>
-                      <strong className="text-xs text-white font-bold">
-                        {liveEtaResult?.formattedDuration || `${liveTelemetry?.durationMinutes || 20} mins`}{" "}
-                        {liveEtaResult?.formattedEtaTime ? `(${liveEtaResult.formattedEtaTime})` : ""}
+                    <div className="truncate">
+                      <span className="text-[10px] text-slate-400 uppercase font-bold block truncate">
+                        {isDriverUser ? `Target Passenger (${passengerName})` : `En Route Driver (${driverName})`}
+                      </span>
+                      <strong className="text-sm text-emerald-400 font-extrabold flex items-center gap-1.5 truncate">
+                        {proximity ? (
+                          <>
+                            <span>{proximity.distanceText}</span>
+                            <span className="text-slate-500">•</span>
+                            <span>{proximity.etaText}</span>
+                          </>
+                        ) : (
+                          <span className="text-slate-300 text-xs animate-pulse">Calculating location...</span>
+                        )}
                       </strong>
                     </div>
                   </div>
 
-                  {/* Dynamic Proximity Breakdown Badges */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                      <span className="text-slate-300 font-medium">
-                        {isDriverUser
-                          ? `Tracking passenger ${passengerName}'s live GPS`
-                          : `Tracking driver ${driverName}'s live GPS`}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-slate-400 font-mono text-[10px]">
-                      <span>🚗 Driver: {driverLiveLoc?.latitude ? "Active" : "Standard GPS"}</span>
-                      <span>•</span>
-                      <span>👤 Passenger: {passengerLiveLoc?.latitude ? "Active" : "Pickup Stop"}</span>
-                    </div>
+                  <div className="text-right shrink-0 pr-6">
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Route Commute ETA</span>
+                    <strong className="text-xs text-white font-bold">
+                      {liveEtaResult?.formattedDuration || `${liveTelemetry?.durationMinutes || 20} mins`}{" "}
+                      {liveEtaResult?.formattedEtaTime ? `(${liveEtaResult.formattedEtaTime})` : ""}
+                    </strong>
                   </div>
                 </div>
 
-                {/* Real-time Map with Moving Driver & Passenger Markers */}
+                {/* Real-time Map (Main Content of Popup Box) */}
                 <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs">
                   <MapView
                     startLocation={{
