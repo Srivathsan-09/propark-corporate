@@ -289,24 +289,23 @@ export default function OfferRidePage() {
     calculateRoute,
   ]);
 
-  // Automatically sync Starting Location (Origin) as a Route Stop for both Pickup & Drop modes
+  // Ensure Starting Location (Origin) and Destination are NEVER included in intermediate Route Stops
   useEffect(() => {
-    if (startPoint && startPoint.latitude && startPoint.latitude !== 0 && startPoint.name) {
-      const shortName = startPoint.name.split(",")[0].trim();
-      setStops((prev) => {
-        const exists = prev.some((s) => s.name === shortName || (s.latitude === startPoint.latitude && s.longitude === startPoint.longitude));
-        if (exists) return prev;
-        const originStop: IStopItem = {
-          name: shortName,
-          address: startPoint.address || startPoint.name,
-          latitude: startPoint.latitude,
-          longitude: startPoint.longitude,
-          price: 100,
-        };
-        return [originStop, ...prev];
-      });
-    }
-  }, [startPoint.name, startPoint.latitude, startPoint.longitude]);
+    const startName = (formData.startingLocation || startPoint.name || "").toLowerCase().trim();
+    const endName = (formData.destination || endPoint.name || "").toLowerCase().trim();
+
+    setStops((prev) =>
+      prev.filter((s) => {
+        const sName = (s.name || "").toLowerCase().trim();
+        if (!sName) return false;
+        if (startName && (sName === startName || sName.includes(startName) || startName.includes(sName))) return false;
+        if (endName && (sName === endName || sName.includes(endName) || endName.includes(sName))) return false;
+        if (startPoint.latitude && s.latitude && Math.abs(s.latitude - startPoint.latitude) < 0.001 && Math.abs((s.longitude || 0) - startPoint.longitude) < 0.001) return false;
+        if (endPoint.latitude && s.latitude && Math.abs(s.latitude - endPoint.latitude) < 0.001 && Math.abs((s.longitude || 0) - endPoint.longitude) < 0.001) return false;
+        return true;
+      })
+    );
+  }, [formData.startingLocation, formData.destination, startPoint.name, startPoint.latitude, startPoint.longitude, endPoint.name, endPoint.latitude, endPoint.longitude]);
 
   // Auto-sort stops chronologically along travel direction in memory (zero network lag)
   useEffect(() => {
@@ -457,6 +456,18 @@ export default function OfferRidePage() {
 
     if (!stopLat || !stopLng || (stopLat === 0 && stopLng === 0)) {
       setErrorMessage(`Could not predict location for "${newStopName}". Please check spelling or tap on map.`);
+      return;
+    }
+
+    const startName = (formData.startingLocation || startPoint.name || "").toLowerCase().trim();
+    const endName = (formData.destination || endPoint.name || "").toLowerCase().trim();
+    const cleanStopName = stopName.toLowerCase().trim();
+
+    if (
+      (startName && (cleanStopName === startName || cleanStopName.includes(startName) || startName.includes(cleanStopName))) ||
+      (endName && (cleanStopName === endName || cleanStopName.includes(endName) || endName.includes(cleanStopName)))
+    ) {
+      setErrorMessage(`"${stopName}" is already your starting origin or destination. Intermediate route stops must be distinct boarding points along your route.`);
       return;
     }
 
