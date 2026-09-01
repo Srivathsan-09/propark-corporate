@@ -6,6 +6,8 @@ import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
 import User from "@/models/User";
 
+import RideRequest from "@/models/RideRequest";
+
 export const dynamic = "force-dynamic";
 
 interface RouteParams {
@@ -15,7 +17,7 @@ interface RouteParams {
 }
 
 /**
- * GET: Fetch live driver GPS position and ride telemetry
+ * GET: Fetch live driver & passenger GPS positions and ride telemetry
  */
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
@@ -38,6 +40,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
     await connectToDatabase();
 
+    let dbUser: any = null;
+    if (session.user.id && mongoose.Types.ObjectId.isValid(session.user.id)) {
+      dbUser = await User.findById(session.user.id).lean();
+    }
+    if (!dbUser && session.user.email) {
+      dbUser = await User.findOne({ email: session.user.email.toLowerCase().trim() }).lean();
+    }
+
     const ride = await Ride.findById(id)
       .populate("driver", "name email phone companyName department profileImage")
       .populate("vehicle", "vehicleModel vehicleType registrationNumber")
@@ -49,6 +59,36 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    // Fetch all accepted passenger requests for this ride
+    const acceptedRequests = await RideRequest.find({ ride: id, status: "accepted" })
+      .populate("passenger", "name email phone companyName department profileImage")
+      .lean();
+
+    // Verify privacy & security: User must be driver, accepted passenger, or admin
+    const userIdStr = dbUser ? dbUser._id.toString() : session.user.id;
+    const isDriver = (ride.driver as any)?._id?.toString() === userIdStr || ride.driver?.toString() === userIdStr;
+    const isAcceptedPassenger = acceptedRequests.some(
+      (r: any) => (r.passenger as any)?._id?.toString() === userIdStr || r.passenger?.toString() === userIdStr
+    );
+    const isAdmin = session.user.role === "admin" || session.user.role === "campus_admin";
+
+    if (!isDriver && !isAcceptedPassenger && !isAdmin) {
+      return NextResponse.json(
+        { success: false, error: "Access denied. Real-time location sharing is restricted to driver and accepted passengers." },
+        { status: 403 }
+      );
+    }
+
+    const passengersData = acceptedRequests.map((r: any) => ({
+      requestId: r._id.toString(),
+      passenger: r.passenger,
+      pickupStop: r.pickupStop,
+      dropStop: r.dropStop,
+      fare: r.fare,
+      currentLocation: r.currentLocation || null,
+      isBoarded: r.isBoarded || false,
+    }));
 
     return NextResponse.json({
       success: true,
@@ -65,6 +105,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       stops: ride.stops,
       distanceKm: ride.distanceKm,
       durationMinutes: ride.durationMinutes,
+      passengers: passengersData,
     });
   } catch (error: unknown) {
     console.error(" Live Location GET API Error:", error);

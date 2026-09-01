@@ -78,15 +78,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       href: "/admin/concurrency",
       icon: Cpu,
     },
-    ...(isSuperAdmin
-      ? [
-          {
-            title: "Activity Logs",
-            href: "/admin/audit-logs",
-            icon: Shield,
-          },
-        ]
-      : []),
   ];
 
   // Navigation specifically for Employees / Commuters

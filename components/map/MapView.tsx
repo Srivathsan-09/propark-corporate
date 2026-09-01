@@ -15,6 +15,8 @@ export interface MapViewProps {
   driverLocation?: DriverLivePoint | null;
   driverName?: string;
   driverVehicleType?: string;
+  passengerLocation?: DriverLivePoint | null;
+  passengerName?: string;
   panToDriver?: boolean;
   routeCoordinates?: [number, number][];
   distanceText?: string;

@@ -137,8 +137,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Consume OTP
-    await Otp.deleteOne({ _id: otpRecord._id });
+    // Mark OTP as verified and store timestamp (retained for DB inspection)
+    await Otp.updateOne({ _id: otpRecord._id }, { $set: { verified: true, verifiedAt: new Date() } });
 
     // 7. Hash Password securely
     const saltRounds = 12;

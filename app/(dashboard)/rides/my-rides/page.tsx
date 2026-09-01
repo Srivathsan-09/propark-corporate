@@ -181,8 +181,51 @@ export default function MyRidesPage() {
 
   // Live Passenger Tracking Modal
   const [trackingModalRide, setTrackingModalRide] = useState<any | null>(null);
+  const [trackingModalBooking, setTrackingModalBooking] = useState<any | null>(null);
   const [liveTelemetry, setLiveTelemetry] = useState<any | null>(null);
   const [isLiveTrackingModalOpen, setIsLiveTrackingModalOpen] = useState(false);
+  const [passengerGpsPosition, setPassengerGpsPosition] = useState<DriverLivePoint | null>(null);
+  const passengerStopWatchingRef = useRef<(() => void) | null>(null);
+  const [passengerGpsStatus, setPassengerGpsStatus] = useState<"ACTIVE" | "UPDATING" | "DENIED" | "UNAVAILABLE">("UPDATING");
+
+  // Helper to calculate two-way driver & passenger proximity (distance & ETA)
+  const calculateProximity = (
+    driverLoc?: { latitude: number; longitude: number } | null,
+    passengerLoc?: { latitude: number; longitude: number } | null
+  ) => {
+    if (!driverLoc || !passengerLoc || !driverLoc.latitude || !passengerLoc.latitude) {
+      return null;
+    }
+
+    const R = 6371e3; // meters
+    const phi1 = (driverLoc.latitude * Math.PI) / 180;
+    const phi2 = (passengerLoc.latitude * Math.PI) / 180;
+    const dPhi = ((passengerLoc.latitude - driverLoc.latitude) * Math.PI) / 180;
+    const dLambda = ((passengerLoc.longitude - driverLoc.longitude) * Math.PI) / 180;
+
+    const a =
+      Math.sin(dPhi / 2) * Math.sin(dPhi / 2) +
+      Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) * Math.sin(dLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const meters = R * c;
+
+    let distanceText = "";
+    if (meters < 1000) {
+      distanceText = `${Math.round(meters)} m away`;
+    } else {
+      distanceText = `${(meters / 1000).toFixed(1)} km away`;
+    }
+
+    const minutes = Math.max(1, Math.round(meters / 400));
+    let etaText = "";
+    if (meters <= 50) {
+      etaText = "<1 min";
+    } else {
+      etaText = `${minutes} min`;
+    }
+
+    return { distanceText, etaText, meters, minutes };
+  };
 
   // Employee Profile Inspection Modal State
   const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
@@ -456,9 +499,10 @@ export default function MyRidesPage() {
     }
   };
 
-  // Handle Passenger Open Live Tracking Modal
-  const handleOpenLiveTracking = async (ride: any) => {
+  // Handle Open Live Tracking Modal (Supports Driver & Passenger views)
+  const handleOpenLiveTracking = async (ride: any, booking?: any) => {
     setTrackingModalRide(ride);
+    setTrackingModalBooking(booking || null);
     setIsLiveTrackingModalOpen(true);
 
     try {
@@ -470,7 +514,56 @@ export default function MyRidesPage() {
     } catch (e) {
       console.error("Failed to fetch initial telemetry:", e);
     }
+
+    // Start passenger GPS broadcast if passenger has an accepted booking
+    if (booking && booking._id && booking.status === "accepted" && ride.status !== "completed" && ride.status !== "cancelled") {
+      if (passengerStopWatchingRef.current) {
+        passengerStopWatchingRef.current();
+      }
+
+      setPassengerGpsStatus("UPDATING");
+      const stopFn = locationService.watchPosition(
+        async (newPos) => {
+          setPassengerGpsPosition(newPos);
+          setPassengerGpsStatus("ACTIVE");
+
+          try {
+            await fetch(`/api/rides/requests/${booking._id}/location`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                latitude: newPos.latitude,
+                longitude: newPos.longitude,
+                heading: newPos.heading,
+                speed: newPos.speed,
+                accuracy: newPos.accuracy,
+              }),
+            });
+          } catch (e) {
+            console.warn("Passenger GPS sync warning:", e);
+          }
+        },
+        (err) => {
+          console.warn("Passenger GPS watch warning:", err);
+          if (err.type === "PERMISSION_DENIED") {
+            setPassengerGpsStatus("DENIED");
+          } else {
+            setPassengerGpsStatus("UNAVAILABLE");
+          }
+        }
+      );
+
+      passengerStopWatchingRef.current = stopFn;
+    }
   };
+
+  // Stop passenger GPS watching when modal is closed
+  useEffect(() => {
+    if (!isLiveTrackingModalOpen && passengerStopWatchingRef.current) {
+      passengerStopWatchingRef.current();
+      passengerStopWatchingRef.current = null;
+    }
+  }, [isLiveTrackingModalOpen]);
 
   // Real-time polling for passenger tracking modal
   useEffect(() => {
@@ -1202,122 +1295,149 @@ export default function MyRidesPage() {
         )
       )}
 
-      {/* LIVE DRIVER GPS TRACKING MODAL FOR PASSENGERS & DRIVER */}
+      {/* LIVE DRIVER & PASSENGER REAL-TIME GPS TRACKING MODAL */}
       <Dialog open={isLiveTrackingModalOpen} onOpenChange={setIsLiveTrackingModalOpen}>
         <DialogContent className="sm:max-w-3xl max-h-[92vh] overflow-y-auto">
-          {trackingModalRide && (
-            <div className="space-y-4">
-              <DialogHeader className="pr-10">
-                <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
-                  <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <Radio className="h-4 w-4 text-emerald-600 animate-pulse" />
-                    Live Driver GPS Tracking
-                  </DialogTitle>
-                  <Badge className="bg-emerald-600 text-white font-bold text-xs">
-                    {liveTelemetry?.status === "in_progress" ? "Live Commute" : "Scheduled"}
-                  </Badge>
-                </div>
-                <DialogDescription className="text-xs text-slate-500">
-                  {liveTelemetry?.driver?.name} • {liveTelemetry?.vehicle?.vehicleModel} ({liveTelemetry?.vehicle?.registrationNumber})
-                </DialogDescription>
-              </DialogHeader>
+          {trackingModalRide && (() => {
+            const isDriverUser = session?.user?.id && liveTelemetry?.driver?._id
+              ? (liveTelemetry.driver._id === session.user.id || liveTelemetry.driver === session.user.id)
+              : (session?.user?.email && liveTelemetry?.driver?.email
+                ? liveTelemetry.driver.email.toLowerCase() === session.user.email.toLowerCase()
+                : false);
 
-              {/* Real-time Live Traffic-Aware ETA Header */}
-              <div className="bg-slate-950 text-white p-3 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs shadow-md">
-                <div className="flex items-center gap-2">
-                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                  <div>
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Remaining Commute</span>
-                    <strong className="text-sm text-emerald-400 font-bold">
-                      {liveEtaResult?.remainingDistanceKm ?? liveTelemetry?.distanceKm ?? 0} km remaining
-                    </strong>
+            const driverLiveLoc = liveTelemetry?.currentLocation || driverGpsPosition || resolvePlaceCoordinates(
+              liveTelemetry?.startingLocation || trackingModalRide.startingLocation,
+              liveTelemetry?.startLocation?.latitude || trackingModalRide.startLocation?.latitude,
+              liveTelemetry?.startLocation?.longitude || trackingModalRide.startLocation?.longitude,
+              true
+            );
+
+            const activePassengerReq = liveTelemetry?.passengers?.[0];
+            const passengerLiveLoc = passengerGpsPosition || activePassengerReq?.currentLocation || null;
+
+            const driverName = liveTelemetry?.driver?.name || "Driver";
+            const passengerName = trackingModalBooking?.passenger?.name || activePassengerReq?.passenger?.name || session?.user?.name || "Passenger";
+
+            const proximity = calculateProximity(driverLiveLoc, passengerLiveLoc);
+
+            return (
+              <div className="space-y-4">
+                <DialogHeader className="pr-10">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
+                    <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <Radio className="h-4 w-4 text-emerald-600 animate-pulse" />
+                      Two-Way Real-Time Location Tracking
+                    </DialogTitle>
+                    <Badge className="bg-emerald-600 text-white font-bold text-xs">
+                      {liveTelemetry?.status === "in_progress" ? "Live Commute Active" : "Accepted & Tracking"}
+                    </Badge>
+                  </div>
+                  <DialogDescription className="text-xs text-slate-500">
+                    {driverName} • {liveTelemetry?.vehicle?.vehicleModel || "Vehicle"} ({liveTelemetry?.vehicle?.registrationNumber || "Corporate Carpool"})
+                  </DialogDescription>
+                </DialogHeader>
+
+                {/* Real-time Driver <-> Passenger Distance & ETA Banner (Ola/Uber/Rapido Experience) */}
+                <div className="bg-slate-950 text-white p-3.5 rounded-2xl border border-slate-800 space-y-2.5 shadow-lg">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                        {isDriverUser ? <Users className="h-4 w-4" /> : <Car className="h-4 w-4" />}
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                          {isDriverUser ? `Target Passenger (${passengerName})` : `En Route Driver (${driverName})`}
+                        </span>
+                        <strong className="text-sm text-emerald-400 font-extrabold flex items-center gap-1.5">
+                          {proximity ? (
+                            <>
+                              <span>{proximity.distanceText}</span>
+                              <span className="text-slate-500">•</span>
+                              <span>{proximity.etaText}</span>
+                            </>
+                          ) : passengerGpsStatus === "DENIED" ? (
+                            <span className="text-amber-300 text-xs">Enable location access to use live tracking</span>
+                          ) : (
+                            <span className="text-slate-300 text-xs animate-pulse">Updating location...</span>
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold block">Route Commute ETA</span>
+                      <strong className="text-xs text-white font-bold">
+                        {liveEtaResult?.formattedDuration || `${liveTelemetry?.durationMinutes || 20} mins`}{" "}
+                        {liveEtaResult?.formattedEtaTime ? `(${liveEtaResult.formattedEtaTime})` : ""}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Proximity Breakdown Badges */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                      <span className="text-slate-300 font-medium">
+                        {isDriverUser
+                          ? `Tracking passenger ${passengerName}'s live GPS`
+                          : `Tracking driver ${driverName}'s live GPS`}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-slate-400 font-mono text-[10px]">
+                      <span>🚗 Driver: {driverLiveLoc?.latitude ? "Active" : "Standard GPS"}</span>
+                      <span>•</span>
+                      <span>👤 Passenger: {passengerLiveLoc?.latitude ? "Active" : "Pickup Stop"}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">Live Traffic-Aware ETA</span>
-                  <strong className="text-sm text-white font-bold">
-                    {liveEtaResult?.formattedDuration || `${liveTelemetry?.durationMinutes || 20} mins`}{" "}
-                    {liveEtaResult?.formattedEtaTime ? `(${liveEtaResult.formattedEtaTime})` : ""}
-                  </strong>
+                {/* Real-time Map with Moving Driver & Passenger Markers */}
+                <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs">
+                  <MapView
+                    startLocation={{
+                      name: liveTelemetry?.startingLocation || trackingModalRide.startingLocation,
+                      address: liveTelemetry?.startLocation?.address || trackingModalRide.startingLocation,
+                      ...resolvePlaceCoordinates(
+                        liveTelemetry?.startingLocation || trackingModalRide.startingLocation,
+                        liveTelemetry?.startLocation?.latitude || trackingModalRide.startLocation?.latitude,
+                        liveTelemetry?.startLocation?.longitude || trackingModalRide.startLocation?.longitude,
+                        true
+                      ),
+                    }}
+                    destination={{
+                      name: liveTelemetry?.destination || trackingModalRide.destination,
+                      address: liveTelemetry?.endLocation?.address || trackingModalRide.destination,
+                      ...resolvePlaceCoordinates(
+                        liveTelemetry?.destination || trackingModalRide.destination,
+                        liveTelemetry?.endLocation?.latitude || trackingModalRide.endLocation?.latitude,
+                        liveTelemetry?.endLocation?.longitude || trackingModalRide.endLocation?.longitude,
+                        false
+                      ),
+                    }}
+                    stops={trackingModalRide.stops?.map((s: any) => ({
+                      name: s.name,
+                      price: s.price,
+                      latitude: s.latitude || 12.95,
+                      longitude: s.longitude || 80.18,
+                    }))}
+                    driverLocation={driverLiveLoc}
+                    driverName={driverName}
+                    driverVehicleType={liveTelemetry?.vehicle?.vehicleType || "Car"}
+                    passengerLocation={passengerLiveLoc}
+                    passengerName={passengerName}
+                    routeCoordinates={liveEtaResult?.coordinates}
+                    panToDriver={true}
+                    distanceText={proximity ? proximity.distanceText : undefined}
+                    durationText={proximity ? proximity.etaText : undefined}
+                    trafficLevel={liveEtaResult?.trafficLevel}
+                    height="450px"
+                    showStats={true}
+                  />
                 </div>
-
-                {liveEtaResult?.trafficLevel && (
-                  <span
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
-                      liveEtaResult.trafficBadgeColor === "rose"
-                        ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
-                        : liveEtaResult.trafficBadgeColor === "amber"
-                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                        : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                    }`}
-                  >
-                    {liveEtaResult.trafficBadgeText}
-                  </span>
-                )}
               </div>
-
-              {/* Real-time Map with Moving Driver Marker */}
-              <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs">
-                <MapView
-                  startLocation={{
-                    name: liveTelemetry?.startingLocation || trackingModalRide.startingLocation,
-                    address: liveTelemetry?.startLocation?.address || trackingModalRide.startingLocation,
-                    ...resolvePlaceCoordinates(
-                      liveTelemetry?.startingLocation || trackingModalRide.startingLocation,
-                      liveTelemetry?.startLocation?.latitude || trackingModalRide.startLocation?.latitude,
-                      liveTelemetry?.startLocation?.longitude || trackingModalRide.startLocation?.longitude,
-                      true
-                    ),
-                  }}
-                  destination={{
-                    name: liveTelemetry?.destination || trackingModalRide.destination,
-                    address: liveTelemetry?.endLocation?.address || trackingModalRide.destination,
-                    ...resolvePlaceCoordinates(
-                      liveTelemetry?.destination || trackingModalRide.destination,
-                      liveTelemetry?.endLocation?.latitude || trackingModalRide.endLocation?.latitude,
-                      liveTelemetry?.endLocation?.longitude || trackingModalRide.endLocation?.longitude,
-                      false
-                    ),
-                  }}
-                  stops={trackingModalRide.stops?.map((s: any) => ({
-                    name: s.name,
-                    price: s.price,
-                    latitude: s.latitude || 12.95,
-                    longitude: s.longitude || 80.18,
-                  }))}
-                  driverLocation={
-                    liveTelemetry?.currentLocation ||
-                    driverGpsPosition ||
-                    resolvePlaceCoordinates(
-                      liveTelemetry?.startingLocation || trackingModalRide.startingLocation,
-                      liveTelemetry?.startLocation?.latitude || trackingModalRide.startLocation?.latitude,
-                      liveTelemetry?.startLocation?.longitude || trackingModalRide.startLocation?.longitude,
-                      true
-                    )
-                  }
-                  driverName={liveTelemetry?.driver?.name || "Driver"}
-                  driverVehicleType={liveTelemetry?.vehicle?.vehicleType || "Car"}
-                  routeCoordinates={liveEtaResult?.coordinates}
-                  panToDriver={true}
-                  distanceText={
-                    liveEtaResult?.remainingDistanceKm
-                      ? `${liveEtaResult.remainingDistanceKm} km`
-                      : liveTelemetry?.distanceKm
-                      ? `${liveTelemetry.distanceKm} km`
-                      : undefined
-                  }
-                  durationText={
-                    liveEtaResult?.formattedDuration ||
-                    (liveTelemetry?.durationMinutes ? `${liveTelemetry.durationMinutes} mins` : undefined)
-                  }
-                  trafficLevel={liveEtaResult?.trafficLevel}
-                  height="450px"
-                  showStats={true}
-                />
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

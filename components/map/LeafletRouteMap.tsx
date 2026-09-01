@@ -30,6 +30,8 @@ interface LeafletRouteMapProps {
   driverLocation?: DriverLivePoint | null;
   driverName?: string;
   driverVehicleType?: string;
+  passengerLocation?: DriverLivePoint | null;
+  passengerName?: string;
   panToDriver?: boolean;
   routeCoordinates?: [number, number][];
   distanceText?: string;
@@ -51,6 +53,8 @@ export default function LeafletRouteMap({
   driverLocation = null,
   driverName,
   driverVehicleType = "Car",
+  passengerLocation = null,
+  passengerName = "Passenger",
   panToDriver = false,
   routeCoordinates = [],
   distanceText,
@@ -410,6 +414,53 @@ export default function LeafletRouteMap({
       }
     }
 
+    // 4b. LIVE MOVING PASSENGER GPS MARKER (Pulsing Indigo / User 👤)
+    if (
+      passengerLocation &&
+      typeof passengerLocation.latitude === "number" &&
+      passengerLocation.latitude !== 0 &&
+      typeof passengerLocation.longitude === "number"
+    ) {
+      const icon = L.divIcon({
+        className: "custom-passenger-live-marker",
+        html: `
+          <div class="relative flex items-center justify-center cursor-pointer group" style="transform: translate(-50%, -50%);">
+            <!-- Pulsing outer GPS aura -->
+            <span class="absolute inline-flex h-12 w-12 rounded-full bg-indigo-400 opacity-75 animate-ping"></span>
+            <span class="absolute inline-flex h-9 w-9 rounded-full bg-indigo-500/30"></span>
+
+            <!-- Core Passenger Icon Circle -->
+            <div class="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-950 via-indigo-900 to-purple-800 border-2 border-white text-white text-xl shadow-2xl transition-transform hover:scale-110">
+              <span class="drop-shadow-md">👤</span>
+            </div>
+
+            <!-- Floating Passenger Tag Above Marker -->
+            <div class="absolute -top-7 whitespace-nowrap px-2 py-0.5 rounded-md bg-indigo-950/95 text-white font-extrabold text-[10px] shadow-md border border-indigo-700 pointer-events-none flex items-center gap-1">
+              <span class="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+              <span>${passengerName ? passengerName.split(" ")[0] : "Passenger"}</span>
+            </div>
+          </div>
+        `,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      });
+
+      const passengerMarker = L.marker([passengerLocation.latitude, passengerLocation.longitude], {
+        icon,
+        zIndexOffset: 990,
+      });
+      markersGroup.addLayer(passengerMarker);
+      boundsPoints.push([passengerLocation.latitude, passengerLocation.longitude]);
+
+      passengerMarker.bindPopup(`
+        <div style="font-size: 12px; font-family: sans-serif;">
+          <strong>Live Passenger Location</strong><br/>
+          <span>${passengerName ? "Passenger: " + passengerName : "Passenger"}</span><br/>
+          <span style="color: #6366f1; font-weight: bold;">● GPS Live Sharing Active</span>
+        </div>
+      `);
+    }
+
     // 5. Custom Requested Pickup Point (Purple/Violet Animated Pin)
     if (
       customPickupPoint &&
@@ -512,7 +563,7 @@ export default function LeafletRouteMap({
         mapInstanceRef.current.invalidateSize({ animate: false });
       }
     }, 50);
-  }, [startLocation, destination, stops, customPickupPoint, driverLocation, routeCoordinates, panToDriver, isClickPicking]);
+  }, [startLocation, destination, stops, customPickupPoint, driverLocation, passengerLocation, routeCoordinates, panToDriver, isClickPicking]);
 
   const handleRecenterMap = () => {
     hasUserPannedRef.current = false;

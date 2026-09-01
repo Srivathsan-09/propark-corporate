@@ -78,8 +78,8 @@ export async function POST(
       );
     }
 
-    // Mark OTP as verified and delete it
-    await Otp.deleteOne({ _id: validOtpDoc._id });
+    // Mark OTP as verified and store timestamp (retained for DB inspection)
+    await Otp.updateOne({ _id: validOtpDoc._id }, { $set: { verified: true, verifiedAt: new Date() } });
 
     // Update Campus document
     campus.adminEmail = email;

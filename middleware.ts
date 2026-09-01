@@ -16,8 +16,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/vehicles") ||
     pathname.startsWith("/rides") ||
     pathname.startsWith("/parking") ||
-    pathname.startsWith("/notifications") ||
-    pathname.startsWith("/reports");
+    pathname.startsWith("/notifications");
   const isAdminRoute = pathname.startsWith("/admin");
 
   // 1. If user is already logged in and tries to access /login or /register
@@ -59,7 +58,6 @@ export const config = {
     "/rides/:path*",
     "/parking/:path*",
     "/notifications/:path*",
-    "/reports/:path*",
     "/admin/:path*",
     "/login",
     "/register",

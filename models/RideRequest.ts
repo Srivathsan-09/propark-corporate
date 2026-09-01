@@ -1,4 +1,5 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
+import { ILiveDriverLocation } from "./Ride";
 
 export interface IRideRequest extends Document {
   _id: mongoose.Types.ObjectId;
@@ -19,6 +20,7 @@ export interface IRideRequest extends Document {
   paymentStatus?: "paid" | "partially_paid" | "not_paid";
   amountPaid?: number;
   paymentUpdatedAt?: Date;
+  currentLocation?: ILiveDriverLocation;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -109,6 +111,14 @@ const RideRequestSchema = new Schema<IRideRequest>(
     },
     paymentUpdatedAt: {
       type: Date,
+    },
+    currentLocation: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+      heading: { type: Number, default: null },
+      speed: { type: Number, default: null },
+      accuracy: { type: Number, default: null },
+      lastUpdated: { type: Date, default: Date.now },
     },
   },
   {

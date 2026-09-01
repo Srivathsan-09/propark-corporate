@@ -7,6 +7,7 @@ export interface IOtp extends Document {
   campusId?: string;
   expiresAt: Date;
   verified: boolean;
+  verifiedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,11 +41,15 @@ const OtpSchema = new Schema<IOtp>(
     expiresAt: {
       type: Date,
       required: true,
-      index: { expires: 0 },
+      index: { expires: "7d" },
     },
     verified: {
       type: Boolean,
       default: false,
+    },
+    verifiedAt: {
+      type: Date,
+      required: false,
     },
   },
   { timestamps: true }

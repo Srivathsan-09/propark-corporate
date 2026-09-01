@@ -32,6 +32,28 @@ export async function GET() {
       : {};
     const campuses = await Campus.find(query).sort({ campusId: 1 }).lean();
 
+    // Sync all campus operating companies into Company collection so MongoDB has all company documents
+    for (const c of campuses) {
+      if (Array.isArray(c.companies) && c.companies.length > 0) {
+        for (const compName of c.companies) {
+          if (compName && compName.trim()) {
+            await Company.updateOne(
+              { campusId: c.campusId, name: compName.trim() },
+              {
+                $set: {
+                  campusId: c.campusId,
+                  campusName: c.name,
+                  name: compName.trim(),
+                  status: "active",
+                },
+              },
+              { upsert: true }
+            );
+          }
+        }
+      }
+    }
+
     // Enrich with employee count per campus
     const employeeCounts = await User.aggregate([
       { $group: { _id: "$campusId", count: { $sum: 1 } } },
