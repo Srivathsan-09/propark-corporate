@@ -1014,11 +1014,11 @@ export default function FindRidePage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={selectedRide.startingLocation}>
-                            {selectedRide.startingLocation} (Origin) — ₹{selectedRide.basePrice || 100}
+                            {selectedRide.startingLocation.split(",")[0].trim()} (Origin) — ₹{selectedRide.basePrice || 100}
                           </SelectItem>
                           {selectedRide.stops?.map((stop, idx) => (
                             <SelectItem key={idx} value={stop.name}>
-                              {stop.name} (Stop {idx + 1}) — ₹{stop.price}
+                              {stop.name.split(",")[0].trim()} (Stop {idx + 1}) — ₹{stop.price}
                             </SelectItem>
                           ))}
                         </SelectContent>
