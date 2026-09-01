@@ -437,7 +437,13 @@ export default function MyRidesPage() {
 
   // Handle Driver Complete / End Ride
   const handleCompleteRide = async (rideId: string) => {
+    // 1. Instant Optimistic UI Update (< 10ms responsiveness)
+    setOfferedRides((prev) =>
+      prev.map((r) => (r._id === rideId ? { ...r, status: "completed", completedAt: new Date().toISOString() } : r))
+    );
     setActionLoadingId(rideId);
+    setActionSuccessMsg("Ride completed successfully! Thank you for carpooling.");
+
     try {
       if (stopWatchingRef.current) {
         stopWatchingRef.current();
@@ -453,15 +459,16 @@ export default function MyRidesPage() {
       });
 
       if (res.ok) {
-        setActionSuccessMsg("Ride completed successfully! Thank you for carpooling.");
-        fetchMyRides();
+        fetchMyRides(true);
       } else {
         const d = await res.json();
         setActionErrorMsg(d.error || "Failed to complete ride.");
+        fetchMyRides(true);
       }
     } catch (err) {
       console.error("Complete ride error:", err);
       setActionErrorMsg("Failed to end ride.");
+      fetchMyRides(true);
     } finally {
       setActionLoadingId(null);
     }
