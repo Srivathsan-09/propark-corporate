@@ -327,10 +327,51 @@ export default function MyRidesPage() {
         setOfferedRides(data.offeredRides || []);
         setBookedRides(data.bookedRides || []);
 
-        // Check if any offered ride is in_progress to resume tracking
-        const activeRide = (data.offeredRides || []).find((r: IOfferedRide) => r.status === "in_progress");
-        if (activeRide && !activeTrackingRideId) {
-          startDriverGpsTracking(activeRide._id, false);
+        // Check if user has an accepted booking request to start passenger GPS watch
+        const activePassengerBooking = (data.bookedRides || []).find(
+          (b: IBookedRide) => b.status === "accepted" && b.ride?.status !== "completed" && b.ride?.status !== "cancelled"
+        );
+
+        if (activePassengerBooking && !passengerStopWatchingRef.current) {
+          const reqId = activePassengerBooking._id;
+          locationService
+            .getCurrentPosition()
+            .then((pos) => {
+              setPassengerGpsPosition({ latitude: pos.latitude, longitude: pos.longitude });
+              setPassengerGpsStatus("ACTIVE");
+              fetch(`/api/rides/requests/${reqId}/location`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  latitude: pos.latitude,
+                  longitude: pos.longitude,
+                  heading: pos.heading,
+                  speed: pos.speed,
+                  accuracy: pos.accuracy,
+                }),
+              }).catch(() => {});
+            })
+            .catch(() => setPassengerGpsStatus("DENIED"));
+
+          const stopPassengerFn = locationService.watchPosition(
+            (newPos) => {
+              setPassengerGpsPosition({ latitude: newPos.latitude, longitude: newPos.longitude });
+              setPassengerGpsStatus("ACTIVE");
+              fetch(`/api/rides/requests/${reqId}/location`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  latitude: newPos.latitude,
+                  longitude: newPos.longitude,
+                  heading: newPos.heading,
+                  speed: newPos.speed,
+                  accuracy: newPos.accuracy,
+                }),
+              }).catch(() => {});
+            },
+            (err) => console.warn("Passenger watch error:", err)
+          );
+          passengerStopWatchingRef.current = stopPassengerFn;
         }
       }
     } catch (err) {
@@ -1246,18 +1287,51 @@ export default function MyRidesPage() {
 
                         {/* PASSENGER TRACK DRIVER LIVE BUTTON */}
                         {isAccepted && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleOpenLiveTracking(ride)}
-                            className={`${
-                              isLive
-                                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                : "bg-slate-900 hover:bg-slate-800 text-white"
-                            } font-bold text-xs rounded-xl shadow-xs gap-1.5 h-8 w-full sm:w-auto`}
-                          >
-                            <Navigation className="h-3.5 w-3.5" />
-                            {isLive ? "Track Driver Live GPS" : "View Route on Map"}
-                          </Button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setPassengerGpsStatus("UPDATING");
+                                locationService
+                                  .getCurrentPosition()
+                                  .then((pos) => {
+                                    setPassengerGpsPosition({ latitude: pos.latitude, longitude: pos.longitude });
+                                    setPassengerGpsStatus("ACTIVE");
+                                    if (booking._id) {
+                                      fetch(`/api/rides/requests/${booking._id}/location`, {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({
+                                          latitude: pos.latitude,
+                                          longitude: pos.longitude,
+                                        }),
+                                      }).catch(() => {});
+                                    }
+                                  })
+                                  .catch((err) => {
+                                    setPassengerGpsStatus("DENIED");
+                                    alert(err.message || "Location access denied. Please turn ON location in your browser.");
+                                  });
+                              }}
+                              className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 font-bold text-xs rounded-xl gap-1.5 h-8"
+                            >
+                              <Radio className={`h-3.5 w-3.5 ${passengerGpsStatus === "ACTIVE" ? "text-emerald-600 animate-pulse" : "text-slate-400"}`} />
+                              {passengerGpsStatus === "ACTIVE" ? "GPS Live Sharing Active" : "Enable Passenger Live Location"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenLiveTracking(ride)}
+                              className={`${
+                                isLive
+                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  : "bg-slate-900 hover:bg-slate-800 text-white"
+                              } font-bold text-xs rounded-xl shadow-xs gap-1.5 h-8 w-full sm:w-auto`}
+                            >
+                              <Navigation className="h-3.5 w-3.5" />
+                              {isLive ? "Track Driver Live GPS" : "View Route on Map"}
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </CardHeader>

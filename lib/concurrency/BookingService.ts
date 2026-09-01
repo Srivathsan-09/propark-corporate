@@ -168,6 +168,16 @@ class BookingConcurrencyService {
         fare,
         notes: noteContent,
         idempotencyKey: idempotencyKey || "",
+        currentLocation: payload.currentLocation && typeof payload.currentLocation.latitude === "number"
+          ? {
+              latitude: payload.currentLocation.latitude,
+              longitude: payload.currentLocation.longitude,
+              heading: payload.currentLocation.heading || null,
+              speed: payload.currentLocation.speed || null,
+              accuracy: payload.currentLocation.accuracy || null,
+              lastUpdated: new Date(),
+            }
+          : null,
         status: "accepted" as const,
         boardingPin: String(Math.floor(1000 + Math.random() * 9000)),
         responseNote: `Confirmed by CommuteX High-Concurrency Engine (${processedByNode})`,

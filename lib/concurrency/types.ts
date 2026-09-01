@@ -17,6 +17,7 @@ export interface IQueueItem {
   seatsRequested: number;
   fare: number;
   notes?: string;
+  currentLocation?: { latitude: number; longitude: number; heading?: number; speed?: number; accuracy?: number };
   requestedAt: Date;
   status: QueueItemStatus;
   queuePosition: number;
@@ -42,6 +43,7 @@ export interface IBookingPayload {
   seatsRequested: number;
   fare: number;
   notes?: string;
+  currentLocation?: { latitude: number; longitude: number; heading?: number; speed?: number; accuracy?: number };
   idempotencyKey?: string;
 }
 

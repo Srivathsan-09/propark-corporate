@@ -37,6 +37,7 @@ class WorkerPoolService {
       seatsRequested: number;
       fare: number;
       notes?: string;
+      currentLocation?: { latitude: number; longitude: number; heading?: number; speed?: number; accuracy?: number } | null;
       idempotencyKey?: string;
     }
   ): Promise<IBookingResult> {
@@ -59,6 +60,7 @@ class WorkerPoolService {
       seatsRequested: payload.seatsRequested,
       fare: payload.fare,
       notes: payload.notes,
+      currentLocation: payload.currentLocation || undefined,
       processedByNode: selectedServerNode.id,
     });
 
@@ -76,6 +78,7 @@ class WorkerPoolService {
         seatsRequested: payload.seatsRequested,
         fare: payload.fare,
         notes: payload.notes,
+        currentLocation: payload.currentLocation || undefined,
         idempotencyKey: payload.idempotencyKey,
       },
       selectedServerNode.id

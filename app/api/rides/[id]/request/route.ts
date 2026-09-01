@@ -76,6 +76,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       seatsRequested: seatsRequested || 1,
       fare: fare || 0,
       notes: notes || "",
+      currentLocation: body.currentLocation || body.passengerLocation || null,
       idempotencyKey,
     });
 

@@ -59,6 +59,7 @@ import { EmployeeProfileModal } from "@/components/common/EmployeeProfileModal";
 import MapView, { MapPoint, DriverLivePoint } from "@/components/map/MapView";
 import LocationSearchInput from "@/components/map/LocationSearchInput";
 import { geocodingService, resolvePlaceCoordinates } from "@/lib/services/geocoding";
+import { locationService } from "@/lib/services/location";
 import { getInitials } from "@/lib/utils";
 
 interface IRideStop {
@@ -398,6 +399,23 @@ export default function FindRidePage() {
 
       const actualSeats = typeof seatsRequested === "number" ? Math.max(1, seatsRequested) : 1;
 
+      // Capture passenger's actual current GPS location snapshot at booking time
+      let currentLocation: { latitude: number; longitude: number; heading?: number; speed?: number; accuracy?: number } | null = null;
+      try {
+        const pos = await locationService.getCurrentPosition();
+        if (pos && pos.latitude && pos.longitude) {
+          currentLocation = {
+            latitude: pos.latitude,
+            longitude: pos.longitude,
+            heading: pos.heading || undefined,
+            speed: pos.speed || undefined,
+            accuracy: pos.accuracy || undefined,
+          };
+        }
+      } catch (e) {
+        console.warn("Could not capture passenger GPS snapshot during booking:", e);
+      }
+
       const res = await fetch(`/api/rides/${selectedRide._id}/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -406,6 +424,7 @@ export default function FindRidePage() {
           dropStop: selectedRide.destination,
           seatsRequested: actualSeats,
           fare: selectedFare * actualSeats,
+          currentLocation,
           notes: `${passengerNotes.trim()}${
             isCustomStopMode && customStopAddress ? ` [Requested Map Pin: ${customStopAddress}]` : ""
           }`,
