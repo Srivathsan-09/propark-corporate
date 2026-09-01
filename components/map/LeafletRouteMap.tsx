@@ -34,6 +34,19 @@ interface LeafletRouteMapProps {
   passengerName?: string;
   panToDriver?: boolean;
   routeCoordinates?: [number, number][];
+  alternativeRoutes?: Array<{
+    index: number;
+    name: string;
+    summary: string;
+    coordinates: [number, number][];
+    distanceKm: number;
+    durationMinutes: number;
+    formattedDistance: string;
+    formattedDuration: string;
+    trafficLevel: "Light" | "Moderate" | "Heavy";
+  }>;
+  selectedRouteIndex?: number;
+  onSelectRouteIndex?: (index: number) => void;
   distanceText?: string;
   durationText?: string;
   trafficLevel?: "Light" | "Moderate" | "Heavy";
@@ -57,6 +70,9 @@ export default function LeafletRouteMap({
   passengerName = "Passenger",
   panToDriver = false,
   routeCoordinates = [],
+  alternativeRoutes = [],
+  selectedRouteIndex = 0,
+  onSelectRouteIndex,
   distanceText,
   durationText,
   trafficLevel,
@@ -485,36 +501,70 @@ export default function LeafletRouteMap({
       boundsPoints.push([customPickupPoint.latitude, customPickupPoint.longitude]);
     }
 
-    // 6. Draw Polyline Route with Stale Route Protection
-    const drawRoutePolyline = (coords: [number, number][]) => {
-      if (!map || coords.length < 2) return;
+    // 6. Draw Polyline Route & Multi-Route Options with Interactive Click Selection
+    const drawRoutePolyline = (activeCoords: [number, number][]) => {
+      if (!map) return;
       if (routeLayerGroupRef.current) {
         routeLayerGroupRef.current.clearLayers();
       } else {
         routeLayerGroupRef.current = L.layerGroup().addTo(map);
       }
 
-      // Crisp white casing outline for Google Maps style
-      const casing = L.polyline(coords, {
-        color: "#FFFFFF",
-        weight: 9,
-        opacity: 0.95,
-        lineCap: "round",
-        lineJoin: "round",
-      });
+      // 6a. Render Alternative (Unselected) Routes first so selected route renders on top
+      if (alternativeRoutes && alternativeRoutes.length > 1) {
+        alternativeRoutes.forEach((altRoute) => {
+          if (altRoute.index === selectedRouteIndex || !altRoute.coordinates || altRoute.coordinates.length < 2) {
+            return;
+          }
 
-      // Google Maps Navigation Blue core road line
-      const polyline = L.polyline(coords, {
-        color: "#1A73E8",
-        weight: 5,
-        opacity: 1.0,
-        lineCap: "round",
-        lineJoin: "round",
-      });
+          // Slate grey polyline for unselected route
+          const altPolyline = L.polyline(altRoute.coordinates, {
+            color: "#64748B",
+            weight: 5,
+            opacity: 0.6,
+            lineCap: "round",
+            lineJoin: "round",
+          });
 
-      routeLayerGroupRef.current.addLayer(casing);
-      routeLayerGroupRef.current.addLayer(polyline);
-      coords.forEach((pt) => boundsPoints.push(pt));
+          altPolyline.on("click", () => {
+            if (onSelectRouteIndex) {
+              onSelectRouteIndex(altRoute.index);
+            }
+          });
+
+          altPolyline.bindTooltip(`${altRoute.name} • ${altRoute.formattedDistance} (${altRoute.formattedDuration})`, {
+            sticky: true,
+            className: "text-xs font-medium text-slate-700 bg-white shadow-md border-0 px-2 py-1 rounded-md",
+          });
+
+          routeLayerGroupRef.current?.addLayer(altPolyline);
+          altRoute.coordinates.forEach((pt) => boundsPoints.push(pt));
+        });
+      }
+
+      if (activeCoords && activeCoords.length >= 2) {
+        // Crisp white casing outline for Google Maps style
+        const casing = L.polyline(activeCoords, {
+          color: "#FFFFFF",
+          weight: 9,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        });
+
+        // Google Maps Navigation Blue core road line
+        const polyline = L.polyline(activeCoords, {
+          color: "#1A73E8",
+          weight: 6,
+          opacity: 1.0,
+          lineCap: "round",
+          lineJoin: "round",
+        });
+
+        routeLayerGroupRef.current.addLayer(casing);
+        routeLayerGroupRef.current.addLayer(polyline);
+        activeCoords.forEach((pt) => boundsPoints.push(pt));
+      }
     };
 
     const isRouteValidForEndpoints = (coords: [number, number][]) => {

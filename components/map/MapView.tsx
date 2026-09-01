@@ -19,6 +19,19 @@ export interface MapViewProps {
   passengerName?: string;
   panToDriver?: boolean;
   routeCoordinates?: [number, number][];
+  alternativeRoutes?: Array<{
+    index: number;
+    name: string;
+    summary: string;
+    coordinates: [number, number][];
+    distanceKm: number;
+    durationMinutes: number;
+    formattedDistance: string;
+    formattedDuration: string;
+    trafficLevel: "Light" | "Moderate" | "Heavy";
+  }>;
+  selectedRouteIndex?: number;
+  onSelectRouteIndex?: (index: number) => void;
   distanceText?: string;
   durationText?: string;
   trafficLevel?: "Light" | "Moderate" | "Heavy";

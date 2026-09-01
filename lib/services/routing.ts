@@ -5,6 +5,19 @@ export interface LatLngPoint {
   speed?: number | null;
 }
 
+export interface AlternativeRoute {
+  index: number;
+  name: string;
+  summary: string;
+  coordinates: [number, number][];
+  distanceKm: number;
+  durationMinutes: number;
+  formattedDistance: string;
+  formattedDuration: string;
+  trafficLevel: "Light" | "Moderate" | "Heavy";
+  isRecommended?: boolean;
+}
+
 export interface RouteResult {
   coordinates: [number, number][]; // [lat, lng] array for Leaflet Polyline
   distanceKm: number;
@@ -20,6 +33,7 @@ export interface RouteResult {
   remainingDistanceKm?: number;
   remainingDurationMinutes?: number;
   formattedEtaTime?: string; // e.g. "08:48 AM"
+  alternativeRoutes?: AlternativeRoute[];
 }
 
 /**
@@ -72,7 +86,7 @@ class RoutingService {
 
     for (const endpoint of endpoints) {
       try {
-        const url = `${endpoint}/${coordString}?overview=full&geometries=geojson&annotations=distance,duration`;
+        const url = `${endpoint}/${coordString}?overview=full&geometries=geojson&annotations=distance,duration&alternatives=3`;
         const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
         if (!res.ok) continue;
 
@@ -114,6 +128,30 @@ class RoutingService {
           formattedEtaTime = remaining.formattedEtaTime;
         }
 
+        // Parse alternative routes (if returned by OSRM)
+        const alternativeRoutes: AlternativeRoute[] = (data.routes || []).map((r: any, idx: number) => {
+          const rCoords: [number, number][] = (r.geometry?.coordinates || []).map(
+            (c: [number, number]) => [c[1], c[0]]
+          );
+          const rDistKm = Math.round(((r.distance || 0) / 1000) * 10) / 10;
+          const rBaseDur = Math.max(1, Math.round((r.duration || 0) / 60));
+          const rTraffic = this.evaluateTrafficConditions(rDistKm, rBaseDur, departureDateOrTime);
+          const legSummary = r.legs?.[0]?.summary ? `via ${r.legs[0].summary}` : `Route ${idx + 1}`;
+
+          return {
+            index: idx,
+            name: idx === 0 ? `${legSummary} (Fastest)` : legSummary,
+            summary: legSummary,
+            coordinates: rCoords,
+            distanceKm: rDistKm,
+            durationMinutes: rTraffic.trafficDurationMinutes,
+            formattedDistance: `${rDistKm} km`,
+            formattedDuration: this.formatDuration(rTraffic.trafficDurationMinutes),
+            trafficLevel: rTraffic.trafficLevel,
+            isRecommended: idx === 0,
+          };
+        });
+
         const result: RouteResult = {
           coordinates,
           distanceKm,
@@ -129,6 +167,7 @@ class RoutingService {
           remainingDistanceKm,
           remainingDurationMinutes,
           formattedEtaTime,
+          alternativeRoutes,
         };
 
         this.routeCache.set(cacheKey, result);

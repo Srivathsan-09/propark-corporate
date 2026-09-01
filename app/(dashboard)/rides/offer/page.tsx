@@ -46,6 +46,7 @@ import { CarLoader } from "@/components/common/CarLoader";
 import { geocodingService, resolvePlaceCoordinates } from "@/lib/services/geocoding";
 import { useRoute } from "@/hooks/useRoute";
 import { offerRideSchema } from "@/validations/ride.schema";
+import { cn } from "@/lib/utils";
 
 interface IVehicle {
   _id: string;
@@ -78,6 +79,7 @@ export default function OfferRidePage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState<number>(0);
 
   // Time-of-day smart default (Morning Pickup vs Evening Drop)
   const currentHour = new Date().getHours();
@@ -840,25 +842,85 @@ export default function OfferRidePage() {
               </CardHeader>
 
               <CardContent className="p-0">
-                <MapView
-                  startLocation={startPoint}
-                  destination={endPoint}
-                  stops={stops
-                    .filter((s) => typeof s.latitude === "number" && typeof s.longitude === "number")
-                    .map((s) => ({
-                      name: s.name,
-                      address: s.address,
-                      latitude: s.latitude as number,
-                      longitude: s.longitude as number,
-                      price: s.price,
-                    }))}
-                  routeCoordinates={routeResult?.coordinates || []}
-                  distanceText={routeResult?.formattedDistance}
-                  durationText={routeResult?.formattedDuration}
-                  trafficLevel={routeResult?.trafficLevel}
-                  onMapClick={handleMapClick}
-                  height="340px"
-                />
+                {(() => {
+                  const activeAlt = routeResult?.alternativeRoutes?.[selectedRouteIndex];
+                  const activeCoords = activeAlt?.coordinates || routeResult?.coordinates || [];
+                  const activeDist = activeAlt?.formattedDistance || routeResult?.formattedDistance;
+                  const activeDur = activeAlt?.formattedDuration || routeResult?.formattedDuration;
+                  const activeTraffic = activeAlt?.trafficLevel || routeResult?.trafficLevel;
+
+                  return (
+                    <>
+                      <MapView
+                        startLocation={startPoint}
+                        destination={endPoint}
+                        stops={stops
+                          .filter((s) => typeof s.latitude === "number" && typeof s.longitude === "number")
+                          .map((s) => ({
+                            name: s.name,
+                            address: s.address,
+                            latitude: s.latitude as number,
+                            longitude: s.longitude as number,
+                            price: s.price,
+                          }))}
+                        routeCoordinates={activeCoords}
+                        alternativeRoutes={routeResult?.alternativeRoutes}
+                        selectedRouteIndex={selectedRouteIndex}
+                        onSelectRouteIndex={(idx) => setSelectedRouteIndex(idx)}
+                        distanceText={activeDist}
+                        durationText={activeDur}
+                        trafficLevel={activeTraffic}
+                        onMapClick={handleMapClick}
+                        height="340px"
+                      />
+
+                      {routeResult?.alternativeRoutes && routeResult.alternativeRoutes.length > 1 && (
+                        <div className="p-3 bg-slate-50 border-t border-slate-200 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5">
+                              <Navigation2 className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>Select Your Driving Route ({routeResult.alternativeRoutes.length} Available)</span>
+                            </span>
+                            <span className="text-[10px] font-semibold text-slate-500">Tap route to select</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-1.5">
+                            {routeResult.alternativeRoutes.map((alt) => {
+                              const isSelected = selectedRouteIndex === alt.index;
+                              return (
+                                <button
+                                  key={alt.index}
+                                  type="button"
+                                  onClick={() => setSelectedRouteIndex(alt.index)}
+                                  className={cn(
+                                    "flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all border text-xs",
+                                    isSelected
+                                      ? "bg-emerald-500 text-slate-950 border-emerald-600 font-bold shadow-sm"
+                                      : "bg-white text-slate-700 border-slate-200 hover:border-emerald-300 hover:bg-slate-50"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    <div
+                                      className={cn(
+                                        "h-2 w-2 rounded-full shrink-0",
+                                        isSelected ? "bg-slate-950 ring-2 ring-emerald-300" : "bg-slate-400"
+                                      )}
+                                    />
+                                    <span className="truncate font-semibold">{alt.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0 font-bold">
+                                    <span>{alt.formattedDistance}</span>
+                                    <span className="opacity-80">• {alt.formattedDuration}</span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
 
