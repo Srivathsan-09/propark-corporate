@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
@@ -6,7 +6,6 @@ import { connectToDatabase } from "@/lib/db/mongodb";
 import User from "@/models/User";
 import Vehicle from "@/models/Vehicle";
 import Ride from "@/models/Ride";
-import RideRequest from "@/models/RideRequest";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +54,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const [ridesOffered, ridesCompleted, ridesTaken] = await Promise.all([
       Ride.countDocuments({ driver: user._id }),
       Ride.countDocuments({ driver: user._id, status: "completed" }),
-      RideRequest.countDocuments({ passenger: user._id, status: "accepted" }),
+      Ride.countDocuments({ "requests.passenger": user._id, "requests.status": "accepted" }),
     ]);
 
     return NextResponse.json({

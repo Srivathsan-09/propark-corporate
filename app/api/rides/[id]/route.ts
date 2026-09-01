@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
-import RideRequest from "@/models/RideRequest";
 import Notification from "@/models/Notification";
 
 interface RouteParams {
@@ -56,11 +55,11 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // 1. Find all passenger requests for this ride
-    const requests = await RideRequest.find({ ride: ride._id });
+    // 1. Find all passenger requests for this ride embedded in Ride document
+    const requests = ride.requests || [];
 
     // 2. Notify all passengers who requested or were accepted
-    const notificationPromises = requests.map(async (reqItem) => {
+    const notificationPromises = requests.map(async (reqItem: any) => {
       try {
         await Notification.create({
           recipient: reqItem.passenger,
@@ -76,10 +75,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
     await Promise.all(notificationPromises);
 
-    // 3. Delete all related RideRequests
-    await RideRequest.deleteMany({ ride: ride._id });
-
-    // 4. Delete the ride itself
+    // 3. Delete the ride itself
     await Ride.findByIdAndDelete(ride._id);
 
     return NextResponse.json({

@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
-import RideRequest from "@/models/RideRequest";
 import Vehicle from "@/models/Vehicle";
 import User from "@/models/User";
 
@@ -34,37 +33,27 @@ export async function GET() {
       driverFilter = { driver: { $in: campusUserIds } };
     }
 
-    // 1. Fetch rides with populated driver and vehicle
+    // 1. Fetch rides with populated driver, vehicle, and requests.passenger
     const rides = await Ride.find(driverFilter)
       .populate("driver", "name email employeeId department companyName campusId phone profileImage")
       .populate("vehicle", "vehicleModel vehicleType registrationNumber seatingCapacity")
       .populate("acceptedPassengers", "name email employeeId department companyName phone profileImage")
+      .populate("requests.passenger", "name email employeeId department companyName phone profileImage")
       .sort({ createdAt: -1 })
       .lean();
 
-    // 2. Fetch all passenger requests for full tracking audit
-    const rideIds = rides.map((r) => r._id);
-    const allRequests = await RideRequest.find({ ride: { $in: rideIds } })
-      .populate("passenger", "name email employeeId department companyName phone profileImage")
-      .sort({ createdAt: -1 })
-      .lean();
+    // 2. Attach full requests manifest to each ride
+    let totalPassengersJoined = 0;
+    let totalRevenueGenerated = 0;
 
-    // Group requests by ride ID
-    const requestsByRideId = new Map<string, any[]>();
-    allRequests.forEach((req) => {
-      const rId = req.ride.toString();
-      if (!requestsByRideId.has(rId)) {
-        requestsByRideId.set(rId, []);
-      }
-      requestsByRideId.get(rId)!.push(req);
-    });
+    const enrichedRides = rides.map((ride: any) => {
+      const rideRequests = ride.requests || [];
+      const acceptedReqs = rideRequests.filter((r: any) => r.status === "accepted");
+      const totalSeatsBooked = acceptedReqs.reduce((acc: number, curr: any) => acc + (curr.seatsRequested || 1), 0);
+      const totalFareGenerated = acceptedReqs.reduce((acc: number, curr: any) => acc + (curr.fare || 0), 0);
 
-    // 3. Attach full requests manifest to each ride
-    const enrichedRides = rides.map((ride) => {
-      const rideRequests = requestsByRideId.get(ride._id.toString()) || [];
-      const acceptedReqs = rideRequests.filter((r) => r.status === "accepted");
-      const totalSeatsBooked = acceptedReqs.reduce((acc, curr) => acc + (curr.seatsRequested || 1), 0);
-      const totalFareGenerated = acceptedReqs.reduce((acc, curr) => acc + (curr.fare || 0), 0);
+      totalPassengersJoined += acceptedReqs.length;
+      totalRevenueGenerated += totalFareGenerated;
 
       return {
         ...ride,
@@ -74,13 +63,9 @@ export async function GET() {
       };
     });
 
-    // 4. Calculate campus mobility stats
+    // 3. Calculate campus mobility stats
     const totalRides = enrichedRides.length;
-    const scheduledRides = enrichedRides.filter((r) => r.status === "scheduled").length;
-    const totalPassengersJoined = allRequests.filter((r) => r.status === "accepted").length;
-    const totalRevenueGenerated = allRequests
-      .filter((r) => r.status === "accepted")
-      .reduce((sum, r) => sum + (r.fare || 0), 0);
+    const scheduledRides = enrichedRides.filter((r: any) => r.status === "scheduled").length;
 
     return NextResponse.json({
       success: true,

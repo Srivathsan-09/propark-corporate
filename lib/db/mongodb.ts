@@ -38,6 +38,7 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
   // 2. If connection promise is not active, initiate pool connection
   if (!cached.promise) {
     const opts: mongoose.ConnectOptions = {
+      dbName: "CommuteX",
       bufferCommands: false,
       maxPoolSize: 100,
       minPoolSize: 10,

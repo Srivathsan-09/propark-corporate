@@ -6,7 +6,6 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
-import RideRequest from "@/models/RideRequest";
 import User from "@/models/User";
 import Notification from "@/models/Notification";
 import { IBookingPayload, IBookingResult } from "./types";
@@ -73,10 +72,11 @@ class BookingConcurrencyService {
 
     // Check DB for existing idempotency request
     if (idempotencyKey) {
-      const existingDbReq = await RideRequest.findOne({
-        $or: [{ idempotencyKey }, { notes: { $regex: idempotencyKey } }],
+      const existingRide = await Ride.findOne({
+        "requests.idempotencyKey": idempotencyKey,
       });
-      if (existingDbReq) {
+      if (existingRide) {
+        const existingDbReq = existingRide.requests.find((r: any) => r.idempotencyKey === idempotencyKey);
         const result: IBookingResult = {
           success: true,
           message: "Idempotent request returned existing booking result.",
@@ -140,11 +140,9 @@ class BookingConcurrencyService {
         throw new Error(`Campus Isolation Policy: You cannot book a ride belonging to campus "${updatedRide.campusId}" from campus "${passenger.campusId}".`);
       }
 
-      const existingActiveRequest = await RideRequest.findOne({
-        ride: updatedRide._id,
-        passenger: userId,
-        status: { $in: ["pending", "accepted"] },
-      });
+      const existingActiveRequest = updatedRide.requests?.find(
+        (r: any) => r.passenger.toString() === userId && ["pending", "accepted"].includes(r.status)
+      );
 
       if (existingActiveRequest) {
         const errorMsg = `Duplicate Booking Blocked: You already have an active (${existingActiveRequest.status}) booking request for this ride.`;
@@ -156,27 +154,33 @@ class BookingConcurrencyService {
         throw new Error(errorMsg);
       }
 
-      // 4. CREATE RIDE REQUEST & NOTIFICATION
+      // 4. CREATE EMBEDDED RIDE REQUEST & NOTIFICATION
       const noteContent = idempotencyKey ? `[IdempotencyKey:${idempotencyKey}] ${notes || ""}` : notes || "";
 
-      const newRequest = await RideRequest.create({
+      const newRequest = {
+        _id: new mongoose.Types.ObjectId(),
         ride: updatedRide._id,
-        passenger: userId,
+        passenger: new mongoose.Types.ObjectId(userId),
         driver: updatedRide.driver,
         pickupStop,
         dropStop: dropStop || updatedRide.destination,
         seatsRequested,
         fare,
         notes: noteContent,
-        idempotencyKey,
-        status: "accepted",
+        idempotencyKey: idempotencyKey || "",
+        status: "accepted" as const,
         boardingPin: String(Math.floor(1000 + Math.random() * 9000)),
         responseNote: `Confirmed by CommuteX High-Concurrency Engine (${processedByNode})`,
-      });
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
       await Ride.updateOne(
         { _id: updatedRide._id },
-        { $addToSet: { acceptedPassengers: userId } }
+        {
+          $push: { requests: newRequest },
+          $addToSet: { acceptedPassengers: new mongoose.Types.ObjectId(userId) },
+        }
       );
 
       Notification.create({
@@ -186,7 +190,6 @@ class BookingConcurrencyService {
         message: `${passenger.name} (${passenger.companyName || "Employee"}) booked ${seatsRequested} seat(s) from "${pickupStop}" (Fare: ₹${fare}).`,
         type: "ride_requested",
         ride: updatedRide._id,
-        rideRequest: newRequest._id,
       }).catch((e) => console.warn("Background notification error:", e));
 
       // 5. BROADCAST REAL-TIME AVAILABILITY UPDATE

@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
-import RideRequest from "@/models/RideRequest";
 import User from "@/models/User";
 import Notification from "@/models/Notification";
 
@@ -45,11 +44,18 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     await connectToDatabase();
 
-    const rideRequest = await RideRequest.findById(requestId)
-      .populate("ride")
-      .populate("passenger", "name email phone companyName")
-      .populate("driver", "name email phone companyName");
+    const ride = await Ride.findOne({ "requests._id": requestId })
+      .populate("requests.passenger", "name email phone companyName")
+      .populate("requests.driver", "name email phone companyName");
 
+    if (!ride) {
+      return NextResponse.json(
+        { success: false, error: "Ride request not found." },
+        { status: 404 }
+      );
+    }
+
+    const rideRequest: any = ride.requests.find((r: any) => r._id.toString() === requestId);
     if (!rideRequest) {
       return NextResponse.json(
         { success: false, error: "Ride request not found." },
@@ -58,7 +64,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     }
 
     // Verify session user is indeed the driver
-    if (rideRequest.driver._id.toString() !== session.user.id) {
+    const driverIdStr = rideRequest.driver?._id ? rideRequest.driver._id.toString() : rideRequest.driver?.toString();
+    if (driverIdStr !== session.user.id) {
       return NextResponse.json(
         { success: false, error: "Only the driver of this ride can accept or reject requests." },
         { status: 403 }
@@ -72,13 +79,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const ride = await Ride.findById(rideRequest.ride._id);
-    if (!ride) {
-      return NextResponse.json(
-        { success: false, error: "Associated ride was not found." },
-        { status: 404 }
-      );
-    }
+    const passengerId = rideRequest.passenger?._id || rideRequest.passenger;
 
     if (action === "accept") {
       if (ride.availableSeats < rideRequest.seatsRequested) {
@@ -91,51 +92,63 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         );
       }
 
-      // Deduct available seats and add passenger to accepted list
-      ride.availableSeats -= rideRequest.seatsRequested;
-      ride.acceptedPassengers.push(rideRequest.passenger._id);
-      await ride.save();
-
       // Generate 4-digit boarding security PIN
       const boardingPin = String(Math.floor(1000 + Math.random() * 9000));
 
+      await Ride.updateOne(
+        { _id: ride._id, "requests._id": requestId },
+        {
+          $set: {
+            "requests.$.status": "accepted",
+            "requests.$.boardingPin": boardingPin,
+            "requests.$.responseNote": responseNote || "Request accepted by driver",
+          },
+          $inc: { availableSeats: -rideRequest.seatsRequested },
+          $addToSet: { acceptedPassengers: passengerId },
+        }
+      );
+
       rideRequest.status = "accepted";
       rideRequest.boardingPin = boardingPin;
-      rideRequest.responseNote = responseNote || "Request accepted by driver";
-      await rideRequest.save();
 
       // Notify Passenger
       await Notification.create({
-        recipient: rideRequest.passenger._id,
+        recipient: passengerId,
         sender: session.user.id,
         title: "Ride Request Confirmed",
         message: `${session.user.name} accepted your carpool request. Your 4-digit Boarding PIN is: ${boardingPin}. Share this with the driver upon entering the car.`,
         type: "request_accepted",
         ride: ride._id,
-        rideRequest: rideRequest._id,
       });
 
       return NextResponse.json({
         success: true,
         message: `Accepted ride request from ${(rideRequest.passenger as any)?.name || "passenger"}!`,
         request: rideRequest,
-        remainingSeats: ride.availableSeats,
+        remainingSeats: Math.max(0, ride.availableSeats - rideRequest.seatsRequested),
       });
     } else {
       // Reject flow
+      await Ride.updateOne(
+        { _id: ride._id, "requests._id": requestId },
+        {
+          $set: {
+            "requests.$.status": "rejected",
+            "requests.$.responseNote": responseNote || "Declined by driver",
+          },
+        }
+      );
+
       rideRequest.status = "rejected";
-      rideRequest.responseNote = responseNote || "Declined by driver";
-      await rideRequest.save();
 
       // Notify Passenger
       await Notification.create({
-        recipient: (rideRequest.passenger as any)._id || rideRequest.passenger,
+        recipient: passengerId,
         sender: session.user.id,
         title: "Ride Request Update",
         message: `${session.user.name} was unable to accept your carpool request from "${rideRequest.pickupStop}".`,
         type: "request_rejected",
         ride: ride._id,
-        rideRequest: rideRequest._id,
       });
 
       return NextResponse.json({

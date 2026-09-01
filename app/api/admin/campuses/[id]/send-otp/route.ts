@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Campus from "@/models/Campus";
-import Otp from "@/models/Otp";
 import { sendCampusAdminOtpEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -62,22 +61,13 @@ export async function POST(
 
     // Generate secure 6-digit OTP code (100000 - 999999)
     const numericOtp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Expire in 10 minutes
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Invalidate any existing unverified OTP for this email/campus
-    await Otp.deleteMany({ email, campusId: campus.campusId, purpose: "campus_admin_assign" });
-
-    // Store new OTP document
-    await Otp.create({
-      email,
-      otp: numericOtp,
-      purpose: "campus_admin_assign",
-      campusId: campus.campusId,
-      expiresAt,
-      verified: false,
-    });
+    campus.adminEmail = email;
+    campus.adminOtpCode = numericOtp;
+    campus.adminOtpExpiresAt = expiresAt;
+    campus.adminOtpVerified = false;
+    await campus.save();
 
     // Send email with anti-spam primary inbox optimization
     const emailResult = await sendCampusAdminOtpEmail({

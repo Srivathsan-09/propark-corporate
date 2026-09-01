@@ -110,55 +110,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const Otp = (await import("@/models/Otp")).default;
-    const otpRecord = await Otp.findOne({
-      email: normalizedEmail,
-      purpose: "employee_registration",
-    });
+    const pendingUser = await User.findOne({ email: normalizedEmail });
 
-    if (!otpRecord) {
+    if (!pendingUser || !pendingUser.otpCode) {
       return NextResponse.json(
         { success: false, error: "No verification code was requested for this email. Please request a verification code." },
         { status: 400 }
       );
     }
 
-    if (new Date() > otpRecord.expiresAt) {
+    if (pendingUser.otpExpiresAt && new Date() > pendingUser.otpExpiresAt) {
       return NextResponse.json(
         { success: false, error: "Verification code has expired. Please request a new verification code." },
         { status: 400 }
       );
     }
 
-    if (otpRecord.otp.trim() !== otp.trim()) {
+    if (pendingUser.otpCode.trim() !== otp.trim()) {
       return NextResponse.json(
         { success: false, error: "Invalid 6-digit verification code. Please check your inbox or request a new code." },
         { status: 400 }
       );
     }
 
-    // Mark OTP as verified and store timestamp (retained for DB inspection)
-    await Otp.updateOne({ _id: otpRecord._id }, { $set: { verified: true, verifiedAt: new Date() } });
-
     // 7. Hash Password securely
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // 8. Create User with physical Campus & Company associations
-    const newUser = await User.create({
-      name,
-      employeeId: formattedEmpId,
-      email: normalizedEmail,
-      phone,
-      department,
-      companyName: matchedCompany,
-      campusId: campus.campusId,
-      campusName: campus.name,
-      passwordHash,
-      role: "employee",
-      verificationStatus: "pending",
-      isApproved: false,
-    });
+    // 8. Update User with physical Campus & Company associations and mark OTP verified
+    pendingUser.name = name.trim();
+    if (formattedEmpId) pendingUser.employeeId = formattedEmpId;
+    pendingUser.phone = phone || "";
+    pendingUser.department = department || "General";
+    pendingUser.companyName = matchedCompany;
+    pendingUser.campusId = campus.campusId;
+    pendingUser.campusName = campus.name;
+    pendingUser.passwordHash = passwordHash;
+    pendingUser.role = "employee";
+    pendingUser.verificationStatus = "pending";
+    pendingUser.isApproved = false;
+    pendingUser.otpVerified = true;
+    pendingUser.otpVerifiedAt = new Date();
+
+    await pendingUser.save();
+    const newUser = pendingUser;
 
     // 9. Safe response
     return NextResponse.json(

@@ -14,6 +14,9 @@ export interface ICampus extends Document {
   city: string;
   state: string;
   adminEmail?: string;
+  adminOtpCode?: string;
+  adminOtpExpiresAt?: Date;
+  adminOtpVerified?: boolean;
   companies: string[];
   pendingCompanies: IPendingCompany[];
   status: "active" | "inactive";
@@ -68,6 +71,9 @@ const CampusSchema = new Schema<ICampus>(
       lowercase: true,
       index: true,
     },
+    adminOtpCode: { type: String, default: "" },
+    adminOtpExpiresAt: { type: Date, default: null },
+    adminOtpVerified: { type: Boolean, default: false },
     companies: {
       type: [String],
       default: [],

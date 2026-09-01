@@ -24,6 +24,30 @@ export interface ILiveDriverLocation {
   lastUpdated: Date;
 }
 
+export interface IRidePassengerRequest {
+  _id: mongoose.Types.ObjectId;
+  ride: mongoose.Types.ObjectId;
+  passenger: mongoose.Types.ObjectId;
+  driver: mongoose.Types.ObjectId;
+  pickupStop: string;
+  dropStop: string;
+  seatsRequested: number;
+  fare: number;
+  notes?: string;
+  status: "pending" | "accepted" | "rejected" | "cancelled";
+  responseNote?: string;
+  idempotencyKey?: string;
+  boardingPin?: string;
+  isBoarded?: boolean;
+  boardedAt?: Date;
+  paymentStatus?: "paid" | "partially_paid" | "not_paid";
+  amountPaid?: number;
+  paymentUpdatedAt?: Date;
+  currentLocation?: ILiveDriverLocation;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export interface IRide extends Document {
   _id: mongoose.Types.ObjectId;
   driver: mongoose.Types.ObjectId;
@@ -49,6 +73,7 @@ export interface IRide extends Document {
   campusId?: string;
   status: "scheduled" | "in_progress" | "completed" | "cancelled";
   acceptedPassengers: mongoose.Types.ObjectId[];
+  requests: IRidePassengerRequest[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -84,6 +109,38 @@ const RideStopSchema = new Schema<IRideStop>(
     estimatedTime: { type: String, default: "", trim: true },
   },
   { _id: false }
+);
+
+const RideRequestSubSchema = new Schema<IRidePassengerRequest>(
+  {
+    ride: { type: Schema.Types.ObjectId, ref: "Ride", required: true },
+    passenger: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    driver: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    pickupStop: { type: String, required: true, trim: true },
+    dropStop: { type: String, required: true, trim: true },
+    seatsRequested: { type: Number, default: 1, min: 1 },
+    fare: { type: Number, default: 0, min: 0 },
+    notes: { type: String, default: "" },
+    status: {
+      type: String,
+      enum: ["pending", "accepted", "rejected", "cancelled"],
+      default: "pending",
+    },
+    responseNote: { type: String, default: "" },
+    idempotencyKey: { type: String, default: "" },
+    boardingPin: { type: String, default: "" },
+    isBoarded: { type: Boolean, default: false },
+    boardedAt: { type: Date, default: null },
+    paymentStatus: {
+      type: String,
+      enum: ["paid", "partially_paid", "not_paid"],
+      default: "not_paid",
+    },
+    amountPaid: { type: Number, default: 0, min: 0 },
+    paymentUpdatedAt: { type: Date, default: null },
+    currentLocation: { type: LiveDriverLocationSchema, default: null },
+  },
+  { timestamps: true }
 );
 
 const RideSchema = new Schema<IRide>(
@@ -199,12 +256,17 @@ const RideSchema = new Schema<IRide>(
       default: "scheduled",
       index: true,
     },
+
     acceptedPassengers: [
       {
         type: Schema.Types.ObjectId,
         ref: "User",
       },
     ],
+    requests: {
+      type: [RideRequestSubSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,

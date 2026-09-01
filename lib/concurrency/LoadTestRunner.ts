@@ -7,7 +7,6 @@
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
-import RideRequest from "@/models/RideRequest";
 import User from "@/models/User";
 import Vehicle from "@/models/Vehicle";
 import { workerPool } from "./WorkerPool";
@@ -143,7 +142,7 @@ class LoadTestRunnerService {
       const passengerIds = passengers.map((p) => p!._id);
 
       // Delete any leftover active requests for these passengers on old rides to guarantee 100% clean state
-      await RideRequest.deleteMany({ passenger: { $in: passengerIds } });
+      await Ride.updateMany({}, { $pull: { requests: { passenger: { $in: passengerIds } } } });
 
       log(`Prepared ${passengers.length} distinct authenticated employee accounts (Campus "${testCampusId}")`);
 
@@ -203,7 +202,7 @@ class LoadTestRunnerService {
 
       // 3. FETCH FINAL AUTHORITATIVE DATABASE STATE TO VERIFY INTEGRITY
       const finalRideDoc = await Ride.findById(testRide._id);
-      const finalBookingsInDb = await RideRequest.find({ ride: testRide._id, status: "accepted" });
+      const finalBookingsInDb = (finalRideDoc?.requests || []).filter((r: any) => r.status === "accepted");
 
       const durationMs = Date.now() - startTime;
       const newlyCreatedBookings = results.filter((r: any) => r.success && !r.idempotencyHit).length;
@@ -211,7 +210,7 @@ class LoadTestRunnerService {
       const failedBookings = results.filter((r: any) => !r.success).length;
 
       // Verify duplicate passenger IDs in confirmed bookings in DB
-      const passengerIdsInDb = finalBookingsInDb.map((b) => b.passenger.toString());
+      const passengerIdsInDb = finalBookingsInDb.map((b: any) => b.passenger.toString());
       const uniquePassengerIdsInDb = new Set(passengerIdsInDb);
       const duplicateBookings = testIdempotency
         ? Math.max(0, finalBookingsInDb.length - 1)
@@ -256,7 +255,6 @@ class LoadTestRunnerService {
       // 4. CLEAN UP ONLY THIS TEST RUN'S DATA AFTER VERIFICATION IS COMPLETE
       try {
         await Ride.findByIdAndDelete(testRide._id);
-        await RideRequest.deleteMany({ ride: testRide._id });
       } catch (e) {}
 
       const testNameMap: Record<string, string> = {

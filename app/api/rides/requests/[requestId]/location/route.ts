@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth/next";
 import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
-import RideRequest from "@/models/RideRequest";
 import Ride from "@/models/Ride";
 import User from "@/models/User";
 
@@ -57,7 +56,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       dbUser = await User.findOne({ email: session.user.email.toLowerCase().trim() }).lean();
     }
 
-    const rideRequest = await RideRequest.findById(requestId);
+    const ride = await Ride.findOne({ "requests._id": requestId });
+    if (!ride) {
+      return NextResponse.json(
+        { success: false, error: "Ride request not found." },
+        { status: 404 }
+      );
+    }
+
+    const rideRequest: any = ride.requests.find((r: any) => r._id.toString() === requestId);
     if (!rideRequest) {
       return NextResponse.json(
         { success: false, error: "Ride request not found." },
@@ -85,16 +92,14 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const ride = await Ride.findById(rideRequest.ride).lean();
-    if (!ride || ride.status === "completed" || ride.status === "cancelled") {
+    if (ride.status === "completed" || ride.status === "cancelled") {
       return NextResponse.json(
         { success: false, error: "Location sharing has ended for completed or cancelled rides." },
         { status: 400 }
       );
     }
 
-    // Update passenger live location
-    rideRequest.currentLocation = {
+    const currentLocation = {
       latitude,
       longitude,
       heading: heading || null,
@@ -103,11 +108,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       lastUpdated: new Date(),
     };
 
-    await rideRequest.save();
+    // Update passenger live location embedded in Ride
+    await Ride.updateOne(
+      { _id: ride._id, "requests._id": requestId },
+      { $set: { "requests.$.currentLocation": currentLocation } }
+    );
 
     return NextResponse.json({
       success: true,
-      currentLocation: rideRequest.currentLocation,
+      currentLocation,
     });
   } catch (error: unknown) {
     console.error(" Passenger Live Location POST API Error:", error);

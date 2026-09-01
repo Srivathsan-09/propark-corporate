@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import User from "@/models/User";
 import Campus from "@/models/Campus";
-import Otp from "@/models/Otp";
 import { sendRegistrationOtpEmail } from "@/lib/email";
 import { formatEmployeeId } from "@/lib/db/employeeSequence";
 
@@ -121,18 +120,24 @@ export async function POST(req: NextRequest) {
     const otp = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    await Otp.findOneAndUpdate(
-      { email: normalizedEmail, purpose: "employee_registration" },
-      {
+    let pendingUser = await User.findOne({ email: normalizedEmail });
+    if (!pendingUser) {
+      pendingUser = new User({
+        name: name.trim(),
         email: normalizedEmail,
-        otp,
-        purpose: "employee_registration",
+        employeeId: formattedEmpId || `EMP-${Date.now().toString().slice(-6)}`,
+        companyName: matchedCompany,
         campusId: campus.campusId,
-        expiresAt,
-        verified: false,
-      },
-      { upsert: true, new: true }
-    );
+        campusName: campus.name,
+        role: "employee",
+        verificationStatus: "pending",
+        isApproved: false,
+      });
+    }
+    pendingUser.otpCode = otp;
+    pendingUser.otpExpiresAt = expiresAt;
+    pendingUser.otpVerified = false;
+    await pendingUser.save();
 
     // 6. Dispatch Email
     const emailResult = await sendRegistrationOtpEmail({

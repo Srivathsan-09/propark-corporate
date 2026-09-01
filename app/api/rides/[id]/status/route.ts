@@ -5,7 +5,6 @@ import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
 import Notification from "@/models/Notification";
-import RideRequest from "@/models/RideRequest";
 
 interface RouteParams {
   params: {
@@ -87,40 +86,35 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     await ride.save();
 
-    // Broadcast in-app notifications to all accepted passengers
-    const acceptedRequests = await RideRequest.find({
-      ride: ride._id,
-      status: "accepted",
-    });
+    // Broadcast in-app notifications to all accepted passengers embedded in Ride
+    const acceptedRequests = (ride.requests || []).filter((r: any) => r.status === "accepted");
 
     if (acceptedRequests.length > 0) {
       const driverName = (ride.driver as any).name || session.user.name || "Your driver";
 
       if (status === "in_progress") {
         await Promise.all(
-          acceptedRequests.map((req) =>
+          acceptedRequests.map((reqItem: any) =>
             Notification.create({
-              recipient: req.passenger,
-              sender: ride.driver._id,
+              recipient: reqItem.passenger,
+              sender: (ride.driver as any)._id || ride.driver,
               title: "Ride Started - Live GPS Active",
               message: `Employee ${driverName} has started the ride. You can now track their live GPS location in real time!`,
               type: "ride_started",
               ride: ride._id,
-              rideRequest: req._id,
             })
           )
         );
       } else if (status === "completed") {
         await Promise.all(
-          acceptedRequests.map((req) =>
+          acceptedRequests.map((reqItem: any) =>
             Notification.create({
-              recipient: req.passenger,
-              sender: ride.driver._id,
+              recipient: reqItem.passenger,
+              sender: (ride.driver as any)._id || ride.driver,
               title: "Ride Completed",
               message: `You have reached your destination. Thank you for carpooling with Employee ${driverName} on CommuteX.`,
               type: "ride_completed",
               ride: ride._id,
-              rideRequest: req._id,
             })
           )
         );

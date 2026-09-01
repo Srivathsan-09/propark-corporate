@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
-import RideRequest from "@/models/RideRequest";
 import Vehicle from "@/models/Vehicle";
 import User from "@/models/User";
 
@@ -25,60 +24,46 @@ export async function GET(req: NextRequest) {
     // 1. Fetch rides offered by user (Driver view)
     const offeredRides = await Ride.find({ driver: session.user.id })
       .populate("vehicle", "vehicleModel vehicleType registrationNumber vehiclePhoto seatingCapacity availableSeats")
+      .populate("requests.passenger", "name email phone companyName department profileImage employeeId")
       .sort({ createdAt: -1 })
       .lean();
-
-    // Enrich each offered ride with its incoming passenger requests
-    const rideIds = offeredRides.map((r) => r._id);
-    const requests = await RideRequest.find({ ride: { $in: rideIds } })
-      .populate("passenger", "name email phone companyName department profileImage employeeId")
-      .sort({ createdAt: -1 })
-      .lean();
-
-    const requestsByRide = new Map<string, any[]>();
-    requests.forEach((req) => {
-      const rId = req.ride.toString();
-      if (!requestsByRide.has(rId)) {
-        requestsByRide.set(rId, []);
-      }
-      requestsByRide.get(rId)!.push(req);
-    });
-
-    const enrichedOfferedRides = offeredRides.map((ride) => ({
-      ...ride,
-      requests: requestsByRide.get(ride._id.toString()) || [],
-    }));
 
     // 2. Fetch rides requested / booked by user (Passenger view)
-    const rawBookedRides = await RideRequest.find({ passenger: session.user.id })
-      .populate({
-        path: "ride",
-        populate: [
-          { path: "driver", select: "name email phone companyName department profileImage employeeId" },
-          { path: "vehicle", select: "vehicleModel vehicleType registrationNumber vehiclePhoto" },
-        ],
-      })
-      .populate("driver", "name email phone companyName department profileImage")
+    const passengerRides = await Ride.find({ "requests.passenger": session.user.id })
+      .populate("driver", "name email phone companyName department profileImage employeeId")
+      .populate("vehicle", "vehicleModel vehicleType registrationNumber vehiclePhoto")
+      .populate("requests.passenger", "name email phone companyName department profileImage employeeId")
       .sort({ createdAt: -1 })
       .lean();
 
-    const validBookedRides = rawBookedRides
-      .filter((b) => b && b.ride && (b.ride as any).driver && (b.ride as any).vehicle)
-      .map((b: any) => {
-        let pin = b.boardingPin;
-        if (b.status === "accepted" && (!pin || pin.trim() === "")) {
-          const hexVal = parseInt(b._id.toString().slice(-4), 16);
+    const validBookedRides: any[] = [];
+    passengerRides.forEach((ride: any) => {
+      const myRequests = (ride.requests || []).filter(
+        (r: any) => (r.passenger?._id || r.passenger)?.toString() === session.user.id
+      );
+
+      myRequests.forEach((req: any) => {
+        let pin = req.boardingPin;
+        if (req.status === "accepted" && (!pin || pin.trim() === "")) {
+          const hexVal = parseInt(req._id.toString().slice(-4), 16);
           pin = String(!isNaN(hexVal) ? 1000 + (hexVal % 9000) : "4829");
         }
-        return {
-          ...b,
-          boardingPin: pin || (b.status === "accepted" ? "4829" : ""),
-        };
+
+        validBookedRides.push({
+          ...req,
+          ride: {
+            ...ride,
+            requests: undefined, // Avoid circular nesting
+          },
+          driver: ride.driver,
+          boardingPin: pin || (req.status === "accepted" ? "4829" : ""),
+        });
       });
+    });
 
     return NextResponse.json({
       success: true,
-      offeredRides: enrichedOfferedRides,
+      offeredRides,
       bookedRides: validBookedRides,
     });
   } catch (error: unknown) {

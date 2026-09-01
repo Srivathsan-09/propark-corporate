@@ -6,8 +6,6 @@ import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
 import User from "@/models/User";
 
-import RideRequest from "@/models/RideRequest";
-
 export const dynamic = "force-dynamic";
 
 interface RouteParams {
@@ -51,6 +49,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     const ride = await Ride.findById(id)
       .populate("driver", "name email phone companyName department profileImage")
       .populate("vehicle", "vehicleModel vehicleType registrationNumber")
+      .populate("requests.passenger", "name email phone companyName department profileImage")
       .lean();
 
     if (!ride) {
@@ -60,10 +59,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Fetch all accepted passenger requests for this ride
-    const acceptedRequests = await RideRequest.find({ ride: id, status: "accepted" })
-      .populate("passenger", "name email phone companyName department profileImage")
-      .lean();
+    // Filter accepted requests embedded in Ride
+    const acceptedRequests = (ride.requests || []).filter((r: any) => r.status === "accepted");
 
     // Verify privacy & security: User must be driver, accepted passenger, or admin
     const userIdStr = dbUser ? dbUser._id.toString() : session.user.id;

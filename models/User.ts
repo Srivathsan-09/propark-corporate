@@ -26,6 +26,10 @@ export interface IUser extends Document {
   drivingLicensePhoto?: string;
   homeLocation?: string;
   commutePreferences?: ICommutePreferences;
+  otpCode?: string;
+  otpExpiresAt?: Date;
+  otpVerified?: boolean;
+  otpVerifiedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -127,6 +131,10 @@ const UserSchema = new Schema<IUser>(
       smokingPreference: { type: Boolean, default: false },
       musicPreference: { type: Boolean, default: true },
     },
+    otpCode: { type: String, default: "" },
+    otpExpiresAt: { type: Date, default: null },
+    otpVerified: { type: Boolean, default: false },
+    otpVerifiedAt: { type: Date, default: null },
   },
   {
     timestamps: true,

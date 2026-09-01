@@ -16,7 +16,6 @@ export interface INotification extends Document {
     | "ride_cancelled"
     | "general";
   ride?: mongoose.Types.ObjectId;
-  rideRequest?: mongoose.Types.ObjectId;
   isRead: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -62,10 +61,6 @@ const NotificationSchema = new Schema<INotification>(
     ride: {
       type: Schema.Types.ObjectId,
       ref: "Ride",
-    },
-    rideRequest: {
-      type: Schema.Types.ObjectId,
-      ref: "RideRequest",
     },
     isRead: {
       type: Boolean,

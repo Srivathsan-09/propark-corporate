@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Campus from "@/models/Campus";
-import Otp from "@/models/Otp";
 import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
@@ -61,25 +60,19 @@ export async function POST(
       );
     }
 
-    // Verify OTP record
-    const validOtpDoc = await Otp.findOne({
-      email,
-      otp: otpCode,
-      campusId: campus.campusId,
-      purpose: "campus_admin_assign",
-      verified: false,
-      expiresAt: { $gt: new Date() },
-    });
-
-    if (!validOtpDoc) {
+    if (
+      !campus.adminOtpCode ||
+      campus.adminOtpCode.trim() !== otpCode.trim() ||
+      (campus.adminOtpExpiresAt && new Date() > campus.adminOtpExpiresAt)
+    ) {
       return NextResponse.json(
         { success: false, error: "Invalid or expired verification code. Please request a new one." },
         { status: 400 }
       );
     }
 
-    // Mark OTP as verified and store timestamp (retained for DB inspection)
-    await Otp.updateOne({ _id: validOtpDoc._id }, { $set: { verified: true, verifiedAt: new Date() } });
+    campus.adminEmail = email;
+    campus.adminOtpVerified = true;
 
     // Update Campus document
     campus.adminEmail = email;

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
-import RideRequest from "@/models/RideRequest";
 import Ride from "@/models/Ride";
 
 export async function PATCH(
@@ -31,18 +30,18 @@ export async function PATCH(
 
     await connectToDatabase();
 
-    const rideRequest = await RideRequest.findById(requestId);
-    if (!rideRequest) {
+    const ride = await Ride.findOne({ "requests._id": requestId });
+    if (!ride) {
       return NextResponse.json(
-        { success: false, error: "Ride request not found." },
+        { success: false, error: "Associated ride not found." },
         { status: 404 }
       );
     }
 
-    const ride = await Ride.findById(rideRequest.ride);
-    if (!ride) {
+    const rideRequest: any = ride.requests.find((r: any) => r._id.toString() === requestId);
+    if (!rideRequest) {
       return NextResponse.json(
-        { success: false, error: "Associated ride not found." },
+        { success: false, error: "Ride request not found." },
         { status: 404 }
       );
     }
@@ -87,11 +86,17 @@ export async function PATCH(
       finalAmountPaid = numericAmount;
     }
 
-    // Persist payment status to MongoDB
-    rideRequest.paymentStatus = paymentStatus;
-    rideRequest.amountPaid = finalAmountPaid;
-    rideRequest.paymentUpdatedAt = new Date();
-    await rideRequest.save();
+    // Persist payment status to MongoDB embedded in Ride document
+    await Ride.updateOne(
+      { _id: ride._id, "requests._id": requestId },
+      {
+        $set: {
+          "requests.$.paymentStatus": paymentStatus,
+          "requests.$.amountPaid": finalAmountPaid,
+          "requests.$.paymentUpdatedAt": new Date(),
+        },
+      }
+    );
 
     const remainingAmount = Math.max(0, totalFare - finalAmountPaid);
 

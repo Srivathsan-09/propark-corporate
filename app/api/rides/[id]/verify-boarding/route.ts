@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
-import RideRequest from "@/models/RideRequest";
 
 export const dynamic = "force-dynamic";
 
@@ -50,14 +49,12 @@ export async function POST(
       );
     }
 
-    const requestQuery: any = { ride: ride._id, status: "accepted" };
-    if (requestId && mongoose.Types.ObjectId.isValid(requestId)) {
-      requestQuery._id = requestId;
-    } else if (passengerId && mongoose.Types.ObjectId.isValid(passengerId)) {
-      requestQuery.passenger = passengerId;
-    }
-
-    const rideRequest = await RideRequest.findOne(requestQuery).populate("passenger", "name email employeeId phone");
+    const rideRequest: any = ride.requests?.find((r: any) => {
+      if (r.status !== "accepted") return false;
+      if (requestId && r._id.toString() === requestId) return true;
+      if (passengerId && r.passenger.toString() === passengerId) return true;
+      return false;
+    });
 
     if (!rideRequest) {
       return NextResponse.json(
@@ -74,10 +71,20 @@ export async function POST(
       );
     }
 
-    // Mark passenger as boarded
+    // Mark passenger as boarded in Ride.requests embedded array
+    const boardedAt = new Date();
+    await Ride.updateOne(
+      { _id: ride._id, "requests._id": rideRequest._id },
+      {
+        $set: {
+          "requests.$.isBoarded": true,
+          "requests.$.boardedAt": boardedAt,
+        },
+      }
+    );
+
     rideRequest.isBoarded = true;
-    rideRequest.boardedAt = new Date();
-    await rideRequest.save();
+    rideRequest.boardedAt = boardedAt;
 
     return NextResponse.json({
       success: true,
