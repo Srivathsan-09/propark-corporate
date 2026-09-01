@@ -31,6 +31,7 @@ import {
   RefreshCw,
   Trash2,
   FileText,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -172,6 +173,7 @@ export default function MyRidesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"offered" | "booked">("offered");
   const [offeredSubTab, setOfferedSubTab] = useState<"pickup" | "drop">("pickup");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
@@ -915,33 +917,52 @@ export default function MyRidesPage() {
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              window.location.href = `/rides/offer?edit=${ride._id}`;
-                            }}
-                            className="border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs rounded-xl gap-1.5 h-8"
-                          >
-                            <FileText className="h-3.5 w-3.5" /> Edit Ride
-                          </Button>
-                          <Button
-                            size="sm"
                             onClick={() => startDriverGpsTracking(ride._id, true)}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs gap-1.5 h-8"
                           >
                             <Play className="h-3.5 w-3.5 fill-current" /> Start Ride
                           </Button>
-                          <button
-                            onClick={() => handleDeleteRide(ride._id)}
-                            disabled={actionLoadingId === ride._id}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                            title="Delete Ride"
-                          >
-                            {actionLoadingId === ride._id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
+                          {/* Three-dot kebab menu */}
+                          <div className="relative">
+                            <button
+                              onClick={() => setOpenMenuId(openMenuId === ride._id ? null : ride._id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                              title="More options"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
+                            {openMenuId === ride._id && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)} />
+                                <div className="absolute right-0 top-full mt-1 z-50 w-40 bg-white rounded-xl shadow-lg border border-slate-200 py-1 animate-in fade-in-50 zoom-in-95">
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      window.location.href = `/rides/offer?edit=${ride._id}`;
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                  >
+                                    <FileText className="h-3.5 w-3.5" /> Edit Ride
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      handleDeleteRide(ride._id);
+                                    }}
+                                    disabled={actionLoadingId === ride._id}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+                                  >
+                                    {actionLoadingId === ride._id ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    )}
+                                    Delete Ride
+                                  </button>
+                                </div>
+                              </>
                             )}
-                          </button>
+                          </div>
                         </div>
                       )}
 
