@@ -30,6 +30,7 @@ import {
   Moon,
   RefreshCw,
   Trash2,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -170,6 +171,7 @@ export default function MyRidesPage() {
   const [bookedRides, setBookedRides] = useState<IBookedRide[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"offered" | "booked">("offered");
+  const [offeredSubTab, setOfferedSubTab] = useState<"pickup" | "drop">("pickup");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
@@ -822,19 +824,44 @@ export default function MyRidesPage() {
         </div>
       ) : activeTab === "offered" ? (
         /* OFFERED RIDES TAB (DRIVER VIEW) */
-        offeredRides.length === 0 ? (
-          <EmptyState
-            icon={Car}
-            title="No Offered Rides"
-            description="You haven't posted any carpool rides yet. Share your commute with campus colleagues and save costs."
-            actionLabel="Offer a Ride"
-            onAction={() => {
-              window.location.href = "/rides/offer";
-            }}
-          />
-        ) : (
-          <div className="space-y-6">
-            {offeredRides.map((ride) => {
+        <div className="space-y-4">
+          {/* Pickup / Drop Sub-Tabs */}
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl w-fit">
+            <button
+              onClick={() => setOfferedSubTab("pickup")}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                offeredSubTab === "pickup"
+                  ? "bg-white text-emerald-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Pickup ({offeredRides.filter((r) => r.rideType !== "drop").length})
+            </button>
+            <button
+              onClick={() => setOfferedSubTab("drop")}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                offeredSubTab === "drop"
+                  ? "bg-white text-rose-700 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Drop ({offeredRides.filter((r) => r.rideType === "drop").length})
+            </button>
+          </div>
+
+          {offeredRides.filter((r) => offeredSubTab === "pickup" ? r.rideType !== "drop" : r.rideType === "drop").length === 0 ? (
+            <EmptyState
+              icon={Car}
+              title={`No ${offeredSubTab === "pickup" ? "Pickup" : "Drop"} Rides`}
+              description={`You haven't posted any ${offeredSubTab} carpool rides yet. Share your commute with campus colleagues and save costs.`}
+              actionLabel="Offer a Ride"
+              onAction={() => {
+                window.location.href = "/rides/offer";
+              }}
+            />
+          ) : (
+            <div className="space-y-6">
+              {offeredRides.filter((r) => offeredSubTab === "pickup" ? r.rideType !== "drop" : r.rideType === "drop").map((ride) => {
               const isPickup = ride.rideType !== "drop";
               const isLive = ride.status === "in_progress";
               const isCompleted = ride.status === "completed";
@@ -884,7 +911,17 @@ export default function MyRidesPage() {
                             onClick={() => handleOpenLiveTracking(ride)}
                             className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl gap-1.5 h-8 border border-slate-700 shadow-xs"
                           >
-                            <MapIcon className="h-3.5 w-3.5 text-emerald-400" /> View Passenger Map
+                            <MapIcon className="h-3.5 w-3.5 text-emerald-400" /> View Map
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              window.location.href = `/rides/offer?edit=${ride._id}`;
+                            }}
+                            className="border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs rounded-xl gap-1.5 h-8"
+                          >
+                            <FileText className="h-3.5 w-3.5" /> Edit Ride
                           </Button>
                           <Button
                             size="sm"
@@ -893,20 +930,18 @@ export default function MyRidesPage() {
                           >
                             <Play className="h-3.5 w-3.5 fill-current" /> Start Ride
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
+                          <button
                             onClick={() => handleDeleteRide(ride._id)}
                             disabled={actionLoadingId === ride._id}
-                            className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-bold text-xs rounded-xl gap-1.5 h-8"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Delete Ride"
                           >
                             {actionLoadingId === ride._id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-4 w-4" />
                             )}
-                            Delete
-                          </Button>
+                          </button>
                         </div>
                       )}
 
@@ -1216,7 +1251,8 @@ export default function MyRidesPage() {
               );
             })}
           </div>
-        )
+          )}
+        </div>
       ) : (
         /* BOOKED RIDES TAB (PASSENGER VIEW WITH LIVE DRIVER TRACKING) */
         bookedRides.length === 0 ? (
