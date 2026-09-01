@@ -1,4 +1,4 @@
-﻿import { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import AuditLog from "@/models/AuditLog";
 

@@ -1312,11 +1312,36 @@ export default function MyRidesPage() {
               true
             );
 
-            const activePassengerReq = liveTelemetry?.passengers?.[0];
-            const passengerLiveLoc = passengerGpsPosition || activePassengerReq?.currentLocation || null;
+            const activePassengerReq =
+              (liveTelemetry?.passengers || []).find((p: any) =>
+                trackingModalBooking
+                  ? p.requestId === trackingModalBooking._id ||
+                    p.passenger?._id === trackingModalBooking.passenger?._id ||
+                    p.passenger === trackingModalBooking.passenger
+                  : true
+              ) ||
+              liveTelemetry?.passengers?.[0] ||
+              (trackingModalRide?.requests || []).find((r: any) => r.status === "accepted") ||
+              trackingModalRide?.requests?.[0];
 
-            const driverName = liveTelemetry?.driver?.name || "Driver";
-            const passengerName = trackingModalBooking?.passenger?.name || activePassengerReq?.passenger?.name || session?.user?.name || "Passenger";
+            const passengerPickupStop =
+              activePassengerReq?.pickupStop ||
+              trackingModalBooking?.pickupStop ||
+              trackingModalRide?.startingLocation ||
+              "Porur";
+
+            const passengerLiveLoc =
+              passengerGpsPosition ||
+              (activePassengerReq?.currentLocation?.latitude ? activePassengerReq.currentLocation : null) ||
+              resolvePlaceCoordinates(passengerPickupStop, undefined, undefined, false);
+
+            const driverName = liveTelemetry?.driver?.name || trackingModalRide?.driver?.name || "Driver";
+            const passengerName =
+              trackingModalBooking?.passenger?.name ||
+              (activePassengerReq?.passenger as any)?.name ||
+              activePassengerReq?.passengerName ||
+              session?.user?.name ||
+              "Passenger";
 
             const proximity = calculateProximity(driverLiveLoc, passengerLiveLoc);
 

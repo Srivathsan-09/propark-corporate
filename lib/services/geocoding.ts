@@ -286,9 +286,23 @@ export function resolvePlaceCoordinates(
   existingLng?: number,
   isOrigin: boolean = true
 ): { latitude: number; longitude: number } {
+  // 1. If valid real coordinates are explicitly passed, return them immediately
+  if (
+    typeof existingLat === "number" &&
+    !isNaN(existingLat) &&
+    existingLat > 8 &&
+    existingLat < 38 &&
+    typeof existingLng === "number" &&
+    !isNaN(existingLng) &&
+    existingLng > 68 &&
+    existingLng < 98
+  ) {
+    return { latitude: existingLat, longitude: existingLng };
+  }
+
   const name = (placeName || "").toLowerCase().trim();
 
-  // 1. Locality name matching takes absolute priority over stale fallback coordinates
+  // 2. Specific Chennai / Tamil Nadu locality fallback lookup
   if (
     name.includes("karayanchavadi") ||
     name.includes("karayan") ||
@@ -302,26 +316,20 @@ export function resolvePlaceCoordinates(
     return { latitude: 13.0382, longitude: 80.1565 };
   }
 
-  if (
-    name.includes("tech park") ||
-    name.includes("sholinganallur") ||
-    name.includes("omr") ||
-    name.includes("campus") ||
-    name.includes("siruseri")
-  ) {
-    return { latitude: 12.8988, longitude: 80.2284 };
-  }
-
   if (name.includes("guindy")) {
     return { latitude: 13.0067, longitude: 80.202 };
   }
 
-  if (name.includes("kattupakkam")) {
-    return { latitude: 13.0456, longitude: 80.1214 };
-  }
-
   if (name.includes("mugalivakkam")) {
     return { latitude: 13.0238, longitude: 80.1691 };
+  }
+
+  if (name.includes("nandambakkam")) {
+    return { latitude: 13.0186, longitude: 80.1843 };
+  }
+
+  if (name.includes("kattupakkam")) {
+    return { latitude: 13.0456, longitude: 80.1214 };
   }
 
   if (name.includes("iyyappanthangal")) {
@@ -340,26 +348,16 @@ export function resolvePlaceCoordinates(
     return { latitude: 13.0418, longitude: 80.2341 };
   }
 
+  if (name.includes("sholinganallur") || name.includes("siruseri")) {
+    return { latitude: 12.8988, longitude: 80.2284 };
+  }
+
   if (name.includes("tambaram")) {
     return { latitude: 12.9249, longitude: 80.1332 };
   }
 
-  // 2. If valid coordinates are explicitly passed and placeName has no special locality mapping, return coords
-  if (
-    typeof existingLat === "number" &&
-    !isNaN(existingLat) &&
-    existingLat > 8 &&
-    existingLat < 38 &&
-    typeof existingLng === "number" &&
-    !isNaN(existingLng) &&
-    existingLng > 68 &&
-    existingLng < 98
-  ) {
-    return { latitude: existingLat, longitude: existingLng };
-  }
-
-  // 3. Fallback defaults
-  return isOrigin ? { latitude: 12.8988, longitude: 80.2284 } : { latitude: 13.048, longitude: 80.091 };
+  // 3. Fallback defaults (Karayanchavadi / Poonamallee -> Guindy / Tech Park Chennai)
+  return isOrigin ? { latitude: 13.048, longitude: 80.091 } : { latitude: 13.0067, longitude: 80.202 };
 }
 
 export const geocodingService = new GeocodingService();
