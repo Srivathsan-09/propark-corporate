@@ -1334,13 +1334,26 @@ export default function MyRidesPage() {
             const passengerPickupStop =
               activePassengerReq?.pickupStop ||
               trackingModalBooking?.pickupStop ||
-              trackingModalRide?.startingLocation ||
-              "Porur";
+              "";
+
+            // Match pickup stop string against the ride's defined route stops to get exact stop coordinates created by driver
+            const matchedPickupStopObj = passengerPickupStop
+              ? (trackingModalRide?.stops || []).find((s: any) => {
+                  if (!s || !s.name) return false;
+                  const sName = s.name.toLowerCase().trim();
+                  const pStop = passengerPickupStop.toLowerCase().trim();
+                  return sName === pStop || sName.includes(pStop) || pStop.includes(sName);
+                })
+              : null;
+
+            const fallbackPassengerLoc = matchedPickupStopObj?.latitude
+              ? { latitude: matchedPickupStopObj.latitude, longitude: matchedPickupStopObj.longitude }
+              : resolvePlaceCoordinates(passengerPickupStop || "Porur", undefined, undefined, false);
 
             const passengerLiveLoc =
               passengerGpsPosition ||
               (activePassengerReq?.currentLocation?.latitude ? activePassengerReq.currentLocation : null) ||
-              resolvePlaceCoordinates(passengerPickupStop, undefined, undefined, false);
+              fallbackPassengerLoc;
 
             const driverName = liveTelemetry?.driver?.name || trackingModalRide?.driver?.name || "Driver";
             const passengerName =
@@ -1447,12 +1460,15 @@ export default function MyRidesPage() {
                         false
                       ),
                     }}
-                    stops={trackingModalRide.stops?.map((s: any) => ({
-                      name: s.name,
-                      price: s.price,
-                      latitude: s.latitude || 12.95,
-                      longitude: s.longitude || 80.18,
-                    }))}
+                    stops={trackingModalRide.stops?.map((s: any) => {
+                      const coords = resolvePlaceCoordinates(s.name, s.latitude, s.longitude, false);
+                      return {
+                        name: s.name,
+                        price: s.price,
+                        latitude: coords.latitude,
+                        longitude: coords.longitude,
+                      };
+                    })}
                     driverLocation={driverLiveLoc}
                     driverName={driverName}
                     driverVehicleType={liveTelemetry?.vehicle?.vehicleType || "Car"}
