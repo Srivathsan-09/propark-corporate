@@ -83,6 +83,34 @@ export default function OfferRidePage() {
   const currentHour = new Date().getHours();
   const defaultIsMorning = currentHour < 13;
 
+  // Min & Max allowed dates (Today to Max 2 Days in Advance)
+  const dateBounds = useMemo(() => {
+    const now = new Date();
+    const minYyyy = now.getFullYear();
+    const minMm = String(now.getMonth() + 1).padStart(2, "0");
+    const minDd = String(now.getDate()).padStart(2, "0");
+    const minDateStr = `${minYyyy}-${minMm}-${minDd}`;
+
+    const maxDate = new Date(now);
+    maxDate.setDate(maxDate.getDate() + 2); // Max 2 days in advance
+    const maxYyyy = maxDate.getFullYear();
+    const maxMm = String(maxDate.getMonth() + 1).padStart(2, "0");
+    const maxDd = String(maxDate.getDate()).padStart(2, "0");
+    const maxDateStr = `${maxYyyy}-${maxMm}-${maxDd}`;
+
+    let defaultDepartureDate = minDateStr;
+    if (defaultIsMorning && now.getHours() >= 9) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tYyyy = tomorrow.getFullYear();
+      const tMm = String(tomorrow.getMonth() + 1).padStart(2, "0");
+      const tDd = String(tomorrow.getDate()).padStart(2, "0");
+      defaultDepartureDate = `${tYyyy}-${tMm}-${tDd}`;
+    }
+
+    return { minDateStr, maxDateStr, defaultDepartureDate };
+  }, [defaultIsMorning]);
+
   // Profile & Campus Data
   const [userCampusName, setUserCampusName] = useState<string>("Campus");
   const [userHomeLocation, setUserHomeLocation] = useState<string>("");
@@ -100,7 +128,7 @@ export default function OfferRidePage() {
     rideType: defaultIsMorning ? ("pickup" as "pickup" | "drop") : ("drop" as "pickup" | "drop"),
     startingLocation: "",
     destination: "",
-    departureDate: new Date().toISOString().split("T")[0],
+    departureDate: dateBounds.defaultDepartureDate,
     departureTime: defaultIsMorning ? "08:30 AM" : "06:00 PM",
     availableSeats: 3,
     notes: "",
@@ -521,6 +549,13 @@ export default function OfferRidePage() {
     setSuccessMessage(null);
     setErrorMessage(null);
     setFieldErrors({});
+
+    const { validateRideDepartureDateTime } = await import("@/lib/utils");
+    const dateCheck = validateRideDepartureDateTime(formData.departureDate, formData.departureTime);
+    if (!dateCheck.isValid) {
+      setErrorMessage(dateCheck.error || "Invalid departure date or time.");
+      return;
+    }
 
     const payload = {
       ...formData,
@@ -1112,8 +1147,21 @@ export default function OfferRidePage() {
                     <Input
                       id="departureDate"
                       type="date"
+                      min={dateBounds.minDateStr}
+                      max={dateBounds.maxDateStr}
                       value={formData.departureDate}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, departureDate: e.target.value }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData((prev) => ({ ...prev, departureDate: val }));
+                        import("@/lib/utils").then(({ validateRideDepartureDateTime }) => {
+                          const check = validateRideDepartureDateTime(val, formData.departureTime);
+                          if (!check.isValid) {
+                            setErrorMessage(check.error || "Invalid date or time.");
+                          } else {
+                            setErrorMessage(null);
+                          }
+                        });
+                      }}
                       className="rounded-xl h-9 text-xs"
                       required
                     />
@@ -1127,7 +1175,18 @@ export default function OfferRidePage() {
                       id="departureTime"
                       placeholder="08:30 AM"
                       value={formData.departureTime}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, departureTime: e.target.value }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData((prev) => ({ ...prev, departureTime: val }));
+                        import("@/lib/utils").then(({ validateRideDepartureDateTime }) => {
+                          const check = validateRideDepartureDateTime(formData.departureDate, val);
+                          if (!check.isValid) {
+                            setErrorMessage(check.error || "Invalid date or time.");
+                          } else {
+                            setErrorMessage(null);
+                          }
+                        });
+                      }}
                       className="rounded-xl h-9 text-xs font-semibold"
                       required
                     />

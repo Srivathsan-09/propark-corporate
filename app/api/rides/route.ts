@@ -161,6 +161,16 @@ export async function POST(req: NextRequest) {
       notes,
     } = validationResult.data;
 
+    // Enforce Past Time & Max 2 Days Advance Scheduling Rules
+    const { validateRideDepartureDateTime } = await import("@/lib/utils");
+    const dateCheck = validateRideDepartureDateTime(departureDate, departureTime);
+    if (!dateCheck.isValid) {
+      return NextResponse.json(
+        { success: false, error: dateCheck.error || "Invalid departure date or time." },
+        { status: 400 }
+      );
+    }
+
     // Check vehicle exists and belongs to user
     const vehicle = await Vehicle.findById(vehicleId);
 
