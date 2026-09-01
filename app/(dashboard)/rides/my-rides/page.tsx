@@ -703,18 +703,35 @@ export default function MyRidesPage() {
     if (!isLiveTrackingModalOpen || !trackingModalRide) return;
 
     const updateLiveEta = async () => {
-      const startPt = {
-        latitude: trackingModalRide.startLocation?.latitude || 13.048,
-        longitude: trackingModalRide.startLocation?.longitude || 80.091,
-      };
-      const endPt = {
-        latitude: trackingModalRide.endLocation?.latitude || 12.8988,
-        longitude: trackingModalRide.endLocation?.longitude || 80.2284,
-      };
+      const startCoords = resolvePlaceCoordinates(
+        trackingModalRide.startingLocation,
+        trackingModalRide.startLocation?.latitude,
+        trackingModalRide.startLocation?.longitude,
+        true
+      );
+
+      const endCoords = resolvePlaceCoordinates(
+        trackingModalRide.destination,
+        trackingModalRide.endLocation?.latitude,
+        trackingModalRide.endLocation?.longitude,
+        false
+      );
+
+      const stopWaypoints = (trackingModalRide.stops || []).map((s: any) => {
+        const sc = resolvePlaceCoordinates(s.name, s.latitude, s.longitude, false);
+        return { latitude: sc.latitude, longitude: sc.longitude, name: s.name };
+      });
+
+      const waypoints = [
+        { latitude: startCoords.latitude, longitude: startCoords.longitude, name: trackingModalRide.startingLocation },
+        ...stopWaypoints,
+        { latitude: endCoords.latitude, longitude: endCoords.longitude, name: trackingModalRide.destination },
+      ];
+
       const driverLoc = liveTelemetry?.currentLocation || driverGpsPosition;
 
       const result = await routingService.calculateRoute(
-        [startPt, endPt],
+        waypoints,
         trackingModalRide.departureTime,
         driverLoc ? { latitude: driverLoc.latitude, longitude: driverLoc.longitude, speed: (driverLoc as any).speed } : null
       );
