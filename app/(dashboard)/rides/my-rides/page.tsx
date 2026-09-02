@@ -377,6 +377,17 @@ export default function MyRidesPage() {
           );
           passengerStopWatchingRef.current = stopPassengerFn;
         }
+
+        // Pre-warm driver GPS location if user has active/scheduled offered rides
+        const hasOfferedRides = (data.offeredRides || []).some(
+          (r: any) => r.status !== "completed" && r.status !== "cancelled"
+        );
+        if (hasOfferedRides && !driverGpsPosition) {
+          locationService
+            .getCurrentPosition({ enableHighAccuracy: true })
+            .then((pos) => setDriverGpsPosition(pos))
+            .catch(() => {});
+        }
       }
     } catch (err) {
       console.error("Failed to load my rides:", err);
@@ -557,30 +568,42 @@ export default function MyRidesPage() {
     setTrackingModalBooking(booking || null);
     setIsLiveTrackingModalOpen(true);
 
-    try {
-      const res = await fetch(`/api/rides/${ride._id}/location`);
-      if (res.ok) {
-        const data = await res.json();
-        setLiveTelemetry(data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch initial telemetry:", e);
-    }
+    const isDriverOfRide =
+      (session?.user?.id && ((ride.driver as any)?._id === session.user.id || ride.driver === session.user.id)) ||
+      (session?.user?.email && (ride.driver as any)?.email?.toLowerCase() === session.user.email.toLowerCase()) ||
+      offeredRides.some((r: any) => r._id === ride._id);
 
-    // Start passenger GPS broadcast if passenger has an accepted booking
-    if (booking && booking._id && booking.status === "accepted" && ride.status !== "completed" && ride.status !== "cancelled") {
-      if (passengerStopWatchingRef.current) {
-        passengerStopWatchingRef.current();
+    // If driver is opening the map:
+    if (isDriverOfRide) {
+      // 1. Immediately request high-accuracy browser GPS snapshot
+      locationService
+        .getCurrentPosition({ enableHighAccuracy: true })
+        .then((pos) => {
+          setDriverGpsPosition(pos);
+          fetch(`/api/rides/${ride._id}/location`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              latitude: pos.latitude,
+              longitude: pos.longitude,
+              heading: pos.heading,
+              speed: pos.speed,
+              accuracy: pos.accuracy,
+            }),
+          }).catch((e) => console.warn("Driver GPS sync warning:", e));
+        })
+        .catch((err) => console.warn("Driver GPS snapshot warning:", err));
+
+      // 2. Start continuous GPS watching while modal is open
+      if (stopWatchingRef.current) {
+        stopWatchingRef.current();
       }
 
-      setPassengerGpsStatus("UPDATING");
-      const stopFn = locationService.watchPosition(
+      const dStopFn = locationService.watchPosition(
         async (newPos) => {
-          setPassengerGpsPosition(newPos);
-          setPassengerGpsStatus("ACTIVE");
-
+          setDriverGpsPosition(newPos);
           try {
-            await fetch(`/api/rides/requests/${booking._id}/location`, {
+            await fetch(`/api/rides/${ride._id}/location`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -592,30 +615,100 @@ export default function MyRidesPage() {
               }),
             });
           } catch (e) {
-            console.warn("Passenger GPS sync warning:", e);
+            console.warn("Driver watch sync warning:", e);
           }
         },
-        (err) => {
-          console.warn("Passenger GPS watch warning:", err);
-          if (err.type === "PERMISSION_DENIED") {
-            setPassengerGpsStatus("DENIED");
-          } else {
-            setPassengerGpsStatus("UNAVAILABLE");
-          }
-        }
+        (err) => console.warn("Driver watch warning:", err)
       );
 
-      passengerStopWatchingRef.current = stopFn;
+      stopWatchingRef.current = dStopFn;
+    } else {
+      // Passenger view: get passenger's live GPS
+      locationService
+        .getCurrentPosition({ enableHighAccuracy: true })
+        .then((pos) => {
+          setPassengerGpsPosition(pos);
+          if (booking && booking._id) {
+            fetch(`/api/rides/requests/${booking._id}/location`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                latitude: pos.latitude,
+                longitude: pos.longitude,
+                heading: pos.heading,
+                speed: pos.speed,
+                accuracy: pos.accuracy,
+              }),
+            }).catch((e) => console.warn("Passenger GPS sync warning:", e));
+          }
+        })
+        .catch((err) => console.warn("Passenger GPS snapshot warning:", err));
+
+      if (booking && booking._id && booking.status === "accepted" && ride.status !== "completed" && ride.status !== "cancelled") {
+        if (passengerStopWatchingRef.current) {
+          passengerStopWatchingRef.current();
+        }
+
+        setPassengerGpsStatus("UPDATING");
+        const stopFn = locationService.watchPosition(
+          async (newPos) => {
+            setPassengerGpsPosition(newPos);
+            setPassengerGpsStatus("ACTIVE");
+
+            try {
+              await fetch(`/api/rides/requests/${booking._id}/location`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  latitude: newPos.latitude,
+                  longitude: newPos.longitude,
+                  heading: newPos.heading,
+                  speed: newPos.speed,
+                  accuracy: newPos.accuracy,
+                }),
+              });
+            } catch (e) {
+              console.warn("Passenger GPS sync warning:", e);
+            }
+          },
+          (err) => {
+            console.warn("Passenger GPS watch warning:", err);
+            if (err.type === "PERMISSION_DENIED") {
+              setPassengerGpsStatus("DENIED");
+            } else {
+              setPassengerGpsStatus("UNAVAILABLE");
+            }
+          }
+        );
+
+        passengerStopWatchingRef.current = stopFn;
+      }
+    }
+
+    try {
+      const res = await fetch(`/api/rides/${ride._id}/location`);
+      if (res.ok) {
+        const data = await res.json();
+        setLiveTelemetry(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch initial telemetry:", e);
     }
   };
 
-  // Stop passenger GPS watching when modal is closed
+  // Stop watching when modal is closed (unless driver ride is actively in_progress)
   useEffect(() => {
-    if (!isLiveTrackingModalOpen && passengerStopWatchingRef.current) {
-      passengerStopWatchingRef.current();
-      passengerStopWatchingRef.current = null;
+    if (!isLiveTrackingModalOpen) {
+      if (passengerStopWatchingRef.current) {
+        passengerStopWatchingRef.current();
+        passengerStopWatchingRef.current = null;
+      }
+      if (!activeTrackingRideId && stopWatchingRef.current) {
+        stopWatchingRef.current();
+        stopWatchingRef.current = null;
+      }
     }
-  }, [isLiveTrackingModalOpen]);
+  }, [isLiveTrackingModalOpen, activeTrackingRideId]);
 
   // Auto Background Live GPS Broadcast for Passenger with active accepted booking
   useEffect(() => {
@@ -1476,18 +1569,19 @@ export default function MyRidesPage() {
       <Dialog open={isLiveTrackingModalOpen} onOpenChange={setIsLiveTrackingModalOpen}>
         <DialogContent className="sm:max-w-3xl max-h-[92vh] overflow-y-auto">
           {trackingModalRide && (() => {
-            const isDriverUser = session?.user?.id && liveTelemetry?.driver?._id
-              ? (liveTelemetry.driver._id === session.user.id || liveTelemetry.driver === session.user.id)
-              : (session?.user?.email && liveTelemetry?.driver?.email
-                ? liveTelemetry.driver.email.toLowerCase() === session.user.email.toLowerCase()
-                : false);
+            const isDriverUser =
+              (session?.user?.id && ((trackingModalRide.driver as any)?._id === session.user.id || trackingModalRide.driver === session.user.id)) ||
+              (session?.user?.email && (trackingModalRide.driver as any)?.email?.toLowerCase() === session.user.email.toLowerCase()) ||
+              (session?.user?.id && liveTelemetry?.driver?._id && (liveTelemetry.driver._id === session.user.id || liveTelemetry.driver === session.user.id)) ||
+              offeredRides.some((r: any) => r._id === trackingModalRide._id);
 
-            const driverLiveLoc = liveTelemetry?.currentLocation || driverGpsPosition || resolvePlaceCoordinates(
-              liveTelemetry?.startingLocation || trackingModalRide.startingLocation,
-              liveTelemetry?.startLocation?.latitude || trackingModalRide.startLocation?.latitude,
-              liveTelemetry?.startLocation?.longitude || trackingModalRide.startLocation?.longitude,
-              true
-            );
+            // True Live Location:
+            // 1. If viewing user is the driver: driverGpsPosition is their actual live device position!
+            // 2. If viewing user is a passenger: use the driver's liveTelemetry.currentLocation broadcasted to backend.
+            // 3. Do NOT force the car to appear at starting city (e.g. Kancheepuram) if driver is actually elsewhere!
+            const driverLiveLoc = isDriverUser
+              ? (driverGpsPosition || (liveTelemetry?.currentLocation?.latitude ? liveTelemetry.currentLocation : null))
+              : ((liveTelemetry?.currentLocation?.latitude ? liveTelemetry.currentLocation : null) || driverGpsPosition);
 
             const activePassengerReq =
               (liveTelemetry?.passengers || []).find((p: any) =>
