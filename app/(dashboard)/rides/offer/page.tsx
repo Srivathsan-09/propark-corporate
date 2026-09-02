@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
@@ -69,12 +69,16 @@ interface IStopItem {
   estimatedTime?: string;
 }
 
-export default function OfferRidePage() {
+function OfferRideForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editRideId = searchParams.get("edit");
+  const isEditMode = Boolean(editRideId);
   const { data: session } = useSession();
 
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
+  const [isLoadingRideForEdit, setIsLoadingRideForEdit] = useState(isEditMode);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -198,6 +202,11 @@ export default function OfferRidePage() {
           };
           setCampusPoint(cPt);
 
+          if (editRideId) {
+            // In Edit Mode, ride locations and timings are loaded from database, do not overwrite with home defaults!
+            return;
+          }
+
           const home = (user.homeLocation || "").trim();
           if (home) {
             setUserHomeLocation(home);
@@ -281,8 +290,8 @@ export default function OfferRidePage() {
             const first = list[0];
             setFormData((prev) => ({
               ...prev,
-              vehicleId: first._id,
-              availableSeats: Math.min(first.availableSeats || 3, first.seatingCapacity),
+              vehicleId: prev.vehicleId || first._id,
+              availableSeats: prev.availableSeats || Math.min(first.availableSeats || 3, first.seatingCapacity),
             }));
           }
         }
@@ -298,10 +307,120 @@ export default function OfferRidePage() {
     }
   }, [session]);
 
+  // Load Ride Data for Edit Mode
+  useEffect(() => {
+    if (!editRideId) return;
+
+    async function fetchRideToEdit() {
+      setIsLoadingRideForEdit(true);
+      try {
+        const res = await fetch(`/api/rides/${editRideId}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          setErrorMessage(err.error || "Failed to load ride details for editing.");
+          setIsLoadingRideForEdit(false);
+          return;
+        }
+
+        const data = await res.json();
+        const ride = data.ride;
+        if (!ride) {
+          setErrorMessage("Ride not found.");
+          setIsLoadingRideForEdit(false);
+          return;
+        }
+
+        // Resolve coordinates
+        let sLat = ride.startLocation?.latitude || 0;
+        let sLng = ride.startLocation?.longitude || 0;
+        if (!sLat || !sLng) {
+          const coords = resolvePlaceCoordinates(ride.startingLocation, undefined, undefined, true);
+          sLat = coords.latitude;
+          sLng = coords.longitude;
+        }
+
+        let eLat = ride.endLocation?.latitude || 0;
+        let eLng = ride.endLocation?.longitude || 0;
+        if (!eLat || !eLng) {
+          const coords = resolvePlaceCoordinates(ride.destination, undefined, undefined, false);
+          eLat = coords.latitude;
+          eLng = coords.longitude;
+        }
+
+        const sPt: MapPoint = {
+          name: ride.startingLocation,
+          address: ride.startLocation?.address || ride.startingLocation,
+          latitude: sLat,
+          longitude: sLng,
+        };
+
+        const ePt: MapPoint = {
+          name: ride.destination,
+          address: ride.endLocation?.address || ride.destination,
+          latitude: eLat,
+          longitude: eLng,
+        };
+
+        const loadedStops: IStopItem[] = (ride.stops || []).map((s: any) => {
+          let stopLat = s.latitude || 0;
+          let stopLng = s.longitude || 0;
+          if (!stopLat || !stopLng) {
+            const coords = resolvePlaceCoordinates(s.name, undefined, undefined, false);
+            stopLat = coords.latitude;
+            stopLng = coords.longitude;
+          }
+          return {
+            name: s.name,
+            address: s.address || s.name,
+            latitude: stopLat,
+            longitude: stopLng,
+            price: s.price || 50,
+            estimatedTime: s.estimatedTime || "",
+          };
+        });
+
+        const vId = typeof ride.vehicle === "object" && ride.vehicle ? ride.vehicle._id : (ride.vehicle || "");
+
+        setFormData({
+          vehicleId: vId,
+          rideType: ride.rideType || "pickup",
+          startingLocation: ride.startingLocation || "",
+          destination: ride.destination || "",
+          departureDate: ride.departureDate || "",
+          departureTime: ride.departureTime || "",
+          availableSeats: ride.availableSeats ?? 3,
+          notes: ride.notes || "",
+        });
+
+        setStartPoint(sPt);
+        setEndPoint(ePt);
+        setStops(loadedStops);
+
+        if (sLat && sLng && eLat && eLng) {
+          const validWaypoints = loadedStops
+            .filter((st) => st.latitude && st.longitude && st.latitude !== 0 && st.longitude !== 0)
+            .map((st) => ({ latitude: st.latitude!, longitude: st.longitude!, name: st.name }));
+
+          calculateRoute([
+            { latitude: sLat, longitude: sLng, name: sPt.name },
+            ...validWaypoints,
+            { latitude: eLat, longitude: eLng, name: ePt.name },
+          ]);
+        }
+      } catch (err: any) {
+        console.error("Error loading ride for edit:", err);
+        setErrorMessage("Network error while loading ride details.");
+      } finally {
+        setIsLoadingRideForEdit(false);
+      }
+    }
+
+    fetchRideToEdit();
+  }, [editRideId, calculateRoute]);
+
   const selectedVehicle = vehicles.find((v) => v._id === formData.vehicleId);
 
   // Recalculate OSRM Route whenever start, destination, or stops change
-  // Calculate main commute route between Origin & Destination (single OSRM fetch)
   useEffect(() => {
     if (
       startPoint &&
@@ -311,8 +430,13 @@ export default function OfferRidePage() {
       startPoint.latitude !== 0 &&
       endPoint.latitude !== 0
     ) {
+      const validStops = stops
+        .filter((s) => s.latitude && s.longitude && s.latitude !== 0 && s.longitude !== 0)
+        .map((s) => ({ latitude: s.latitude!, longitude: s.longitude!, name: s.name }));
+
       calculateRoute([
         { latitude: startPoint.latitude, longitude: startPoint.longitude, name: startPoint.name },
+        ...validStops,
         { latitude: endPoint.latitude, longitude: endPoint.longitude, name: endPoint.name },
       ]);
     }
@@ -321,6 +445,7 @@ export default function OfferRidePage() {
     startPoint.longitude,
     endPoint.latitude,
     endPoint.longitude,
+    stops,
     calculateRoute,
   ]);
 
@@ -602,8 +727,11 @@ export default function OfferRidePage() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch("/api/rides", {
-        method: "POST",
+      const endpoint = editRideId ? `/api/rides/${editRideId}` : "/api/rides";
+      const method = editRideId ? "PUT" : "POST";
+
+      const res = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -611,18 +739,22 @@ export default function OfferRidePage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setErrorMessage(data.error || "Failed to offer ride.");
+        setErrorMessage(data.error || (editRideId ? "Failed to update ride." : "Failed to offer ride."));
         setIsSubmitting(false);
         return;
       }
 
-      setSuccessMessage("Ride offered successfully! Redirecting to My Rides...");
+      setSuccessMessage(
+        editRideId
+          ? "Ride updated successfully! Redirecting to My Rides..."
+          : "Ride offered successfully! Redirecting to My Rides..."
+      );
       setTimeout(() => {
         router.push("/rides/my-rides");
       }, 1200);
     } catch (err) {
-      console.error("Offer ride error:", err);
-      setErrorMessage("Network error occurred while posting ride.");
+      console.error("Save ride error:", err);
+      setErrorMessage("Network error occurred while saving ride.");
       setIsSubmitting(false);
     }
   };
@@ -762,12 +894,14 @@ export default function OfferRidePage() {
             {isSubmitting ? (
               <span className="flex items-center justify-center gap-1.5">
                 <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
-                <span>Posting Ride...</span>
+                <span>{isEditMode ? "Updating Ride..." : "Posting Ride..."}</span>
               </span>
             ) : !isEmployeeApproved ? (
               "Account Pending Admin Approval"
             ) : !isVehicleApproved ? (
               "Vehicle Pending Admin Approval"
+            ) : isEditMode ? (
+              `Save & Update ${isPickup ? "Pickup" : "Drop"} Ride`
             ) : (
               `Post ${isPickup ? "Pickup" : "Drop"} Ride`
             )}
@@ -782,10 +916,12 @@ export default function OfferRidePage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Offer a Ride
+          {isEditMode ? "Edit Ride" : "Offer a Ride"}
         </h1>
         <p className="text-sm text-slate-500">
-          Share your commute with interactive OpenStreetMap routing, custom pickup/drop points, and real-time distance calculations
+          {isEditMode
+            ? "Update your commute route, pickup points, timings, or seats"
+            : "Share your commute with interactive OpenStreetMap routing, custom pickup/drop points, and real-time distance calculations"}
         </p>
       </div>
 
@@ -803,9 +939,9 @@ export default function OfferRidePage() {
         </div>
       )}
 
-      {isLoadingVehicles ? (
+      {isLoadingVehicles || isLoadingRideForEdit ? (
         <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
-          <CarLoader size="page" message="Loading your vehicles & route setup..." />
+          <CarLoader size="page" message={isLoadingRideForEdit ? "Loading ride details for editing..." : "Loading your vehicles & route setup..."} />
         </div>
       ) : vehicles.length === 0 ? (
         <Card className="border-amber-200 bg-amber-50/60 p-6 text-center space-y-3 rounded-2xl">
@@ -952,10 +1088,12 @@ export default function OfferRidePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                      <Car className="h-5 w-5 text-emerald-600" /> Post Campus Ride
+                      <Car className="h-5 w-5 text-emerald-600" /> {isEditMode ? "Edit Campus Ride" : "Post Campus Ride"}
                     </CardTitle>
                     <CardDescription className="text-xs text-slate-500 mt-0.5">
-                      Configure your commute direction, vehicle, and route stops
+                      {isEditMode
+                        ? "Modify your commute route, pickup points, timings, or seats"
+                        : "Configure your commute direction, vehicle, and route stops"}
                     </CardDescription>
                   </div>
 
@@ -1227,8 +1365,8 @@ export default function OfferRidePage() {
                     <Input
                       id="departureDate"
                       type="date"
-                      min={dateBounds.minDateStr}
-                      max={dateBounds.maxDateStr}
+                      min={isEditMode ? undefined : dateBounds.minDateStr}
+                      max={isEditMode ? undefined : dateBounds.maxDateStr}
                       value={formData.departureDate}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -1313,5 +1451,19 @@ export default function OfferRidePage() {
         </form>
       )}
     </div>
+  );
+}
+
+export default function OfferRidePage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm max-w-6xl mx-auto">
+          <CarLoader size="page" message="Loading ride configuration..." />
+        </div>
+      }
+    >
+      <OfferRideForm />
+    </React.Suspense>
   );
 }
