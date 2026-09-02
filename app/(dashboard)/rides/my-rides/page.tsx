@@ -807,14 +807,10 @@ export default function MyRidesPage() {
         false
       );
 
-      const stopWaypoints = (trackingModalRide.stops || []).map((s: any) => {
-        const sc = resolvePlaceCoordinates(s.name, s.latitude, s.longitude, false);
-        return { latitude: sc.latitude, longitude: sc.longitude, name: s.name };
-      });
-
+      // Calculate main highway/corridor route directly between Origin & Destination
+      // Stops are boarding pins along the route corridor and should NOT divert the car into side streets
       const waypoints = [
         { latitude: startCoords.latitude, longitude: startCoords.longitude, name: trackingModalRide.startingLocation },
-        ...stopWaypoints,
         { latitude: endCoords.latitude, longitude: endCoords.longitude, name: trackingModalRide.destination },
       ];
 

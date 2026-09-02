@@ -397,13 +397,8 @@ function OfferRideForm() {
         setStops(loadedStops);
 
         if (sLat && sLng && eLat && eLng) {
-          const validWaypoints = loadedStops
-            .filter((st) => st.latitude && st.longitude && st.latitude !== 0 && st.longitude !== 0)
-            .map((st) => ({ latitude: st.latitude!, longitude: st.longitude!, name: st.name }));
-
           calculateRoute([
             { latitude: sLat, longitude: sLng, name: sPt.name },
-            ...validWaypoints,
             { latitude: eLat, longitude: eLng, name: ePt.name },
           ]);
         }
@@ -420,7 +415,8 @@ function OfferRideForm() {
 
   const selectedVehicle = vehicles.find((v) => v._id === formData.vehicleId);
 
-  // Recalculate OSRM Route whenever start, destination, or stops change
+  // Recalculate OSRM Route whenever start or destination change
+  // Main highway/corridor route directly between Origin & Destination (stops do NOT detour into side streets)
   useEffect(() => {
     if (
       startPoint &&
@@ -430,13 +426,8 @@ function OfferRideForm() {
       startPoint.latitude !== 0 &&
       endPoint.latitude !== 0
     ) {
-      const validStops = stops
-        .filter((s) => s.latitude && s.longitude && s.latitude !== 0 && s.longitude !== 0)
-        .map((s) => ({ latitude: s.latitude!, longitude: s.longitude!, name: s.name }));
-
       calculateRoute([
         { latitude: startPoint.latitude, longitude: startPoint.longitude, name: startPoint.name },
-        ...validStops,
         { latitude: endPoint.latitude, longitude: endPoint.longitude, name: endPoint.name },
       ]);
     }
@@ -445,7 +436,6 @@ function OfferRideForm() {
     startPoint.longitude,
     endPoint.latitude,
     endPoint.longitude,
-    stops,
     calculateRoute,
   ]);
 
