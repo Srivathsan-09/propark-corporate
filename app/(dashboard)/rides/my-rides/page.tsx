@@ -331,9 +331,9 @@ export default function MyRidesPage() {
         setOfferedRides(data.offeredRides || []);
         setBookedRides(data.bookedRides || []);
 
-        // Check if user has an accepted booking request to start passenger GPS watch
+        // Check if user has an accepted booking request in an IN_PROGRESS ride to start passenger GPS watch
         const activePassengerBooking = (data.bookedRides || []).find(
-          (b: IBookedRide) => b.status === "accepted" && b.ride?.status !== "completed" && b.ride?.status !== "cancelled"
+          (b: IBookedRide) => b.status === "accepted" && b.ride?.status === "in_progress"
         );
 
         if (activePassengerBooking && !passengerStopWatchingRef.current) {
@@ -376,17 +376,6 @@ export default function MyRidesPage() {
             (err) => console.warn("Passenger watch error:", err)
           );
           passengerStopWatchingRef.current = stopPassengerFn;
-        }
-
-        // Pre-warm driver GPS location if user has active/scheduled offered rides
-        const hasOfferedRides = (data.offeredRides || []).some(
-          (r: any) => r.status !== "completed" && r.status !== "cancelled"
-        );
-        if (hasOfferedRides && !driverGpsPosition) {
-          locationService
-            .getCurrentPosition({ enableHighAccuracy: true })
-            .then((pos) => setDriverGpsPosition(pos))
-            .catch(() => {});
         }
       }
     } catch (err) {
@@ -573,63 +562,17 @@ export default function MyRidesPage() {
       (session?.user?.email && (ride.driver as any)?.email?.toLowerCase() === session.user.email.toLowerCase()) ||
       offeredRides.some((r: any) => r._id === ride._id);
 
-    // If driver is opening the map:
-    if (isDriverOfRide) {
-      // 1. Immediately request high-accuracy browser GPS snapshot
-      locationService
-        .getCurrentPosition({ enableHighAccuracy: true })
-        .then((pos) => {
-          setDriverGpsPosition(pos);
-          fetch(`/api/rides/${ride._id}/location`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              latitude: pos.latitude,
-              longitude: pos.longitude,
-              heading: pos.heading,
-              speed: pos.speed,
-              accuracy: pos.accuracy,
-            }),
-          }).catch((e) => console.warn("Driver GPS sync warning:", e));
-        })
-        .catch((err) => console.warn("Driver GPS snapshot warning:", err));
+    const isRideLive = ride.status === "in_progress";
 
-      // 2. Start continuous GPS watching while modal is open
-      if (stopWatchingRef.current) {
-        stopWatchingRef.current();
-      }
-
-      const dStopFn = locationService.watchPosition(
-        async (newPos) => {
-          setDriverGpsPosition(newPos);
-          try {
-            await fetch(`/api/rides/${ride._id}/location`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                latitude: newPos.latitude,
-                longitude: newPos.longitude,
-                heading: newPos.heading,
-                speed: newPos.speed,
-                accuracy: newPos.accuracy,
-              }),
-            });
-          } catch (e) {
-            console.warn("Driver watch sync warning:", e);
-          }
-        },
-        (err) => console.warn("Driver watch warning:", err)
-      );
-
-      stopWatchingRef.current = dStopFn;
-    } else {
-      // Passenger view: get passenger's live GPS
-      locationService
-        .getCurrentPosition({ enableHighAccuracy: true })
-        .then((pos) => {
-          setPassengerGpsPosition(pos);
-          if (booking && booking._id) {
-            fetch(`/api/rides/requests/${booking._id}/location`, {
+    // ONLY activate device GPS tracking & broadcast if the ride is actively IN PROGRESS
+    if (isRideLive) {
+      if (isDriverOfRide) {
+        // 1. Immediately request high-accuracy browser GPS snapshot
+        locationService
+          .getCurrentPosition({ enableHighAccuracy: true })
+          .then((pos) => {
+            setDriverGpsPosition(pos);
+            fetch(`/api/rides/${ride._id}/location`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -639,24 +582,20 @@ export default function MyRidesPage() {
                 speed: pos.speed,
                 accuracy: pos.accuracy,
               }),
-            }).catch((e) => console.warn("Passenger GPS sync warning:", e));
-          }
-        })
-        .catch((err) => console.warn("Passenger GPS snapshot warning:", err));
+            }).catch((e) => console.warn("Driver GPS sync warning:", e));
+          })
+          .catch((err) => console.warn("Driver GPS snapshot warning:", err));
 
-      if (booking && booking._id && booking.status === "accepted" && ride.status !== "completed" && ride.status !== "cancelled") {
-        if (passengerStopWatchingRef.current) {
-          passengerStopWatchingRef.current();
+        // 2. Start continuous GPS watching while modal is open
+        if (stopWatchingRef.current) {
+          stopWatchingRef.current();
         }
 
-        setPassengerGpsStatus("UPDATING");
-        const stopFn = locationService.watchPosition(
+        const dStopFn = locationService.watchPosition(
           async (newPos) => {
-            setPassengerGpsPosition(newPos);
-            setPassengerGpsStatus("ACTIVE");
-
+            setDriverGpsPosition(newPos);
             try {
-              await fetch(`/api/rides/requests/${booking._id}/location`, {
+              await fetch(`/api/rides/${ride._id}/location`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -668,20 +607,74 @@ export default function MyRidesPage() {
                 }),
               });
             } catch (e) {
-              console.warn("Passenger GPS sync warning:", e);
+              console.warn("Driver watch sync warning:", e);
             }
           },
-          (err) => {
-            console.warn("Passenger GPS watch warning:", err);
-            if (err.type === "PERMISSION_DENIED") {
-              setPassengerGpsStatus("DENIED");
-            } else {
-              setPassengerGpsStatus("UNAVAILABLE");
-            }
-          }
+          (err) => console.warn("Driver watch warning:", err)
         );
 
-        passengerStopWatchingRef.current = stopFn;
+        stopWatchingRef.current = dStopFn;
+      } else {
+        // Passenger view: get passenger's live GPS
+        locationService
+          .getCurrentPosition({ enableHighAccuracy: true })
+          .then((pos) => {
+            setPassengerGpsPosition(pos);
+            if (booking && booking._id) {
+              fetch(`/api/rides/requests/${booking._id}/location`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  latitude: pos.latitude,
+                  longitude: pos.longitude,
+                  heading: pos.heading,
+                  speed: pos.speed,
+                  accuracy: pos.accuracy,
+                }),
+              }).catch((e) => console.warn("Passenger GPS sync warning:", e));
+            }
+          })
+          .catch((err) => console.warn("Passenger GPS snapshot warning:", err));
+
+        if (booking && booking._id && booking.status === "accepted") {
+          if (passengerStopWatchingRef.current) {
+            passengerStopWatchingRef.current();
+          }
+
+          setPassengerGpsStatus("UPDATING");
+          const stopFn = locationService.watchPosition(
+            async (newPos) => {
+              setPassengerGpsPosition(newPos);
+              setPassengerGpsStatus("ACTIVE");
+
+              try {
+                await fetch(`/api/rides/requests/${booking._id}/location`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    latitude: newPos.latitude,
+                    longitude: newPos.longitude,
+                    heading: newPos.heading,
+                    speed: newPos.speed,
+                    accuracy: newPos.accuracy,
+                  }),
+                });
+              } catch (e) {
+                console.warn("Passenger GPS sync warning:", e);
+              }
+            },
+            (err) => {
+              console.warn("Passenger GPS watch warning:", err);
+              if (err.type === "PERMISSION_DENIED") {
+                setPassengerGpsStatus("DENIED");
+              } else {
+                setPassengerGpsStatus("UNAVAILABLE");
+              }
+            }
+          );
+
+          passengerStopWatchingRef.current = stopFn;
+        }
       }
     }
 
@@ -715,7 +708,7 @@ export default function MyRidesPage() {
     if (!bookedRides || bookedRides.length === 0) return;
 
     const activeBooking = bookedRides.find(
-      (b: any) => b.status === "accepted" && b.ride && b.ride.status !== "completed" && b.ride.status !== "cancelled"
+      (b: any) => b.status === "accepted" && b.ride && b.ride.status === "in_progress"
     );
 
     if (!activeBooking || !activeBooking._id) return;
@@ -1251,7 +1244,15 @@ export default function MyRidesPage() {
                                           onClick={() => handleOpenLiveTracking(ride, req)}
                                           className="h-7 text-[11px] bg-slate-900 text-white hover:bg-slate-800 font-semibold rounded-lg gap-1 border border-slate-700 shadow-2xs"
                                         >
-                                          <Radio className="h-3 w-3 text-emerald-400 animate-pulse" /> Live Map
+                                          {ride.status === "in_progress" ? (
+                                            <>
+                                              <Radio className="h-3 w-3 text-emerald-400 animate-pulse" /> Live Map
+                                            </>
+                                          ) : (
+                                            <>
+                                              <MapIcon className="h-3 w-3 text-emerald-400" /> View Map
+                                            </>
+                                          )}
                                         </Button>
                                         {req.isBoarded ? (
                                           <Badge className="bg-emerald-600 text-white text-[10px] font-bold py-0.5 px-2 gap-1">
@@ -1457,7 +1458,7 @@ export default function MyRidesPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <Button
                               size="sm"
-                              onClick={() => handleOpenLiveTracking(ride)}
+                              onClick={() => handleOpenLiveTracking(ride, booking)}
                               className={`${
                                 isLive
                                   ? "bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -1569,19 +1570,21 @@ export default function MyRidesPage() {
       <Dialog open={isLiveTrackingModalOpen} onOpenChange={setIsLiveTrackingModalOpen}>
         <DialogContent className="sm:max-w-3xl max-h-[92vh] overflow-y-auto">
           {trackingModalRide && (() => {
+            const isRideLive = (liveTelemetry?.status || trackingModalRide.status) === "in_progress";
+
             const isDriverUser =
               (session?.user?.id && ((trackingModalRide.driver as any)?._id === session.user.id || trackingModalRide.driver === session.user.id)) ||
               (session?.user?.email && (trackingModalRide.driver as any)?.email?.toLowerCase() === session.user.email.toLowerCase()) ||
               (session?.user?.id && liveTelemetry?.driver?._id && (liveTelemetry.driver._id === session.user.id || liveTelemetry.driver === session.user.id)) ||
               offeredRides.some((r: any) => r._id === trackingModalRide._id);
 
-            // True Live Location:
-            // 1. If viewing user is the driver: driverGpsPosition is their actual live device position!
-            // 2. If viewing user is a passenger: use the driver's liveTelemetry.currentLocation broadcasted to backend.
-            // 3. Do NOT force the car to appear at starting city (e.g. Kancheepuram) if driver is actually elsewhere!
-            const driverLiveLoc = isDriverUser
-              ? (driverGpsPosition || (liveTelemetry?.currentLocation?.latitude ? liveTelemetry.currentLocation : null))
-              : ((liveTelemetry?.currentLocation?.latitude ? liveTelemetry.currentLocation : null) || driverGpsPosition);
+            // True Live Location: ONLY shown after ride is started (in_progress).
+            // Before starting, passengers and drivers only see the scheduled route, not live locations.
+            const driverLiveLoc = isRideLive
+              ? (isDriverUser
+                  ? (driverGpsPosition || (liveTelemetry?.currentLocation?.latitude ? liveTelemetry.currentLocation : null))
+                  : ((liveTelemetry?.currentLocation?.latitude ? liveTelemetry.currentLocation : null) || driverGpsPosition))
+              : null;
 
             const activePassengerReq =
               (liveTelemetry?.passengers || []).find((p: any) =>
@@ -1614,10 +1617,11 @@ export default function MyRidesPage() {
               ? { latitude: matchedPickupStopObj.latitude, longitude: matchedPickupStopObj.longitude }
               : resolvePlaceCoordinates(passengerPickupStop || "Porur", undefined, undefined, false);
 
-            const passengerLiveLoc =
-              passengerGpsPosition ||
-              (activePassengerReq?.currentLocation?.latitude ? activePassengerReq.currentLocation : null) ||
-              fallbackPassengerLoc;
+            const passengerLiveLoc = isRideLive
+              ? (passengerGpsPosition ||
+                 (activePassengerReq?.currentLocation?.latitude ? activePassengerReq.currentLocation : null) ||
+                 fallbackPassengerLoc)
+              : null;
 
             const driverName = liveTelemetry?.driver?.name || trackingModalRide?.driver?.name || "Driver";
             const passengerName =
@@ -1627,39 +1631,68 @@ export default function MyRidesPage() {
               session?.user?.name ||
               "Passenger";
 
-            const proximity = calculateProximity(driverLiveLoc, passengerLiveLoc);
+            const proximity = isRideLive && driverLiveLoc && passengerLiveLoc
+              ? calculateProximity(driverLiveLoc, passengerLiveLoc)
+              : null;
 
             return (
               <div className="space-y-3">
-                {/* En Route Distance & ETA Proximity Banner at the top of the popup */}
+                {/* Top Banner: Shows Live Proximity when in_progress, or Scheduled Route info when scheduled */}
                 <div className="bg-slate-950 text-white p-3 sm:p-3.5 rounded-2xl border border-slate-800 flex items-center justify-between gap-3 shadow-md">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 shrink-0">
-                      {isDriverUser ? <Users className="h-4 w-4" /> : <Car className="h-4 w-4" />}
+                  {isRideLive ? (
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 shrink-0">
+                        {isDriverUser ? <Users className="h-4 w-4" /> : <Car className="h-4 w-4" />}
+                      </div>
+                      <div className="truncate">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block truncate">
+                          {isDriverUser ? `Target Passenger (${passengerName})` : `En Route Driver (${driverName})`}
+                        </span>
+                        <strong className="text-sm text-emerald-400 font-extrabold flex items-center gap-1.5 truncate">
+                          {proximity ? (
+                            <>
+                              <span>{proximity.distanceText}</span>
+                              <span className="text-slate-500">•</span>
+                              <span>{proximity.etaText}</span>
+                            </>
+                          ) : (
+                            <span className="text-slate-300 text-xs animate-pulse">Locating en route GPS...</span>
+                          )}
+                        </strong>
+                      </div>
                     </div>
-                    <div className="truncate">
-                      <span className="text-[10px] text-slate-400 uppercase font-bold block truncate">
-                        {isDriverUser ? `Target Passenger (${passengerName})` : `En Route Driver (${driverName})`}
-                      </span>
-                      <strong className="text-sm text-emerald-400 font-extrabold flex items-center gap-1.5 truncate">
-                        {proximity ? (
-                          <>
-                            <span>{proximity.distanceText}</span>
-                            <span className="text-slate-500">•</span>
-                            <span>{proximity.etaText}</span>
-                          </>
-                        ) : (
-                          <span className="text-slate-300 text-xs animate-pulse">Calculating location...</span>
-                        )}
-                      </strong>
+                  ) : (
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30 shrink-0">
+                        <MapPin className="h-4 w-4" />
+                      </div>
+                      <div className="truncate">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block truncate">
+                          Scheduled Ride Route
+                        </span>
+                        <strong className="text-xs text-slate-200 font-medium flex items-center gap-1.5 truncate">
+                          Live GPS activates once the driver starts the ride
+                        </strong>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="text-right shrink-0 pr-6">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Route Commute ETA</span>
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">
+                      {isRideLive ? "Route Commute ETA" : "Route Distance & ETA"}
+                    </span>
                     <strong className="text-xs text-white font-bold">
-                      {liveEtaResult?.formattedDuration || `${liveTelemetry?.durationMinutes || 20} mins`}{" "}
-                      {liveEtaResult?.formattedEtaTime ? `(${liveEtaResult.formattedEtaTime})` : ""}
+                      {isRideLive ? (
+                        <>
+                          {liveEtaResult?.formattedDuration || `${liveTelemetry?.durationMinutes || 20} mins`}{" "}
+                          {liveEtaResult?.formattedEtaTime ? `(${liveEtaResult.formattedEtaTime})` : ""}
+                        </>
+                      ) : (
+                        <>
+                          {trackingModalRide.distanceKm ? `${trackingModalRide.distanceKm} km • ` : ""}
+                          {trackingModalRide.durationMinutes ? `${trackingModalRide.durationMinutes} mins` : "20 mins"}
+                        </>
+                      )}
                     </strong>
                   </div>
                 </div>
@@ -1697,15 +1730,15 @@ export default function MyRidesPage() {
                       };
                     })}
                     driverLocation={driverLiveLoc}
-                    driverName={driverName}
+                    driverName={isRideLive ? driverName : undefined}
                     driverVehicleType={liveTelemetry?.vehicle?.vehicleType || "Car"}
                     passengerLocation={passengerLiveLoc}
-                    passengerName={passengerName}
+                    passengerName={isRideLive ? passengerName : undefined}
                     routeCoordinates={liveEtaResult?.coordinates}
-                    panToDriver={true}
-                    distanceText={proximity ? proximity.distanceText : undefined}
-                    durationText={proximity ? proximity.etaText : undefined}
-                    trafficLevel={liveEtaResult?.trafficLevel}
+                    panToDriver={isRideLive}
+                    distanceText={isRideLive && proximity ? proximity.distanceText : undefined}
+                    durationText={isRideLive && proximity ? proximity.etaText : undefined}
+                    trafficLevel={isRideLive ? liveEtaResult?.trafficLevel : undefined}
                     height="450px"
                     showStats={true}
                   />
