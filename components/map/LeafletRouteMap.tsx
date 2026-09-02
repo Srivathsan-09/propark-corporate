@@ -286,7 +286,7 @@ export default function LeafletRouteMap({
 
     const boundsPoints: L.LatLngExpression[] = [];
 
-    // Helper to create custom HTML markers
+    // Helper to create custom HTML markers with needle pointer and exact road anchoring
     const createHtmlMarker = (
       lat: number,
       lng: number,
@@ -298,9 +298,13 @@ export default function LeafletRouteMap({
       const icon = L.divIcon({
         className: "custom-leaflet-marker",
         html: `
-          <div class="flex items-center gap-1.5 px-2 py-1 rounded-xl shadow-lg border border-white text-white font-bold text-xs ${bgClass} transform -translate-x-1/2 -translate-y-full hover:scale-110 transition-transform cursor-pointer">
-            <span class="flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-[10px]">${isNumber ? label : "●"}</span>
-            <span class="truncate max-w-[120px] text-[11px]">${subLabel || label}</span>
+          <div style="position: relative; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); cursor: pointer; pointer-events: auto;">
+            <div style="display: flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 2px solid white; color: white; font-weight: 700; font-size: 11px; white-space: nowrap; line-height: 1;" class="${bgClass}">
+              <span style="display: flex; height: 16px; width: 16px; align-items: center; justify-content: center; border-radius: 9999px; background: rgba(255,255,255,0.25); font-size: 10px;">${isNumber ? label : "●"}</span>
+              <span style="max-width: 140px; overflow: hidden; text-overflow: ellipsis;">${subLabel || label}</span>
+            </div>
+            <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid white; margin-top: -1px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));"></div>
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: #0f172a; margin-top: -3px; opacity: 0.85;"></div>
           </div>
         `,
         iconSize: [0, 0],
@@ -543,8 +547,44 @@ export default function LeafletRouteMap({
       }
 
       if (activeCoords && activeCoords.length >= 2) {
+        // Build seamless, gapless connected polyline directly linking into the Origin pin and Destination pin
+        const connectedCoords: [number, number][] = [];
+
+        // 1. Ensure polyline starts exactly at the startLocation marker
+        if (
+          startLocation &&
+          typeof startLocation.latitude === "number" &&
+          startLocation.latitude !== 0 &&
+          typeof startLocation.longitude === "number"
+        ) {
+          const first = activeCoords[0];
+          const distStart = Math.hypot(first[0] - startLocation.latitude, first[1] - startLocation.longitude);
+          if (distStart > 0.0001) {
+            connectedCoords.push([startLocation.latitude, startLocation.longitude]);
+          }
+        }
+
+        // 2. Add the OSRM route points
+        for (const pt of activeCoords) {
+          connectedCoords.push(pt);
+        }
+
+        // 3. Ensure polyline terminates exactly at the destination marker
+        if (
+          destination &&
+          typeof destination.latitude === "number" &&
+          destination.latitude !== 0 &&
+          typeof destination.longitude === "number"
+        ) {
+          const last = activeCoords[activeCoords.length - 1];
+          const distEnd = Math.hypot(last[0] - destination.latitude, last[1] - destination.longitude);
+          if (distEnd > 0.0001) {
+            connectedCoords.push([destination.latitude, destination.longitude]);
+          }
+        }
+
         // Crisp white casing outline for Google Maps style
-        const casing = L.polyline(activeCoords, {
+        const casing = L.polyline(connectedCoords, {
           color: "#FFFFFF",
           weight: 9,
           opacity: 0.95,
@@ -553,7 +593,7 @@ export default function LeafletRouteMap({
         });
 
         // Google Maps Navigation Blue core road line
-        const polyline = L.polyline(activeCoords, {
+        const polyline = L.polyline(connectedCoords, {
           color: "#1A73E8",
           weight: 6,
           opacity: 1.0,
@@ -563,7 +603,7 @@ export default function LeafletRouteMap({
 
         routeLayerGroupRef.current.addLayer(casing);
         routeLayerGroupRef.current.addLayer(polyline);
-        activeCoords.forEach((pt) => boundsPoints.push(pt));
+        connectedCoords.forEach((pt) => boundsPoints.push(pt));
       }
     };
 
@@ -576,15 +616,15 @@ export default function LeafletRouteMap({
       const distToStart = Math.hypot(firstPt[0] - startLocation.latitude, firstPt[1] - startLocation.longitude);
       const distToEnd = Math.hypot(lastPt[0] - destination.latitude, lastPt[1] - destination.longitude);
 
-      return distToStart < 0.08 && distToEnd < 0.08; // ~5-7km threshold
+      return distToStart < 0.15 && distToEnd < 0.15; // Realistic threshold
     };
 
     if (routeCoordinates && routeCoordinates.length > 0 && isRouteValidForEndpoints(routeCoordinates)) {
       drawRoutePolyline(routeCoordinates);
     } else if (startLocation && destination && startLocation.latitude && destination.latitude) {
+      // Calculate main arterial route directly between startLocation and destination (stops do not cause interior detours)
       const waypoints = [
         { latitude: startLocation.latitude, longitude: startLocation.longitude },
-        ...stops.map((s) => ({ latitude: s.latitude, longitude: s.longitude })),
         { latitude: destination.latitude, longitude: destination.longitude },
       ];
 
