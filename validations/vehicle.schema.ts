@@ -5,6 +5,8 @@ export const vehicleSchema = z
     vehicleType: z.enum(["Car", "SUV", "Van", "Bike", "Other"], {
       required_error: "Please select a vehicle type",
     }),
+    fuelType: z.enum(["Petrol", "Diesel", "CNG", "Electric", "Hybrid"]).default("Petrol").optional(),
+    engineCapacity: z.string().trim().max(50).optional().default(""),
     vehicleModel: z
       .string({ required_error: "Vehicle model is required" })
       .trim()

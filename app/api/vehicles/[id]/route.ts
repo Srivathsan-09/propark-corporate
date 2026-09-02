@@ -96,6 +96,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const {
       vehicleType,
+      fuelType,
+      engineCapacity,
       vehicleModel,
       registrationNumber,
       seatingCapacity,
@@ -135,6 +137,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       {
         $set: {
           vehicleType,
+          fuelType: fuelType || "Petrol",
+          engineCapacity: engineCapacity || "",
           vehicleModel,
           registrationNumber: normalizedPlate,
           seatingCapacity,

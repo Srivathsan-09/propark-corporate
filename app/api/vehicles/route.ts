@@ -65,6 +65,8 @@ export async function POST(req: NextRequest) {
 
     const {
       vehicleType,
+      fuelType,
+      engineCapacity,
       vehicleModel,
       registrationNumber,
       seatingCapacity,
@@ -95,6 +97,8 @@ export async function POST(req: NextRequest) {
     const newVehicle = await Vehicle.create({
       owner: session.user.id,
       vehicleType,
+      fuelType: fuelType || "Petrol",
+      engineCapacity: engineCapacity || "",
       vehicleModel,
       registrationNumber: normalizedPlate,
       seatingCapacity,

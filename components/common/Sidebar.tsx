@@ -20,6 +20,7 @@ import {
   BarChart3,
   Building2,
   Cpu,
+  Leaf,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -72,6 +73,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Rides",
       href: "/admin/rides",
       icon: Route,
+    },
+    {
+      title: "Sustainability",
+      href: "/admin/sustainability",
+      icon: Leaf,
     },
     {
       title: "Concurrency Engine",

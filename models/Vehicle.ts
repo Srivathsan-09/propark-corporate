@@ -11,6 +11,8 @@ export interface IVehicle extends Document {
   vehiclePhoto?: string;
   numberPlatePhoto?: string;
   drivingLicensePhoto?: string;
+  fuelType?: "Petrol" | "Diesel" | "CNG" | "Electric" | "Hybrid";
+  engineCapacity?: string;
   verificationStatus: "pending" | "approved" | "rejected";
   isApproved: boolean;
   rejectionReason?: string;
@@ -32,6 +34,16 @@ const VehicleSchema = new Schema<IVehicle>(
       enum: ["Car", "SUV", "Van", "Bike", "Other"],
       default: "Car",
       required: [true, "Vehicle type is required"],
+    },
+    fuelType: {
+      type: String,
+      enum: ["Petrol", "Diesel", "CNG", "Electric", "Hybrid"],
+      default: "Petrol",
+    },
+    engineCapacity: {
+      type: String,
+      default: "",
+      trim: true,
     },
     vehicleModel: {
       type: String,

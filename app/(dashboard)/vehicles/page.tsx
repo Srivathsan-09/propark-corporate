@@ -50,6 +50,8 @@ import { compressImage } from "@/lib/utils/imageCompressor";
 interface IVehicle {
   _id: string;
   vehicleType: "Car" | "SUV" | "Van" | "Bike" | "Other";
+  fuelType?: "Petrol" | "Diesel" | "CNG" | "Electric" | "Hybrid";
+  engineCapacity?: string;
   vehicleModel: string;
   registrationNumber: string;
   seatingCapacity: number;
@@ -86,6 +88,8 @@ export default function VehiclesPage() {
   // Form State
   const [formData, setFormData] = useState({
     vehicleType: "Car" as "Car" | "SUV" | "Van" | "Bike" | "Other",
+    fuelType: "Petrol" as "Petrol" | "Diesel" | "CNG" | "Electric" | "Hybrid",
+    engineCapacity: "",
     vehicleModel: "",
     registrationNumber: "",
     seatingCapacity: 4,
@@ -125,6 +129,8 @@ export default function VehiclesPage() {
   const resetForm = () => {
     setFormData({
       vehicleType: "Car",
+      fuelType: "Petrol",
+      engineCapacity: "",
       vehicleModel: "",
       registrationNumber: "",
       seatingCapacity: 4,
@@ -149,6 +155,8 @@ export default function VehiclesPage() {
     setSelectedVehicle(vehicle);
     setFormData({
       vehicleType: vehicle.vehicleType,
+      fuelType: vehicle.fuelType || "Petrol",
+      engineCapacity: vehicle.engineCapacity || "",
       vehicleModel: vehicle.vehicleModel,
       registrationNumber: vehicle.registrationNumber,
       seatingCapacity: vehicle.seatingCapacity,
@@ -453,10 +461,20 @@ export default function VehiclesPage() {
                   </div>
 
                   <CardHeader className="pb-3 pt-4">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary" className="text-xs font-semibold">
-                        {vehicle.vehicleType}
-                      </Badge>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge variant="secondary" className="text-xs font-semibold">
+                          {vehicle.vehicleType}
+                        </Badge>
+                        <Badge variant="outline" className="text-[11px] font-medium border-emerald-200 text-emerald-800 bg-emerald-50">
+                          {vehicle.fuelType || "Petrol"}
+                        </Badge>
+                        {vehicle.engineCapacity && (
+                          <Badge variant="outline" className="text-[11px] font-normal text-slate-500">
+                            {vehicle.engineCapacity}
+                          </Badge>
+                        )}
+                      </div>
                       <Badge
                         variant={vehicle.status === "active" ? "outline" : "secondary"}
                         className="text-[11px]"
@@ -588,6 +606,45 @@ export default function VehiclesPage() {
                     <SelectItem value="Other">Other Vehicle</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Fuel Type & Engine Capacity */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="fuelType" className="text-xs font-semibold text-slate-700">
+                    Fuel Type
+                  </Label>
+                  <Select
+                    value={formData.fuelType}
+                    onValueChange={(val: "Petrol" | "Diesel" | "CNG" | "Electric" | "Hybrid") =>
+                      setFormData((prev) => ({ ...prev, fuelType: val }))
+                    }
+                  >
+                    <SelectTrigger id="fuelType" className="rounded-xl">
+                      <SelectValue placeholder="Select fuel type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Petrol">Petrol</SelectItem>
+                      <SelectItem value="Diesel">Diesel</SelectItem>
+                      <SelectItem value="CNG">CNG</SelectItem>
+                      <SelectItem value="Electric">Electric (Zero Tailpipe)</SelectItem>
+                      <SelectItem value="Hybrid">Hybrid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="engineCapacity" className="text-xs font-semibold text-slate-700">
+                    Engine Capacity (Optional)
+                  </Label>
+                  <Input
+                    id="engineCapacity"
+                    placeholder="e.g. 1197cc or 1.5L"
+                    value={formData.engineCapacity}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, engineCapacity: e.target.value }))}
+                    className="rounded-xl"
+                  />
+                </div>
               </div>
 
               {/* Vehicle Model */}

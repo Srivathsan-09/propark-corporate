@@ -54,19 +54,35 @@ interface IUserProfile {
   isApproved: boolean;
 }
 
+interface ICarbonStats {
+  totalCO2SavedKg: number;
+  totalVKRKm: number;
+  carpoolRidesCount: number;
+  averageOccupancy: number;
+  averageCO2SavedPerRideKg: number;
+  averageCO2SavedPerPassengerKg: number;
+  totalActualCarpoolCO2Kg: number;
+  totalSoloBaselineCO2Kg: number;
+  overallReductionPercentage: number;
+  equivalentTreesPlanted: number;
+}
+
 export default function DashboardPage() {
   const { data: session, status, update: updateSession } = useSession();
   const [vehicles, setVehicles] = useState<IVehicleItem[]>([]);
   const [userProfile, setUserProfile] = useState<IUserProfile | null>(null);
+  const [carbonStats, setCarbonStats] = useState<ICarbonStats | null>(null);
+  const [carbonSource, setCarbonSource] = useState<string>("IPCC 2006 / MoEFCC India GHG Platform");
   const [isLoading, setIsLoading] = useState(true);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
 
   useEffect(() => {
     async function loadDashboardData() {
       try {
-        const [vehRes, profRes] = await Promise.all([
+        const [vehRes, profRes, carbonRes] = await Promise.all([
           fetch("/api/vehicles"),
           fetch("/api/profile"),
+          fetch("/api/carbon/my-impact"),
         ]);
 
         if (vehRes.ok) {
@@ -86,6 +102,12 @@ export default function DashboardPage() {
               isApproved: true,
             });
           }
+        }
+
+        if (carbonRes.ok) {
+          const cData = await carbonRes.json();
+          if (cData.stats) setCarbonStats(cData.stats);
+          if (cData.activeEmissionFactorSource) setCarbonSource(cData.activeEmissionFactorSource);
         }
       } catch (err) {
         console.error("Failed to load dashboard data:", err);
@@ -243,7 +265,13 @@ export default function DashboardPage() {
               <CheckCircle2 className="h-4 w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-slate-900">0</div>
+              {isLoading ? (
+                <Skeleton className="h-7 w-12" />
+              ) : (
+                <div className="text-2xl font-bold text-slate-900">
+                  {carbonStats?.carpoolRidesCount || 0}
+                </div>
+              )}
               <p className="text-[11px] text-slate-500 mt-1">Total trips completed</p>
             </CardContent>
           </Card>
@@ -273,6 +301,112 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
+
+      {/* MY ENVIRONMENTAL IMPACT SECTION */}
+      <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50/40 via-white to-slate-50 shadow-xs">
+        <CardHeader className="pb-3 border-b border-emerald-100/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-xs">
+              <Leaf className="h-4 w-4" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-bold text-slate-900">
+                My Environmental Impact
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-500">
+                Quantitative sustainability metrics from your completed carpool rides
+              </CardDescription>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] font-semibold border-emerald-300 text-emerald-800 bg-emerald-100/50 w-fit">
+            Research-Grade Carbon Model
+          </Badge>
+        </CardHeader>
+
+        <CardContent className="pt-4 space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Estimated CO2 Avoided */}
+            <div className="p-3 bg-white rounded-xl border border-emerald-100 shadow-xs">
+              <span className="text-[11px] font-medium text-slate-500 block">
+                Estimated CO₂ Avoided
+              </span>
+              <div className="text-2xl font-black text-emerald-700 mt-0.5">
+                {isLoading ? <Skeleton className="h-7 w-16" /> : `${carbonStats?.totalCO2SavedKg ?? 0} kg`}
+              </div>
+              <span className="text-[10px] text-emerald-600 font-medium">
+                vs Solo Commute Baseline
+              </span>
+            </div>
+
+            {/* Vehicle-Km Reduced */}
+            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
+              <span className="text-[11px] font-medium text-slate-500 block">
+                Vehicle-Km Reduced (VKR)
+              </span>
+              <div className="text-2xl font-black text-slate-900 mt-0.5">
+                {isLoading ? <Skeleton className="h-7 w-16" /> : `${carbonStats?.totalVKRKm ?? 0} km`}
+              </div>
+              <span className="text-[10px] text-slate-500">
+                Road congestion saved
+              </span>
+            </div>
+
+            {/* Carpool Rides Completed */}
+            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
+              <span className="text-[11px] font-medium text-slate-500 block">
+                Carpool Trips
+              </span>
+              <div className="text-2xl font-black text-slate-900 mt-0.5">
+                {isLoading ? <Skeleton className="h-7 w-12" /> : (carbonStats?.carpoolRidesCount ?? 0)}
+              </div>
+              <span className="text-[10px] text-slate-500">
+                Driver + Passenger rides
+              </span>
+            </div>
+
+            {/* Average Occupancy */}
+            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
+              <span className="text-[11px] font-medium text-slate-500 block">
+                Average Occupancy
+              </span>
+              <div className="text-2xl font-black text-slate-900 mt-0.5">
+                {isLoading ? <Skeleton className="h-7 w-12" /> : (carbonStats?.averageOccupancy ? `${carbonStats.averageOccupancy}` : "1.0")}
+              </div>
+              <span className="text-[10px] text-slate-500">
+                Persons per vehicle
+              </span>
+            </div>
+          </div>
+
+          {/* Secondary stats row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-100 text-xs text-slate-600">
+            <div>
+              <span className="text-[10px] text-slate-400 block">Avg CO₂ Saved/Ride</span>
+              <span className="font-semibold text-slate-800">{carbonStats?.averageCO2SavedPerRideKg ?? 0} kg</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 block">Avg CO₂ Saved/Passenger</span>
+              <span className="font-semibold text-slate-800">{carbonStats?.averageCO2SavedPerPassengerKg ?? 0} kg</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 block">CO₂ Reduction %</span>
+              <span className="font-semibold text-emerald-700">{carbonStats?.overallReductionPercentage ?? 0}%</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 block">Tree Equivalent</span>
+              <span className="font-semibold text-emerald-800">~{carbonStats?.equivalentTreesPlanted ?? 0} trees/yr</span>
+            </div>
+          </div>
+
+          {/* Methodology & Transparency Note */}
+          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] text-slate-500 leading-relaxed flex items-start gap-2">
+            <span className="text-emerald-700 font-bold shrink-0">Methodology:</span>
+            <span>
+              Values represent <strong>estimated CO₂ avoided</strong> calculated using individual passenger solo travel distances minus actual physical carpool vehicle distance multiplied by configured emission factors (<em>{carbonSource}</em>). Values are computational estimates rather than direct tailpipe sensor measurements.
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Main Grid: Registered Vehicles & Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

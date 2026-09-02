@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
 import Notification from "@/models/Notification";
+import { calculateRideCarbonEmissions } from "@/lib/services/carbonCalculation";
 
 interface RouteParams {
   params: {
@@ -85,6 +86,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     }
 
     await ride.save();
+
+    // Trigger research-grade carbon emission calculation if ride completed
+    if (status === "completed") {
+      calculateRideCarbonEmissions(ride._id.toString()).catch((err) =>
+        console.warn(" Background carbon emission calculation error:", err)
+      );
+    }
 
     // Broadcast in-app notifications asynchronously in background for sub-50ms API response time
     const acceptedRequests = (ride.requests || []).filter((r: any) => r.status === "accepted");
