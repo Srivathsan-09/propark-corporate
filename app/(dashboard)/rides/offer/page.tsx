@@ -123,9 +123,9 @@ function OfferRideForm() {
   const [homePoint, setHomePoint] = useState<MapPoint | null>(null);
   const [campusPoint, setCampusPoint] = useState<MapPoint>({
     name: "Tech Park Campus",
-    address: "Tech Park Campus, Chennai",
-    latitude: 13.0067,
-    longitude: 80.202,
+    address: "Tech Park Campus, Taramani, Chennai",
+    latitude: 12.9852,
+    longitude: 80.2461,
   });
 
   // Form State
@@ -184,8 +184,8 @@ function OfferRideForm() {
           const campus = user.campusName || (session?.user as any)?.campusName || "Campus";
           setUserCampusName(campus);
 
-          let cLat = 13.0067;
-          let cLng = 80.202;
+          let cLat = 12.9852;
+          let cLng = 80.2461;
           try {
             const cResults = await geocodingService.search(campus, 1);
             if (cResults.length > 0) {

@@ -197,14 +197,18 @@ export default function FindRidePage() {
 
     const updateLiveEta = async () => {
       const { routingService } = await import("@/lib/services/routing");
-      const startPt = {
-        latitude: liveTelemetry?.startLocation?.latitude || liveTrackingRide.startLocation?.latitude || 13.048,
-        longitude: liveTelemetry?.startLocation?.longitude || liveTrackingRide.startLocation?.longitude || 80.091,
-      };
-      const endPt = {
-        latitude: liveTelemetry?.endLocation?.latitude || liveTrackingRide.endLocation?.latitude || 12.8988,
-        longitude: liveTelemetry?.endLocation?.longitude || liveTrackingRide.endLocation?.longitude || 80.2284,
-      };
+      const startPt = resolvePlaceCoordinates(
+        liveTelemetry?.startingLocation || liveTrackingRide.startingLocation,
+        liveTelemetry?.startLocation?.latitude || liveTrackingRide.startLocation?.latitude,
+        liveTelemetry?.startLocation?.longitude || liveTrackingRide.startLocation?.longitude,
+        true
+      );
+      const endPt = resolvePlaceCoordinates(
+        liveTelemetry?.destination || liveTrackingRide.destination,
+        liveTelemetry?.endLocation?.latitude || liveTrackingRide.endLocation?.latitude,
+        liveTelemetry?.endLocation?.longitude || liveTrackingRide.endLocation?.longitude,
+        false
+      );
       const driverLoc = liveTelemetry?.currentLocation;
 
       const result = await routingService.calculateRoute(

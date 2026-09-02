@@ -286,9 +286,23 @@ export function resolvePlaceCoordinates(
   existingLng?: number,
   isOrigin: boolean = true
 ): { latitude: number; longitude: number } {
+  // 1. If valid real numeric coordinates are explicitly passed, always respect them first!
+  if (
+    typeof existingLat === "number" &&
+    !isNaN(existingLat) &&
+    existingLat > 8 &&
+    existingLat < 38 &&
+    typeof existingLng === "number" &&
+    !isNaN(existingLng) &&
+    existingLng > 68 &&
+    existingLng < 98
+  ) {
+    return { latitude: existingLat, longitude: existingLng };
+  }
+
   const name = (placeName || "").toLowerCase().trim();
 
-  // 1. Specific Chennai / Tamil Nadu locality keyword lookup
+  // 2. Specific Chennai / Tamil Nadu locality keyword lookup
   if (
     name.includes("karayanchavadi") ||
     name.includes("karayan") ||
@@ -302,7 +316,18 @@ export function resolvePlaceCoordinates(
     return { latitude: 13.0382, longitude: 80.1565 };
   }
 
-  if (name.includes("guindy") || name.includes("tech park") || name.includes("campus")) {
+  // Tech Park Chennai is located in Taramani (Ascendas / TIDEL Park / Ramanujan IT City)
+  if (
+    name.includes("taramani") ||
+    name.includes("tech park") ||
+    name.includes("campus") ||
+    name.includes("ascendas") ||
+    name.includes("tidel")
+  ) {
+    return { latitude: 12.9852, longitude: 80.2461 };
+  }
+
+  if (name.includes("guindy")) {
     return { latitude: 13.0067, longitude: 80.202 };
   }
 
@@ -342,22 +367,8 @@ export function resolvePlaceCoordinates(
     return { latitude: 12.9249, longitude: 80.1332 };
   }
 
-  // 2. If valid real numeric coordinates are explicitly passed, return them
-  if (
-    typeof existingLat === "number" &&
-    !isNaN(existingLat) &&
-    existingLat > 8 &&
-    existingLat < 38 &&
-    typeof existingLng === "number" &&
-    !isNaN(existingLng) &&
-    existingLng > 68 &&
-    existingLng < 98
-  ) {
-    return { latitude: existingLat, longitude: existingLng };
-  }
-
-  // 3. Fallback defaults (Karayanchavadi / Poonamallee -> Guindy / Tech Park Chennai)
-  return isOrigin ? { latitude: 13.048, longitude: 80.091 } : { latitude: 13.0067, longitude: 80.202 };
+  // 3. Fallback defaults (Poonamallee -> Tech Park Taramani Chennai)
+  return isOrigin ? { latitude: 13.048, longitude: 80.091 } : { latitude: 12.9852, longitude: 80.2461 };
 }
 
 export const geocodingService = new GeocodingService();
