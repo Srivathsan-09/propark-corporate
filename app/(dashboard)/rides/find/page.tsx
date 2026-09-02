@@ -31,6 +31,8 @@ import {
   User,
   Plus,
   Minus,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,6 +129,16 @@ export default function FindRidePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Expandable Ride Details State
+  const [expandedRideIds, setExpandedRideIds] = useState<Record<string, boolean>>({});
+
+  const toggleRideDetails = (rideId: string) => {
+    setExpandedRideIds((prev) => ({
+      ...prev,
+      [rideId]: !prev[rideId],
+    }));
+  };
 
   // Search Filters
   const [searchOrigin, setSearchOrigin] = useState("");
@@ -640,6 +652,7 @@ export default function FindRidePage() {
             const isPickup = ride.rideType !== "drop";
             const isFull = ride.availableSeats === 0;
             const isOneSeatLeft = ride.availableSeats === 1;
+            const isExpanded = !!expandedRideIds[ride._id];
 
             return (
               <Card
@@ -812,71 +825,95 @@ export default function FindRidePage() {
                       </div>
                     </div>
 
-                    {/* Distance & Duration if available */}
-                    {ride.distanceKm ? (
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
-                        <span className="flex items-center gap-1">
-                          <Navigation2 className="h-3.5 w-3.5 text-emerald-600" />
-                          Distance: <strong className="text-slate-800">{ride.distanceKm} km</strong>
-                        </span>
-                        <span>
-                          Est. Duration: <strong className="text-emerald-700">{ride.durationMinutes} mins</strong>
-                        </span>
-                      </div>
-                    ) : null}
+                    {/* View Ride Details Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={() => toggleRideDetails(ride._id)}
+                      className="w-full py-1.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-200/60"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <span>Hide Ride Details</span>
+                          <ChevronUp className="h-3.5 w-3.5 text-slate-500" />
+                        </>
+                      ) : (
+                        <>
+                          <span>View Ride Details</span>
+                          <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                        </>
+                      )}
+                    </button>
 
-                    {/* Vehicle Details */}
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Vehicle</span>
-                        <span className="font-semibold text-slate-800">{ride.vehicle.vehicleModel}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] text-slate-400 block">Plate</span>
-                        <span className="font-mono text-[11px] font-bold text-slate-700">{ride.vehicle.registrationNumber}</span>
-                      </div>
-                    </div>
-
-                    {/* Stops & Pricing Pills */}
-                    {ride.stops && ride.stops.length > 0 && (
-                      <div className="space-y-1.5 pt-1">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">
-                          Route {isPickup ? "Pickup Points" : "Drop Points"} & Fares
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {ride.stops.map((stop, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold"
-                            >
-                              <span>{stop.name}:</span>
-                              <span className="text-emerald-700">₹{stop.price}</span>
+                    {/* Expandable Full Ride Details */}
+                    {isExpanded && (
+                      <div className="space-y-3 pt-2 border-t border-slate-100 animate-in fade-in-50 duration-200">
+                        {/* Distance & Duration if available */}
+                        {ride.distanceKm ? (
+                          <div className="flex items-center justify-between text-[11px] text-slate-500 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
+                            <span className="flex items-center gap-1">
+                              <Navigation2 className="h-3.5 w-3.5 text-emerald-600" />
+                              Distance: <strong className="text-slate-800">{ride.distanceKm} km</strong>
                             </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                            <span>
+                              Est. Duration: <strong className="text-emerald-700">{ride.durationMinutes} mins</strong>
+                            </span>
+                          </div>
+                        ) : null}
 
-                    {/* Driver Contact & Direct Phone Call Button */}
-                    {ride.driver.phone && (
-                      <div className="flex items-center justify-between text-xs bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200">
-                        <div className="flex items-center gap-2 font-bold text-slate-900">
-                          <Phone className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                          <span>Driver Mobile: <span className="font-mono text-emerald-950">{ride.driver.phone}</span></span>
+                        {/* Vehicle Details */}
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block">Vehicle</span>
+                            <span className="font-semibold text-slate-800">{ride.vehicle.vehicleModel}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] text-slate-400 block">Plate</span>
+                            <span className="font-mono text-[11px] font-bold text-slate-700">{ride.vehicle.registrationNumber}</span>
+                          </div>
                         </div>
-                        <a
-                          href={`tel:${ride.driver.phone}`}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition-colors shrink-0"
-                        >
-                          <Phone className="h-3 w-3" /> Call Driver
-                        </a>
-                      </div>
-                    )}
 
-                    {ride.notes && (
-                      <p className="text-[11px] text-slate-500 italic bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        &ldquo;{ride.notes}&rdquo;
-                      </p>
+                        {/* Stops & Pricing Pills */}
+                        {ride.stops && ride.stops.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">
+                              Route {isPickup ? "Pickup Points" : "Drop Points"} & Fares
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {ride.stops.map((stop, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold"
+                                >
+                                  <span>{stop.name}:</span>
+                                  <span className="text-emerald-700">₹{stop.price}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Driver Contact & Direct Phone Call Button */}
+                        {ride.driver.phone && (
+                          <div className="flex items-center justify-between text-xs bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200">
+                            <div className="flex items-center gap-2 font-bold text-slate-900">
+                              <Phone className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                              <span>Driver Mobile: <span className="font-mono text-emerald-950">{ride.driver.phone}</span></span>
+                            </div>
+                            <a
+                              href={`tel:${ride.driver.phone}`}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition-colors shrink-0"
+                            >
+                              <Phone className="h-3 w-3" /> Call Driver
+                            </a>
+                          </div>
+                        )}
+
+                        {ride.notes && (
+                          <p className="text-[11px] text-slate-500 italic bg-slate-50 p-2 rounded-lg border border-slate-100">
+                            &ldquo;{ride.notes}&rdquo;
+                          </p>
+                        )}
+                      </div>
                     )}
                   </CardContent>
                 </div>
@@ -1218,25 +1255,11 @@ export default function FindRidePage() {
 
       {/* PASSENGER LIVE GPS TRACKING MODAL */}
       <Dialog open={isLiveTrackingModalOpen} onOpenChange={setIsLiveTrackingModalOpen}>
-        <DialogContent className="max-w-2xl bg-white p-4 sm:p-6 rounded-2xl max-h-[92vh] overflow-y-auto">
-          <DialogHeader className="pb-2 border-b border-slate-100 pr-10">
-            <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
-              <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Navigation className="h-4 w-4 text-emerald-600 animate-pulse" />
-                Live GPS Tracking – Ride Started
-              </DialogTitle>
-              <span className="whitespace-nowrap px-2.5 py-1 rounded-full text-[10px] font-bold bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs animate-pulse">
-                <span className="h-2 w-2 rounded-full bg-white animate-ping" />
-                Live GPS Broadcasting
-              </span>
-            </div>
-            <DialogDescription className="text-xs text-slate-500">
-              Driver: <strong>{liveTrackingRide?.driver?.name}</strong> • {liveTrackingRide?.vehicle?.vehicleModel || "Vehicle"} ({liveTrackingRide?.vehicle?.registrationNumber || "Plate"})
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-2xl bg-white p-3 sm:p-4 rounded-2xl max-h-[92vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Live GPS Tracking Map</DialogTitle>
 
           {liveTrackingRide && (
-            <div className="space-y-3 pt-2">
+            <div className="space-y-3 pt-4">
               {/* Real-time Live Traffic-Aware ETA Header */}
               <div className="bg-slate-950 text-white p-3 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs shadow-md">
                 <div className="flex items-center gap-2">
@@ -1302,14 +1325,9 @@ export default function FindRidePage() {
                     longitude: s.longitude || 80.18,
                   }))}
                   driverLocation={
-                    liveTelemetry?.currentLocation ||
-                    liveTrackingRide.currentLocation ||
-                    resolvePlaceCoordinates(
-                      liveTelemetry?.startingLocation || liveTrackingRide.startingLocation,
-                      liveTelemetry?.startLocation?.latitude || liveTrackingRide.startLocation?.latitude,
-                      liveTelemetry?.startLocation?.longitude || liveTrackingRide.startLocation?.longitude,
-                      true
-                    )
+                    (liveTelemetry?.currentLocation?.latitude ? liveTelemetry.currentLocation : null) ||
+                    (liveTrackingRide.currentLocation?.latitude ? liveTrackingRide.currentLocation : null) ||
+                    null
                   }
                   driverName={liveTrackingRide.driver?.name || "Driver"}
                   driverVehicleType={liveTrackingRide.vehicleType || "Car"}
