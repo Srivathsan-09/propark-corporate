@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { routingService, LatLngPoint, RouteResult } from "@/lib/services/routing";
 
 export function useRoute() {
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const latestRequestIdRef = useRef(0);
 
   const calculateRoute = useCallback(
     async (
@@ -19,18 +20,27 @@ export function useRoute() {
         return null;
       }
 
+      const requestId = ++latestRequestIdRef.current;
       setIsCalculating(true);
       setError(null);
 
       try {
         const result = await routingService.calculateRoute(waypoints, departureTime, driverLocation);
+
+        // Stale Request Protection: only commit route if this is the newest request
+        if (requestId !== latestRequestIdRef.current) {
+          return null;
+        }
+
         setRouteResult(result);
         setIsCalculating(false);
         return result;
       } catch (err: any) {
-        console.warn("Route calculation failed:", err);
-        setError("Unable to compute route between selected points.");
-        setIsCalculating(false);
+        if (requestId === latestRequestIdRef.current) {
+          console.warn("Route calculation failed:", err);
+          setError("Unable to compute route between selected points.");
+          setIsCalculating(false);
+        }
         return null;
       }
     },
@@ -42,6 +52,9 @@ export function useRoute() {
     isCalculating,
     error,
     calculateRoute,
-    clearRoute: () => setRouteResult(null),
+    clearRoute: () => {
+      latestRequestIdRef.current++;
+      setRouteResult(null);
+    },
   };
 }

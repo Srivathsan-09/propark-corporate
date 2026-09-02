@@ -93,6 +93,7 @@ export default function LeafletRouteMap({
 
   const hasUserPannedRef = useRef(false);
   const isInitialViewDoneRef = useRef(false);
+  const mapRouteRequestIdRef = useRef(0);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -547,10 +548,11 @@ export default function LeafletRouteMap({
       }
 
       if (activeCoords && activeCoords.length >= 2) {
-        // Build seamless, gapless connected polyline directly linking into the Origin pin and Destination pin
-        const connectedCoords: [number, number][] = [];
+        // Authoritative road geometry directly from routing engine
+        const connectedCoords: [number, number][] = [...activeCoords];
 
-        // 1. Ensure polyline starts exactly at the startLocation marker
+        // Only bridge tiny curb-to-road snap gaps (under 80 meters)
+        // Never draw artificial straight lines across terrain or buildings
         if (
           startLocation &&
           typeof startLocation.latitude === "number" &&
@@ -559,17 +561,11 @@ export default function LeafletRouteMap({
         ) {
           const first = activeCoords[0];
           const distStart = Math.hypot(first[0] - startLocation.latitude, first[1] - startLocation.longitude);
-          if (distStart > 0.0001) {
-            connectedCoords.push([startLocation.latitude, startLocation.longitude]);
+          if (distStart > 0.00005 && distStart <= 0.0008) {
+            connectedCoords.unshift([startLocation.latitude, startLocation.longitude]);
           }
         }
 
-        // 2. Add the OSRM route points
-        for (const pt of activeCoords) {
-          connectedCoords.push(pt);
-        }
-
-        // 3. Ensure polyline terminates exactly at the destination marker
         if (
           destination &&
           typeof destination.latitude === "number" &&
@@ -578,7 +574,7 @@ export default function LeafletRouteMap({
         ) {
           const last = activeCoords[activeCoords.length - 1];
           const distEnd = Math.hypot(last[0] - destination.latitude, last[1] - destination.longitude);
-          if (distEnd > 0.0001) {
+          if (distEnd > 0.00005 && distEnd <= 0.0008) {
             connectedCoords.push([destination.latitude, destination.longitude]);
           }
         }
@@ -607,22 +603,14 @@ export default function LeafletRouteMap({
       }
     };
 
-    const isRouteValidForEndpoints = (coords: [number, number][]) => {
-      if (!coords || coords.length < 2 || !startLocation?.latitude || !destination?.latitude) return true;
-      const firstPt = coords[0];
-      const lastPt = coords[coords.length - 1];
-
-      // Distance from first coordinate to startLocation and last coordinate to destination
-      const distToStart = Math.hypot(firstPt[0] - startLocation.latitude, firstPt[1] - startLocation.longitude);
-      const distToEnd = Math.hypot(lastPt[0] - destination.latitude, lastPt[1] - destination.longitude);
-
-      return distToStart < 0.15 && distToEnd < 0.15; // Realistic threshold
-    };
-
-    if (routeCoordinates && routeCoordinates.length > 0 && isRouteValidForEndpoints(routeCoordinates)) {
-      drawRoutePolyline(routeCoordinates);
+    if (routeCoordinates !== undefined) {
+      // Parent provides routeCoordinates: render authoritative route directly
+      if (routeCoordinates && routeCoordinates.length > 0) {
+        drawRoutePolyline(routeCoordinates);
+      }
     } else if (startLocation && destination && startLocation.latitude && destination.latitude) {
-      // Calculate main arterial route directly between startLocation and destination (stops do not cause interior detours)
+      // Standalone mode: only calculate if parent did not provide routeCoordinates
+      const reqId = ++mapRouteRequestIdRef.current;
       const waypoints = [
         { latitude: startLocation.latitude, longitude: startLocation.longitude },
         { latitude: destination.latitude, longitude: destination.longitude },
@@ -630,7 +618,7 @@ export default function LeafletRouteMap({
 
       import("@/lib/services/routing").then(({ routingService }) => {
         routingService.calculateRoute(waypoints).then((res) => {
-          if (res && res.coordinates && res.coordinates.length > 0) {
+          if (reqId === mapRouteRequestIdRef.current && res && res.coordinates && res.coordinates.length > 0) {
             drawRoutePolyline(res.coordinates);
           }
         });
