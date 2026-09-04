@@ -14,6 +14,7 @@ export interface IHub extends Document {
   name: string;
   corridor: string;
   origin: IHubPoint;
+  commonPoint?: IHubPoint | null;
   destination: IHubPoint;
   campusId: string;
   campusName: string;
@@ -63,6 +64,11 @@ const HubSchema = new Schema<IHub>(
     origin: {
       type: HubPointSchema,
       required: [true, "Hub origin is required"],
+    },
+    commonPoint: {
+      type: HubPointSchema,
+      default: null,
+      required: false,
     },
     destination: {
       type: HubPointSchema,

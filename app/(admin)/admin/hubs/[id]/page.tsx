@@ -45,6 +45,12 @@ interface IHubDetail {
     latitude: number;
     longitude: number;
   };
+  commonPoint?: {
+    name: string;
+    address?: string;
+    latitude: number;
+    longitude: number;
+  } | null;
   destination: {
     name: string;
     address?: string;
@@ -342,6 +348,18 @@ export default function HubDetailsPage() {
                   latitude: hub.destination.latitude,
                   longitude: hub.destination.longitude,
                 }}
+                stops={
+                  hub.commonPoint
+                    ? [
+                        {
+                          name: hub.commonPoint.name,
+                          address: hub.commonPoint.address,
+                          latitude: hub.commonPoint.latitude,
+                          longitude: hub.commonPoint.longitude,
+                        },
+                      ]
+                    : []
+                }
                 routeCoordinates={hub.routeCoordinates || []}
                 distanceText={`${hub.distanceKm} km`}
                 durationText={`~${hub.durationMinutes} mins`}
@@ -351,16 +369,16 @@ export default function HubDetailsPage() {
           </Card>
         </div>
 
-        {/* Right 5 cols: Origin & Destination Points Breakdown */}
-        <div className="lg:col-span-5 space-y-4">
+        {/* Right 5 cols: Origin, Common Point Hub & Destination Points Breakdown */}
+        <div className="lg:col-span-5 space-y-3">
           <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
-            <CardHeader className="p-4 border-b border-slate-100">
+            <CardHeader className="p-3.5 pb-2 border-b border-slate-100">
               <CardTitle className="text-xs font-bold text-slate-900 flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-emerald-600" />
                 Origin Point
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 space-y-2 text-xs">
+            <CardContent className="p-3.5 space-y-1.5 text-xs">
               <div>
                 <span className="text-slate-400 text-[10px] block">Name</span>
                 <p className="font-semibold text-slate-900">{hub.origin.name}</p>
@@ -380,14 +398,43 @@ export default function HubDetailsPage() {
             </CardContent>
           </Card>
 
+          {hub.commonPoint && (
+            <Card className="rounded-2xl border-amber-200 bg-amber-50/20 shadow-xs">
+              <CardHeader className="p-3.5 pb-2 border-b border-amber-100">
+                <CardTitle className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-amber-500" />
+                  Common Point Hub (Intermediate Meeting Point)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-3.5 space-y-1.5 text-xs">
+                <div>
+                  <span className="text-slate-400 text-[10px] block">Name</span>
+                  <p className="font-semibold text-slate-900">{hub.commonPoint.name}</p>
+                </div>
+                {hub.commonPoint.address && (
+                  <div>
+                    <span className="text-slate-400 text-[10px] block">Full Address</span>
+                    <p className="text-slate-600 text-[11px]">{hub.commonPoint.address}</p>
+                  </div>
+                )}
+                <div>
+                  <span className="text-slate-400 text-[10px] block">Coordinates</span>
+                  <p className="font-mono text-[11px] text-slate-500">
+                    {hub.commonPoint.latitude.toFixed(5)}, {hub.commonPoint.longitude.toFixed(5)}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
-            <CardHeader className="p-4 border-b border-slate-100">
+            <CardHeader className="p-3.5 pb-2 border-b border-slate-100">
               <CardTitle className="text-xs font-bold text-slate-900 flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-red-600" />
                 Destination Point
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 space-y-2 text-xs">
+            <CardContent className="p-3.5 space-y-1.5 text-xs">
               <div>
                 <span className="text-slate-400 text-[10px] block">Name</span>
                 <p className="font-semibold text-slate-900">{hub.destination.name}</p>

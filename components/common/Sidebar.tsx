@@ -220,23 +220,23 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
       >
         <div className="flex flex-1 flex-col overflow-y-auto px-3 py-4">
-          <div className="px-3 mb-2 flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="px-3 mb-2.5 flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
               {isCommuteHub
                 ? isAdmin
-                  ? "CommuteHub Admin"
+                  ? "CommuteHub"
                   : "CommuteHub"
                 : isAdmin
                 ? "Admin Console"
                 : "Corporate Commute"}
             </span>
             {isSuperAdmin && (
-              <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-[10px] py-0 px-1.5 font-semibold">
+              <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-[10px] py-0.5 px-2 font-semibold whitespace-nowrap text-center shrink-0 flex items-center justify-center">
                 Super Admin
               </Badge>
             )}
             {isCampusAdmin && (
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-[10px] py-0 px-1.5 font-semibold">
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-[10px] py-0.5 px-2 font-semibold whitespace-nowrap text-center shrink-0 flex items-center justify-center">
                 Campus Admin
               </Badge>
             )}

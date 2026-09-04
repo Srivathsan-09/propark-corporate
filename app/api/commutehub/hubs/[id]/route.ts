@@ -143,22 +143,32 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { name, corridor, status, origin, destination } = body;
+    const { name, corridor, status, origin, commonPoint, destination } = body;
 
     if (name && name.trim()) hub.name = name.trim();
     if (corridor && corridor.trim()) hub.corridor = corridor.trim();
     if (status && (status === "active" || status === "inactive")) hub.status = status;
+    if (commonPoint !== undefined) hub.commonPoint = commonPoint;
 
     // If locations changed, re-calculate route
-    if (origin && destination) {
-      hub.origin = origin;
-      hub.destination = destination;
+    if (origin || destination || commonPoint !== undefined) {
+      if (origin) hub.origin = origin;
+      if (destination) hub.destination = destination;
+
+      const activeOrigin = hub.origin;
+      const activeDest = hub.destination;
+      const activeCommonPoint = hub.commonPoint;
+
+      const waypoints = [
+        { latitude: activeOrigin.latitude, longitude: activeOrigin.longitude },
+        ...(activeCommonPoint && typeof activeCommonPoint.latitude === "number"
+          ? [{ latitude: activeCommonPoint.latitude, longitude: activeCommonPoint.longitude }]
+          : []),
+        { latitude: activeDest.latitude, longitude: activeDest.longitude },
+      ];
 
       try {
-        const routeResult = await routingService.calculateRoute([
-          { latitude: origin.latitude, longitude: origin.longitude },
-          { latitude: destination.latitude, longitude: destination.longitude },
-        ]);
+        const routeResult = await routingService.calculateRoute(waypoints);
         if (routeResult) {
           hub.routeCoordinates = routeResult.coordinates;
           hub.distanceKm = Math.round(routeResult.distanceKm * 10) / 10;

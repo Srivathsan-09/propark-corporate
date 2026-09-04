@@ -40,6 +40,7 @@ interface MockHub {
   name: string;
   corridor: string;
   origin: { name: string; latitude: number; longitude: number };
+  commonPoint?: { name: string; latitude: number; longitude: number } | null;
   destination: { name: string; latitude: number; longitude: number };
   campusId: string;
   campusName: string;
@@ -131,6 +132,26 @@ function runCommuteHubTestSuite() {
       status: "active",
       createdBy: "campus_admin_south",
     },
+    {
+      _id: "hub_004",
+      hubId: "HUB-004",
+      name: "Hub 4 — Tambaram to Guindy via Chromepet",
+      corridor: "Tambaram → Chromepet → Guindy",
+      origin: { name: "Tambaram Sanatorium", latitude: 12.9279, longitude: 80.1215 },
+      commonPoint: { name: "Chromepet Junction", latitude: 12.9516, longitude: 80.1413 },
+      destination: { name: "Guindy Kathipara", latitude: 13.0067, longitude: 80.2030 },
+      campusId: "campus_chennai_south",
+      campusName: "Chennai South Campus",
+      distanceKm: 15.2,
+      durationMinutes: 30,
+      routeCoordinates: [
+        [12.9279, 80.1215],
+        [12.9516, 80.1413],
+        [13.0067, 80.2030],
+      ],
+      status: "active",
+      createdBy: "campus_admin_south",
+    },
   ];
 
   assert("HUB-1", "Virtual corridor hub has unique ID and corridor name", sampleCorridors[0].hubId === "HUB-001");
@@ -141,6 +162,12 @@ function runCommuteHubTestSuite() {
   );
   assert("HUB-4", "Hub status defaults to active", sampleCorridors[0].status === "active");
   assert("HUB-5", "Route coordinates polyline contains corridor waypoints", sampleCorridors[0].routeCoordinates.length >= 2);
+  assert("HUB-6", "Corridor can support Common Point Hub (intermediate corridor stop)", 
+    Boolean(sampleCorridors[3].commonPoint && sampleCorridors[3].commonPoint.name === "Chromepet Junction")
+  );
+  assert("HUB-7", "3-point corridor contains all 3 waypoints in route coordinates", 
+    sampleCorridors[3].routeCoordinates.length >= 3
+  );
 
   // 2. Strict Isolation: CommuteX standard rides vs CommuteHub corridor rides
   console.log("\n--- 2. CommuteX & CommuteHub Isolation ---");
@@ -238,7 +265,7 @@ function runCommuteHubTestSuite() {
     if (superAdminRole === "admin") return true;
     return hub.campusId === superAdminCampus;
   });
-  assert("ROLE-1", "Super Admin sees all virtual corridor hubs across all campuses", superAdminVisibleHubs.length === 3);
+  assert("ROLE-1", "Super Admin sees all virtual corridor hubs across all campuses", superAdminVisibleHubs.length === sampleCorridors.length);
 
   // Filter hubs for Campus Admin (Chennai South)
   const southCampusVisibleHubs = sampleCorridors.filter((hub) => {
@@ -246,7 +273,7 @@ function runCommuteHubTestSuite() {
     if (campusAdminRole === "campus_admin") return hub.campusId === campusAdminCampus;
     return false;
   });
-  assert("ROLE-2", "Campus Admin only sees hubs belonging to their assigned campus", southCampusVisibleHubs.length === 1);
+  assert("ROLE-2", "Campus Admin only sees hubs belonging to their assigned campus", southCampusVisibleHubs.length === 2);
   assert("ROLE-3", "South Campus Admin cannot see Main Campus hubs", 
     southCampusVisibleHubs.every((h) => h.campusId === "campus_chennai_south")
   );

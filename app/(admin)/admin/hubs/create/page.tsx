@@ -52,6 +52,12 @@ export default function CreateHubPage() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [commonPoint, setCommonPoint] = useState<{
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [destination, setDestination] = useState<{
     name: string;
     address: string;
@@ -72,7 +78,7 @@ export default function CreateHubPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Map picking mode
-  const [pickingTarget, setPickingTarget] = useState<"origin" | "destination" | null>(null);
+  const [pickingTarget, setPickingTarget] = useState<"origin" | "commonPoint" | "destination" | null>(null);
 
   // Fetch campuses for Super Admin
   useEffect(() => {
@@ -93,7 +99,7 @@ export default function CreateHubPage() {
     }
   }, [isSuperAdmin, session]);
 
-  // Recalculate route whenever origin or destination changes
+  // Recalculate route whenever origin, commonPoint, or destination changes
   useEffect(() => {
     if (!origin || !destination) {
       setCalculatedRoute(null);
@@ -111,11 +117,14 @@ export default function CreateHubPage() {
     let isMounted = true;
     setIsCalculatingRoute(true);
 
+    const waypoints: { latitude: number; longitude: number }[] = [
+      { latitude: origin.latitude, longitude: origin.longitude },
+      ...(commonPoint ? [{ latitude: commonPoint.latitude, longitude: commonPoint.longitude }] : []),
+      { latitude: destination.latitude, longitude: destination.longitude },
+    ];
+
     routingService
-      .calculateRoute([
-        { latitude: origin.latitude, longitude: origin.longitude },
-        { latitude: destination.latitude, longitude: destination.longitude },
-      ])
+      .calculateRoute(waypoints)
       .then((res) => {
         if (isMounted && res) {
           setCalculatedRoute(res);
@@ -130,18 +139,30 @@ export default function CreateHubPage() {
 
     // Auto-fill corridor label if not manually changed
     if (!corridor || corridor.includes("→")) {
-      setCorridor(`${origin.name} → ${destination.name}`);
+      if (commonPoint) {
+        setCorridor(`${origin.name} → ${commonPoint.name} → ${destination.name}`);
+      } else {
+        setCorridor(`${origin.name} → ${destination.name}`);
+      }
     }
 
     return () => {
       isMounted = false;
     };
-  }, [origin, destination]);
+  }, [origin, commonPoint, destination]);
 
   const handleMapClick = (loc: { address: string; latitude: number; longitude: number }) => {
     const areaName = loc.address.split(",")[0] || "Selected Point";
     if (pickingTarget === "origin") {
       setOrigin({
+        name: areaName,
+        address: loc.address,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+      });
+      setPickingTarget(null);
+    } else if (pickingTarget === "commonPoint") {
+      setCommonPoint({
         name: areaName,
         address: loc.address,
         latitude: loc.latitude,
@@ -180,8 +201,13 @@ export default function CreateHubPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          corridor: corridor.trim() || `${origin.name} → ${destination.name}`,
+          corridor:
+            corridor.trim() ||
+            (commonPoint
+              ? `${origin.name} → ${commonPoint.name} → ${destination.name}`
+              : `${origin.name} → ${destination.name}`),
           origin,
+          commonPoint: commonPoint || null,
           destination,
           campusId: campusId.toUpperCase().trim(),
           status,
@@ -217,7 +243,7 @@ export default function CreateHubPage() {
               Create Commuting Hub
             </h1>
             <p className="text-[11px] text-slate-500">
-              Define a new fixed-route corridor hub for employees to share rides
+              Define a fixed-route corridor hub with origin, common meeting point, and destination
             </p>
           </div>
         </div>
@@ -256,7 +282,7 @@ export default function CreateHubPage() {
                   Corridor Configuration
                 </CardTitle>
                 <CardDescription className="text-[11px] text-slate-500">
-                  Set corridor route name, endpoints, and campus
+                  Set corridor route, common meeting point, and campus
                 </CardDescription>
               </div>
             </CardHeader>
@@ -389,7 +415,53 @@ export default function CreateHubPage() {
                 />
               </div>
 
-              {/* Row 4: Destination Search */}
+              {/* Row 4: Common Point Hub (Intermediate Meeting Point between Origin & Destination) */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                    Common Point Hub (Intermediate Corridor Stop)
+                  </Label>
+                  <div className="flex items-center gap-1">
+                    {commonPoint && (
+                      <button
+                        type="button"
+                        onClick={() => setCommonPoint(null)}
+                        className="text-[10px] text-slate-400 hover:text-slate-700 px-1"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPickingTarget(pickingTarget === "commonPoint" ? null : "commonPoint")}
+                      className={`text-[10px] h-5 px-1.5 rounded-md font-semibold ${
+                        pickingTarget === "commonPoint"
+                          ? "bg-amber-100 text-amber-800"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      {pickingTarget === "commonPoint" ? "Cancel picking" : "Pick on map"}
+                    </Button>
+                  </div>
+                </div>
+                <LocationSearchInput
+                  value={commonPoint?.address || ""}
+                  placeholder="Assign common hub stop (e.g. Maduravoyal, Kattupakkam)..."
+                  onChange={(loc) =>
+                    setCommonPoint({
+                      name: loc.address.split(",")[0] || "Common Point Hub",
+                      address: loc.address,
+                      latitude: loc.latitude,
+                      longitude: loc.longitude,
+                    })
+                  }
+                />
+              </div>
+
+              {/* Row 5: Destination Search */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <Label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
@@ -450,6 +522,8 @@ export default function CreateHubPage() {
                 <CardDescription className="text-[10px] text-slate-500">
                   {pickingTarget
                     ? `Click map to set ${pickingTarget.toUpperCase()}`
+                    : commonPoint
+                    ? `Route: ${origin?.name || "Origin"} → ${commonPoint.name} (Common Point Hub) → ${destination?.name || "Destination"}`
                     : "Live preview of road route connecting origin to destination"}
                 </CardDescription>
               </div>
@@ -481,6 +555,18 @@ export default function CreateHubPage() {
                       }
                     : null
                 }
+                stops={
+                  commonPoint
+                    ? [
+                        {
+                          name: commonPoint.name,
+                          address: commonPoint.address,
+                          latitude: commonPoint.latitude,
+                          longitude: commonPoint.longitude,
+                        },
+                      ]
+                    : []
+                }
                 routeCoordinates={calculatedRoute?.coordinates || []}
                 distanceText={calculatedRoute ? `${calculatedRoute.distanceKm} km` : undefined}
                 durationText={calculatedRoute ? `~${calculatedRoute.durationMinutes} mins` : undefined}
@@ -489,7 +575,7 @@ export default function CreateHubPage() {
                   pickingTarget ? `Click map to set ${pickingTarget.toUpperCase()}` : undefined
                 }
                 onMapClick={handleMapClick}
-                height="460px"
+                height="500px"
               />
             </CardContent>
           </Card>

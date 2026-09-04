@@ -147,6 +147,7 @@ export async function POST(req: NextRequest) {
       name,
       corridor,
       origin,
+      commonPoint,
       destination,
       status = "active",
     } = body;
@@ -204,16 +205,25 @@ export async function POST(req: NextRequest) {
 
     const campusName = campusDoc?.name || targetCampusId;
 
-    // Calculate route geometry and travel statistics
+    // Calculate route geometry and travel statistics (via commonPoint if assigned)
     let routeCoordinates: [number, number][] = [];
     let distanceKm = 0;
     let durationMinutes = 0;
 
+    const hasCommonPoint =
+      commonPoint &&
+      commonPoint.name &&
+      typeof commonPoint.latitude === "number" &&
+      typeof commonPoint.longitude === "number";
+
+    const waypoints = [
+      { latitude: origin.latitude, longitude: origin.longitude },
+      ...(hasCommonPoint ? [{ latitude: commonPoint.latitude, longitude: commonPoint.longitude }] : []),
+      { latitude: destination.latitude, longitude: destination.longitude },
+    ];
+
     try {
-      const routeResult = await routingService.calculateRoute([
-        { latitude: origin.latitude, longitude: origin.longitude },
-        { latitude: destination.latitude, longitude: destination.longitude },
-      ]);
+      const routeResult = await routingService.calculateRoute(waypoints);
 
       if (routeResult) {
         routeCoordinates = routeResult.coordinates || [];
@@ -222,17 +232,18 @@ export async function POST(req: NextRequest) {
       }
     } catch (routeErr) {
       console.warn("Hub route calculation warning:", routeErr);
-      // Fallback straight segment if routing service unavailable
-      routeCoordinates = [
-        [origin.latitude, origin.longitude],
-        [destination.latitude, destination.longitude],
-      ];
+      // Fallback straight segments if routing service unavailable
+      routeCoordinates = waypoints.map((w) => [w.latitude, w.longitude] as [number, number]);
     }
 
     // Auto-generate hub ID
     const count = await Hub.countDocuments();
     const formattedHubId = `HUB-${String(count + 1).padStart(3, "0")}`;
-    const corridorLabel = corridor?.trim() || `${origin.name} → ${destination.name}`;
+    const corridorLabel =
+      corridor?.trim() ||
+      (hasCommonPoint
+        ? `${origin.name} → ${commonPoint.name} → ${destination.name}`
+        : `${origin.name} → ${destination.name}`);
 
     const newHub = await Hub.create({
       hubId: formattedHubId,
@@ -244,6 +255,14 @@ export async function POST(req: NextRequest) {
         latitude: origin.latitude,
         longitude: origin.longitude,
       },
+      commonPoint: hasCommonPoint
+        ? {
+            name: commonPoint.name.trim(),
+            address: commonPoint.address || commonPoint.name,
+            latitude: commonPoint.latitude,
+            longitude: commonPoint.longitude,
+          }
+        : null,
       destination: {
         name: destination.name.trim(),
         address: destination.address || destination.name,

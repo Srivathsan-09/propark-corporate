@@ -18,6 +18,12 @@ export interface IHubMapItem {
     latitude: number;
     longitude: number;
   };
+  commonPoint?: {
+    name: string;
+    address?: string;
+    latitude: number;
+    longitude: number;
+  } | null;
   destination: {
     name: string;
     address?: string;
@@ -160,7 +166,48 @@ export default function MultiHubMap({
         });
       }
 
-      // 2. Destination Marker (Blue circle with pin icon)
+      // 2. Common Point Marker (Amber circle with pin icon)
+      if (hub.commonPoint?.latitude && hub.commonPoint?.longitude) {
+        const commonLatLng: [number, number] = [hub.commonPoint.latitude, hub.commonPoint.longitude];
+        bounds.extend(commonLatLng);
+
+        const commonIcon = L.divIcon({
+          className: "custom-hub-common-pin",
+          html: `
+            <div style="
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 28px;
+              height: 28px;
+              background-color: #d97706;
+              border: 2px solid #ffffff;
+              border-radius: 9999px;
+              box-shadow: 0 4px 6px -1px rgba(0,0,0,0.25);
+              color: #ffffff;
+              font-size: 11px;
+              font-weight: 700;
+              cursor: pointer;
+            " title="Common Point: ${hub.commonPoint.name}">
+              C
+            </div>
+          `,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
+
+        const commonMarker = L.marker(commonLatLng, { icon: commonIcon }).addTo(layerGroup);
+        commonMarker.bindTooltip(
+          `<strong>${hub.name}</strong><br/><span style="color:#d97706">Common Point Hub:</span> ${hub.commonPoint.name}`,
+          { direction: "top", offset: [0, -10] }
+        );
+        commonMarker.on("click", () => {
+          setActiveHub(hub);
+          onSelectHub?.(hub);
+        });
+      }
+
+      // 3. Destination Marker (Red circle with pin icon)
       if (hub.destination?.latitude && hub.destination?.longitude) {
         const destLatLng: [number, number] = [hub.destination.latitude, hub.destination.longitude];
         bounds.extend(destLatLng);
@@ -307,6 +354,12 @@ export default function MultiHubMap({
             <span>Origin</span>
           </div>
           <div className="flex items-center gap-1.5">
+            <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-600 text-[8px] font-bold text-white">
+              C
+            </span>
+            <span>Common Point</span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-600 text-[8px] font-bold text-white">
               B
             </span>
@@ -343,6 +396,12 @@ export default function MultiHubMap({
               <p className="text-[11px] text-slate-600 flex items-center gap-1.5 mt-0.5">
                 <span>{activeHub.origin.name}</span>
                 <span className="text-slate-400">&rarr;</span>
+                {activeHub.commonPoint?.name && (
+                  <>
+                    <span className="font-semibold text-amber-700">{activeHub.commonPoint.name}</span>
+                    <span className="text-slate-400">&rarr;</span>
+                  </>
+                )}
                 <span>{activeHub.destination.name}</span>
               </p>
             </div>
