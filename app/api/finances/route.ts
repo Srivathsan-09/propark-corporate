@@ -38,13 +38,6 @@ export interface IFinancialTransactionItem {
   vehicle?: any;
 }
 
-export interface IMonthlyFinancialSummary {
-  month: string;
-  earned: number;
-  spent: number;
-  net: number;
-}
-
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -240,70 +233,22 @@ export async function GET(req: NextRequest) {
       ...passengerSpendingsList,
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    // Group by Month (YYYY-MM)
-    const monthlyMap: Record<string, { earned: number; spent: number }> = {};
-    allTransactions.forEach((tx) => {
-      const d = new Date(tx.date);
-      const key = !isNaN(d.getTime())
-        ? `${d.toLocaleString("default", { month: "short" })} ${d.getFullYear()}`
-        : "Recent";
-
-      if (!monthlyMap[key]) {
-        monthlyMap[key] = { earned: 0, spent: 0 };
-      }
-      if (tx.type === "earning") {
-        monthlyMap[key].earned += tx.amountPaid;
-      } else {
-        monthlyMap[key].spent += tx.amountPaid;
-      }
-    });
-
-    const monthlyTrends: IMonthlyFinancialSummary[] = Object.keys(monthlyMap).map((m) => ({
-      month: m,
-      earned: Math.round(monthlyMap[m].earned),
-      spent: Math.round(monthlyMap[m].spent),
-      net: Math.round(monthlyMap[m].earned - monthlyMap[m].spent),
-    }));
-
-    // If no monthly data, provide current month empty placeholder
-    if (monthlyTrends.length === 0) {
-      const nowMonth = new Date().toLocaleString("default", { month: "short" }) + " " + new Date().getFullYear();
-      monthlyTrends.push({ month: nowMonth, earned: 0, spent: 0, net: 0 });
-    }
-
     const netBalance = Math.round((totalDriverCollected - totalPassengerSpent) * 100) / 100;
-
-    // Solo cab comparison savings (typical urban solo cab is 2.5x carpool fare or min ₹140)
-    const estimatedSoloCost = Math.round(
-      passengerSpendingsList.reduce(
-        (sum, item) => sum + Math.max(item.fare * 2.4, 120),
-        0
-      )
-    );
-    const savingsVsSoloCab = Math.max(0, estimatedSoloCost - totalPassengerSpent);
 
     return NextResponse.json({
       success: true,
       summary: {
-        // Driver
         totalDriverEarningsCommitted: Math.round(totalDriverEarningsCommitted),
         totalDriverCollected: Math.round(totalDriverCollected),
         totalDriverPending: Math.round(totalDriverPending),
         ridesOfferedCount: driverRides.length,
         passengersCarriedCount: totalPassengersCarried,
-
-        // Passenger
         totalPassengerCommitted: Math.round(totalPassengerCommitted),
         totalPassengerSpent: Math.round(totalPassengerSpent),
         totalPassengerDue: Math.round(totalPassengerDue),
         carpoolsTakenCount: totalCarpoolsTaken,
-
-        // Net & Savings
         netBalance,
-        estimatedSoloCost,
-        savingsVsSoloCab,
       },
-      monthlyTrends,
       driverEarnings: driverEarningsList,
       passengerSpendings: passengerSpendingsList,
       allTransactions,

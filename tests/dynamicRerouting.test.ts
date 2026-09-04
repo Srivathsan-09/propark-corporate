@@ -33,7 +33,7 @@ const testResults: TestResult[] = [];
 
 function assert(testNumber: string, name: string, condition: boolean, actual?: any, expected?: any) {
   testResults.push({ testNumber, name, passed: Boolean(condition), actual, expected });
-  const icon = condition ? "✅ PASS" : "❌ FAIL";
+  const icon = condition ? "[PASS]" : "[FAIL]";
   console.log(` ${icon} | [${testNumber}] ${name}`);
   if (!condition) {
     console.error(`       Expected: ${JSON.stringify(expected)}`);
@@ -294,9 +294,9 @@ async function runDynamicReroutingTestSuite() {
   console.log("\n=======================================================");
   console.log(` Test Summary: ${passed} / ${total} assertions passed.`);
   if (failed === 0) {
-    console.log(" Overall Result:  ALL DYNAMIC REROUTING TESTS PASSED!");
+    console.log(" Overall Result: ALL DYNAMIC REROUTING TESTS PASSED!");
   } else {
-    console.log(` Overall Result: ❌ ${failed} TESTS FAILED.`);
+    console.log(` Overall Result: [FAIL] ${failed} TESTS FAILED.`);
   }
   console.log("=======================================================\n");
 

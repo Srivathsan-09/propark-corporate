@@ -22,7 +22,7 @@ const results: TestResult[] = [];
 
 function assert(testNumber: string, name: string, condition: boolean, actual?: any, expected?: any) {
   results.push({ testNumber, name, passed: Boolean(condition), actual, expected });
-  const icon = condition ? "✅ PASS" : "❌ FAIL";
+  const icon = condition ? "[PASS]" : "[FAIL]";
   console.log(` ${icon} | [${testNumber}] ${name}`);
   if (!condition) {
     console.error(`       Expected: ${JSON.stringify(expected)}`);
@@ -81,16 +81,6 @@ function calculateNetBalance(driverCollected: number, passengerSpent: number) {
   return Math.round((driverCollected - passengerSpent) * 100) / 100;
 }
 
-function calculateSoloSavings(carpoolFares: number[], totalSpent: number) {
-  const estimatedSoloCost = Math.round(
-    carpoolFares.reduce((sum, fare) => sum + Math.max(fare * 2.4, 120), 0)
-  );
-  return {
-    estimatedSoloCost,
-    savings: Math.max(0, estimatedSoloCost - totalSpent),
-  };
-}
-
 async function runFinancesTestSuite() {
   console.log("\n=======================================================");
   console.log(" Running CommuteX Finances & Earnings Test Suite");
@@ -145,33 +135,17 @@ async function runFinancesTestSuite() {
   assert("FIN-10", "Net negative balance when commuter only spends (0 - 200 = -200)", net2 === -200, net2, -200);
 
   // -------------------------------------------------------------
-  // Test 4: Solo Cab Commute Savings Benchmark
+  // Test 4: Empty States & New User
   // -------------------------------------------------------------
-  console.log("\n--- 4. Solo Cab Savings Benchmark ---");
-
-  const carpoolFares = [90, 70];
-  const savingsRes = calculateSoloSavings(carpoolFares, passRes.totalSpent);
-  // Trip 1 (fare 90): max(90 * 2.4, 120) = 216
-  // Trip 2 (fare 70): max(70 * 2.4, 120) = 168
-  // Total solo cost = 216 + 168 = 384
-  // Savings = 384 - 125 = 259
-  assert("FIN-11", "Estimated solo cab cost is ~384", savingsRes.estimatedSoloCost === 384, savingsRes.estimatedSoloCost, 384);
-  assert("FIN-12", "Savings vs solo cab is positive (259 saved)", savingsRes.savings === 259, savingsRes.savings, 259);
-
-  // -------------------------------------------------------------
-  // Test 5: Empty States & New User
-  // -------------------------------------------------------------
-  console.log("\n--- 5. Empty State Resilience ---");
+  console.log("\n--- 4. Empty State Resilience ---");
 
   const emptyDriver = calculateDriverTotals([]);
   const emptyPass = calculatePassengerTotals([]);
   const emptyNet = calculateNetBalance(emptyDriver.totalCollected, emptyPass.totalSpent);
-  const emptySavings = calculateSoloSavings([], 0);
 
-  assert("FIN-13", "Empty driver earnings returns 0", emptyDriver.totalCollected === 0);
-  assert("FIN-14", "Empty passenger spendings returns 0", emptyPass.totalSpent === 0);
-  assert("FIN-15", "Empty net balance returns 0", emptyNet === 0);
-  assert("FIN-16", "Empty savings returns 0", emptySavings.savings === 0);
+  assert("FIN-11", "Empty driver earnings returns 0", emptyDriver.totalCollected === 0);
+  assert("FIN-12", "Empty passenger spendings returns 0", emptyPass.totalSpent === 0);
+  assert("FIN-13", "Empty net balance returns 0", emptyNet === 0);
 
   // -------------------------------------------------------------
   // Summary
@@ -183,9 +157,9 @@ async function runFinancesTestSuite() {
   console.log("\n=======================================================");
   console.log(` Test Summary: ${passed} / ${total} assertions passed.`);
   if (failed === 0) {
-    console.log(" Overall Result:  ALL FINANCES TESTS PASSED!");
+    console.log(" Overall Result: ALL FINANCES TESTS PASSED!");
   } else {
-    console.log(` Overall Result: ❌ ${failed} TESTS FAILED.`);
+    console.log(` Overall Result: [FAIL] ${failed} TESTS FAILED.`);
   }
   console.log("=======================================================\n");
 

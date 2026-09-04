@@ -62,8 +62,6 @@ interface IFinanceSummary {
   totalPassengerDue: number;
   carpoolsTakenCount: number;
   netBalance: number;
-  estimatedSoloCost: number;
-  savingsVsSoloCab: number;
 }
 
 export default function FinancesPage() {
