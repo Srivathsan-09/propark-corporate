@@ -432,22 +432,6 @@ export default function EditHubPage() {
   const isDestValid = isValidPoint(destination);
   const validIntermediateList = intermediateHubs.filter(isValidPoint);
 
-  // Dynamic legs info calculation
-  const totalLegsCount = (isOriginValid ? 1 : 0) + validIntermediateList.length + (isDestValid ? 1 : 0) - 1;
-
-  const getLegDistanceInfo = (legIndex: number): { distanceKm: number; durationMinutes: number } | null => {
-    if (!calculatedRoute || totalLegsCount < 1) return null;
-    if (calculatedRoute.legs && calculatedRoute.legs[legIndex]) {
-      return calculatedRoute.legs[legIndex];
-    }
-    if (calculatedRoute.distanceKm > 0 && totalLegsCount > 0) {
-      return {
-        distanceKm: Math.round((calculatedRoute.distanceKm / totalLegsCount) * 10) / 10,
-        durationMinutes: Math.max(1, Math.round(calculatedRoute.durationMinutes / totalLegsCount)),
-      };
-    }
-    return null;
-  };
 
   if (loading) {
     return (
@@ -496,11 +480,11 @@ export default function EditHubPage() {
               <Clock className="h-3.5 w-3.5 text-emerald-600" />
               ~{calculatedRoute.durationMinutes} mins
             </span>
-            {totalLegsCount > 1 && (
+            {intermediateHubs.length > 0 && (
               <>
                 <span className="text-emerald-300">•</span>
                 <span className="text-[11px] text-emerald-700">
-                  ({totalLegsCount} Route Legs)
+                  {intermediateHubs.length} intermediate {intermediateHubs.length === 1 ? "stop" : "stops"}
                 </span>
               </>
             )}
@@ -706,26 +690,10 @@ export default function EditHubPage() {
 
                 {/* Render Each Intermediate Hub */}
                 {intermediateHubs.map((hub, idx) => {
-                  const legInfoBefore = getLegDistanceInfo(idx);
                   const isThisTarget = pickingTarget?.type === "intermediate" && pickingTarget.index === idx;
 
                   return (
                     <div key={hub.id} className="space-y-1.5">
-                      {/* Leg Distance Connector from Previous Stop */}
-                      {legInfoBefore && (
-                        <div className="flex items-center justify-between px-2.5 py-1 bg-amber-50/80 border border-amber-200/80 rounded-xl text-amber-950 text-[10.5px] font-medium shadow-2xs animate-in fade-in-50">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <Navigation className="h-3 w-3 text-amber-600 shrink-0" />
-                            <span className="truncate">
-                              Leg {idx + 1}: {idx === 0 ? origin?.name || "Origin" : intermediateHubs[idx - 1]?.name || `Hub ${idx}`} → <strong>{hub.name}</strong>
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0 font-bold text-amber-800">
-                            <span>{legInfoBefore.distanceKm} km</span>
-                            <span className="text-amber-700 font-normal text-[10px]">(~{legInfoBefore.durationMinutes} mins)</span>
-                          </div>
-                        </div>
-                      )}
 
                       {/* Intermediate Hub Card */}
                       <div className={`p-2 rounded-xl border ${isThisTarget ? "border-amber-400 bg-amber-50/40 ring-2 ring-amber-200" : "border-slate-200 bg-slate-50/40"} space-y-1.5 transition-all`}>
@@ -815,45 +783,6 @@ export default function EditHubPage() {
                   );
                 })}
               </div>
-
-              {/* Leg Distance Connector from Last Intermediate Stop to Destination */}
-              {intermediateHubs.length > 0 && isDestValid && destination && (
-                (() => {
-                  const lastLegIndex = intermediateHubs.length;
-                  const lastLegInfo = getLegDistanceInfo(lastLegIndex);
-                  if (!lastLegInfo) return null;
-                  const lastHub = intermediateHubs[intermediateHubs.length - 1];
-
-                  return (
-                    <div className="flex items-center justify-between px-2.5 py-1 bg-amber-50/80 border border-amber-200/80 rounded-xl text-amber-950 text-[10.5px] font-medium shadow-2xs animate-in fade-in-50">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <Navigation className="h-3 w-3 text-amber-600 shrink-0" />
-                        <span className="truncate">
-                          Final Leg ({lastHub.name} → <strong>{destination.name}</strong>):
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0 font-bold text-amber-800">
-                        <span>{lastLegInfo.distanceKm} km</span>
-                        <span className="text-amber-700 font-normal text-[10px]">(~{lastLegInfo.durationMinutes} mins)</span>
-                      </div>
-                    </div>
-                  );
-                })()
-              )}
-
-              {/* Direct Corridor Distance Badge if 0 intermediate hubs */}
-              {intermediateHubs.length === 0 && isOriginValid && isDestValid && calculatedRoute && (
-                <div className="flex items-center justify-between px-2.5 py-1 bg-blue-50/90 border border-blue-200/90 rounded-xl text-blue-950 text-[10.5px] font-medium shadow-2xs">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <Navigation className="h-3 w-3 text-blue-600 shrink-0" />
-                    <span className="truncate">Direct Corridor Distance ({origin?.name} → {destination?.name}):</span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0 font-bold text-blue-700">
-                    <span>{calculatedRoute.distanceKm} km</span>
-                    <span className="text-blue-600 font-normal text-[10px]">(~{calculatedRoute.durationMinutes} mins)</span>
-                  </div>
-                </div>
-              )}
 
               {/* Row 4: Destination Search */}
               <div className="space-y-1 pt-1 border-t border-slate-100">
