@@ -4,15 +4,9 @@ import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   IndianRupee,
-  TrendingUp,
-  TrendingDown,
   Wallet,
   Download,
   Search,
-  Filter,
-  Car,
-  User,
-  Clock,
   CheckCircle2,
   AlertCircle,
   X,
@@ -21,23 +15,12 @@ import {
   Calendar,
   Layers,
   ChevronRight,
-  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { CarLoader } from "@/components/common/CarLoader";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-} from "recharts";
 
 interface IFinancialTransaction {
   id: string;
@@ -83,16 +66,8 @@ interface IFinanceSummary {
   savingsVsSoloCab: number;
 }
 
-interface IMonthlyTrend {
-  month: string;
-  earned: number;
-  spent: number;
-  net: number;
-}
-
 export default function FinancesPage() {
   const [summary, setSummary] = useState<IFinanceSummary | null>(null);
-  const [monthlyTrends, setMonthlyTrends] = useState<IMonthlyTrend[]>([]);
   const [transactions, setTransactions] = useState<IFinancialTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +87,6 @@ export default function FinancesPage() {
       }
       const data = await res.json();
       setSummary(data.summary);
-      setMonthlyTrends(data.monthlyTrends || []);
       setTransactions(data.allTransactions || []);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
@@ -264,150 +238,82 @@ export default function FinancesPage() {
         </div>
       </div>
 
-      {/* 4 Core KPI Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Card 1: Total Driver Earnings */}
-        <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
+      {/* Summary Cards: Driver Earnings, Carpool Spendings, Net Balance */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {/* Card 1: Driver Earnings */}
+        <Card className="rounded-2xl border-slate-200/90 bg-white shadow-xs">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-slate-500">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Driver Earnings
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-600" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+              <ArrowUpRight className="h-4 w-4 stroke-[2.5]" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">
               ₹{summary.totalDriverCollected.toLocaleString()}
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Collected from coworkers
+            <p className="text-xs text-slate-500 mt-1">
+              Total collected from coworkers
             </p>
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <span>Pending: <strong className="text-slate-700 font-semibold">₹{summary.totalDriverPending.toLocaleString()}</strong></span>
-              <span>{summary.passengersCarriedCount} passengers</span>
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Pending: <strong className="text-slate-800 font-semibold">₹{summary.totalDriverPending.toLocaleString()}</strong></span>
+              <span>{summary.passengersCarriedCount} passengers ({summary.ridesOfferedCount} rides)</span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Card 2: Total Carpool Spendings */}
-        <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
+        {/* Card 2: Carpool Spendings */}
+        <Card className="rounded-2xl border-slate-200/90 bg-white shadow-xs">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-slate-500">
-              Carpool Expenses
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Carpool Spendings
             </CardTitle>
-            <TrendingDown className="h-4 w-4 text-slate-500" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <ArrowDownLeft className="h-4 w-4 stroke-[2.5]" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">
               ₹{summary.totalPassengerSpent.toLocaleString()}
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Spent as a passenger
+            <p className="text-xs text-slate-500 mt-1">
+              Total spent on shared rides
             </p>
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <span>Due: <strong className="text-slate-700 font-semibold">₹{summary.totalPassengerDue.toLocaleString()}</strong></span>
-              <span>{summary.carpoolsTakenCount} rides</span>
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Due to drivers: <strong className="text-slate-800 font-semibold">₹{summary.totalPassengerDue.toLocaleString()}</strong></span>
+              <span>{summary.carpoolsTakenCount} rides taken</span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Card 3: Net Financial Balance */}
-        <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
+        {/* Card 3: Net Balance */}
+        <Card className="rounded-2xl border-slate-200/90 bg-white shadow-xs">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-slate-500">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Net Balance
             </CardTitle>
-            <Wallet className="h-4 w-4 text-slate-500" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+              <Wallet className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${isNetProfit && summary.netBalance > 0 ? "text-emerald-700" : "text-slate-900"}`}>
+            <div className={`text-2xl sm:text-3xl font-bold ${isNetProfit && summary.netBalance > 0 ? "text-emerald-700" : "text-slate-900"}`}>
               {isNetProfit && summary.netBalance > 0 ? "+" : ""}₹{summary.netBalance.toLocaleString()}
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Earnings minus expenses
+            <p className="text-xs text-slate-500 mt-1">
+              Driver earnings minus passenger spendings
             </p>
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <span className="font-medium text-slate-700">{isNetProfit ? "Positive cashflow" : "Net spending"}</span>
-              <span>Overall balance</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 4: Shared Rides */}
-        <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-medium text-slate-500">
-              Shared Rides
-            </CardTitle>
-            <Car className="h-4 w-4 text-slate-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {summary.ridesOfferedCount + summary.carpoolsTakenCount}
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Total completed commutes
-            </p>
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <span>{summary.ridesOfferedCount} as driver</span>
-              <span>{summary.carpoolsTakenCount} as passenger</span>
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span className={`font-semibold ${isNetProfit ? "text-emerald-700" : "text-slate-700"}`}>
+                {isNetProfit ? "Positive cashflow" : "Net spending"}
+              </span>
+              <span>{summary.ridesOfferedCount + summary.carpoolsTakenCount} total rides</span>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Monthly Financial Trend Chart */}
-      {monthlyTrends.length > 0 && (
-        <Card className="rounded-2xl border-slate-200 bg-white shadow-xs overflow-hidden">
-          <CardHeader className="p-5 pb-2">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div>
-                <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-slate-500" />
-                  Monthly Breakdown
-                </CardTitle>
-                <CardDescription className="text-xs text-slate-500 mt-0.5">
-                  Monthly cashflow of driver earnings and passenger expenses
-                </CardDescription>
-              </div>
-
-              <div className="flex items-center gap-4 text-xs font-medium">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-600 inline-block" />
-                  <span className="text-slate-600">Earned (Driver)</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-indigo-500 inline-block" />
-                  <span className="text-slate-600">Spent (Passenger)</span>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-5 pt-4">
-            <div className="h-[220px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyTrends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={{ stroke: "#e2e8f0" }} />
-                  <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={{ stroke: "#e2e8f0" }} tickFormatter={(val) => `₹${val}`} />
-                  <Tooltip
-                    formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, ""]}
-                    contentStyle={{
-                      backgroundColor: "#0f172a",
-                      borderRadius: "10px",
-                      border: "none",
-                      color: "#fff",
-                      fontSize: "12px",
-                      padding: "8px 12px",
-                    }}
-                  />
-                  <Bar dataKey="earned" name="Earned as Driver" fill="#059669" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                  <Bar dataKey="spent" name="Spent as Passenger" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Payment History & Activity Section */}
       <Card className="rounded-2xl border-slate-200 bg-white shadow-xs overflow-hidden">
@@ -452,7 +358,7 @@ export default function FinancesPage() {
                 }`}
               >
                 <ArrowDownLeft className="h-3.5 w-3.5 text-indigo-600" />
-                Carpool Expenses ({transactions.filter((t) => t.type === "spending").length})
+                Carpool Spendings ({transactions.filter((t) => t.type === "spending").length})
               </button>
             </div>
           </div>
