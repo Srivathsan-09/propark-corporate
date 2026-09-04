@@ -18,6 +18,14 @@ export interface AlternativeRoute {
   isRecommended?: boolean;
 }
 
+export interface RouteLeg {
+  distanceKm: number;
+  durationMinutes: number;
+  startPoint?: LatLngPoint;
+  endPoint?: LatLngPoint;
+  summary?: string;
+}
+
 export interface RouteResult {
   coordinates: [number, number][]; // [lat, lng] array for Leaflet Polyline
   distanceKm: number;
@@ -34,6 +42,7 @@ export interface RouteResult {
   remainingDurationMinutes?: number;
   formattedEtaTime?: string; // e.g. "08:48 AM"
   alternativeRoutes?: AlternativeRoute[];
+  legs?: RouteLeg[];
 }
 
 /**
@@ -55,13 +64,15 @@ class RoutingService {
   ): Promise<RouteResult | null> {
     if (!waypoints || waypoints.length < 2) return null;
 
-    // Filter valid coordinates
+    // Filter valid coordinates: MUST not be NaN, undefined, or near Null Island (0, 0)
     const validPoints = waypoints.filter(
       (p) =>
         typeof p.latitude === "number" &&
         !isNaN(p.latitude) &&
+        Math.abs(p.latitude) > 0.01 &&
         typeof p.longitude === "number" &&
-        !isNaN(p.longitude)
+        !isNaN(p.longitude) &&
+        Math.abs(p.longitude) > 0.01
     );
 
     if (validPoints.length < 2) return null;
@@ -187,6 +198,15 @@ class RoutingService {
           formattedDuration: this.formatDuration(trafficInfo.trafficDurationMinutes),
         };
 
+        // Extract segment legs (distance and duration between consecutive stops)
+        const legs: RouteLeg[] = (primaryRoute.legs || []).map((leg: any, idx: number) => ({
+          distanceKm: Math.round(((leg.distance || 0) / 1000) * 10) / 10,
+          durationMinutes: Math.max(1, Math.round((leg.duration || 0) / 60)),
+          startPoint: validPoints[idx],
+          endPoint: validPoints[idx + 1],
+          summary: leg.summary || "",
+        }));
+
         const result: RouteResult = {
           coordinates: topRoute.coordinates,
           distanceKm: topRoute.distanceKm,
@@ -203,6 +223,7 @@ class RoutingService {
           remainingDurationMinutes,
           formattedEtaTime,
           alternativeRoutes,
+          legs,
         };
 
         this.routeCache.set(cacheKey, result);
@@ -372,14 +393,24 @@ class RoutingService {
   ): RouteResult {
     const straightCoords = this.createStraightLines(points);
     let totalKm = 0;
+    const legs: RouteLeg[] = [];
 
     for (let i = 0; i < points.length - 1; i++) {
-      totalKm += this.calculateHaversineDistance(
+      const segKm = this.calculateHaversineDistance(
         points[i].latitude,
         points[i].longitude,
         points[i + 1].latitude,
         points[i + 1].longitude
       );
+      totalKm += segKm;
+      const legDist = Math.round(segKm * 10) / 10;
+      const legMin = Math.max(1, Math.round((legDist / 40) * 60));
+      legs.push({
+        distanceKm: legDist,
+        durationMinutes: legMin,
+        startPoint: points[i],
+        endPoint: points[i + 1],
+      });
     }
 
     const distanceKm = Math.round(totalKm * 10) / 10;
@@ -402,6 +433,7 @@ class RoutingService {
       remainingDistanceKm: distanceKm,
       remainingDurationMinutes: trafficInfo.trafficDurationMinutes,
       formattedEtaTime: this.calculateArrivalTime(trafficInfo.trafficDurationMinutes),
+      legs,
     };
   }
 

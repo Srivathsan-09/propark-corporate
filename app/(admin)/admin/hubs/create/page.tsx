@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Car,
   Layers,
+  Navigation,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,22 @@ interface ICampusOption {
   name: string;
   city?: string;
 }
+
+const isValidPoint = (
+  p: { latitude?: number; longitude?: number; address?: string; name?: string } | null | undefined
+): p is { name: string; address: string; latitude: number; longitude: number } => {
+  return Boolean(
+    p &&
+    typeof p.latitude === "number" &&
+    !isNaN(p.latitude) &&
+    Math.abs(p.latitude) > 0.01 &&
+    typeof p.longitude === "number" &&
+    !isNaN(p.longitude) &&
+    Math.abs(p.longitude) > 0.01 &&
+    p.address &&
+    p.address.trim().length > 0
+  );
+};
 
 export default function CreateHubPage() {
   const router = useRouter();
@@ -101,15 +118,16 @@ export default function CreateHubPage() {
 
   // Recalculate route whenever origin, commonPoint, or destination changes
   useEffect(() => {
-    if (!origin || !destination) {
-      setCalculatedRoute(null);
-      return;
-    }
+    const isOriginValid = isValidPoint(origin);
+    const isCommonValid = isValidPoint(commonPoint);
+    const isDestValid = isValidPoint(destination);
 
-    if (
-      Math.abs(origin.latitude - destination.latitude) < 0.0001 &&
-      Math.abs(origin.longitude - destination.longitude) < 0.0001
-    ) {
+    const activeWaypoints: { latitude: number; longitude: number }[] = [];
+    if (isOriginValid) activeWaypoints.push({ latitude: origin.latitude, longitude: origin.longitude });
+    if (isCommonValid) activeWaypoints.push({ latitude: commonPoint.latitude, longitude: commonPoint.longitude });
+    if (isDestValid) activeWaypoints.push({ latitude: destination.latitude, longitude: destination.longitude });
+
+    if (activeWaypoints.length < 2) {
       setCalculatedRoute(null);
       return;
     }
@@ -117,14 +135,8 @@ export default function CreateHubPage() {
     let isMounted = true;
     setIsCalculatingRoute(true);
 
-    const waypoints: { latitude: number; longitude: number }[] = [
-      { latitude: origin.latitude, longitude: origin.longitude },
-      ...(commonPoint ? [{ latitude: commonPoint.latitude, longitude: commonPoint.longitude }] : []),
-      { latitude: destination.latitude, longitude: destination.longitude },
-    ];
-
     routingService
-      .calculateRoute(waypoints)
+      .calculateRoute(activeWaypoints)
       .then((res) => {
         if (isMounted && res) {
           setCalculatedRoute(res);
@@ -139,10 +151,12 @@ export default function CreateHubPage() {
 
     // Auto-fill corridor label if not manually changed
     if (!corridor || corridor.includes("→")) {
-      if (commonPoint) {
+      if (isOriginValid && isCommonValid && isDestValid) {
         setCorridor(`${origin.name} → ${commonPoint.name} → ${destination.name}`);
-      } else {
+      } else if (isOriginValid && isDestValid) {
         setCorridor(`${origin.name} → ${destination.name}`);
+      } else if (isOriginValid && isCommonValid) {
+        setCorridor(`${origin.name} → ${commonPoint.name}`);
       }
     }
 
@@ -152,6 +166,7 @@ export default function CreateHubPage() {
   }, [origin, commonPoint, destination]);
 
   const handleMapClick = (loc: { address: string; latitude: number; longitude: number }) => {
+    if (!loc.latitude || !loc.longitude || Math.abs(loc.latitude) < 0.01 || Math.abs(loc.longitude) < 0.01) return;
     const areaName = loc.address.split(",")[0] || "Selected Point";
     if (pickingTarget === "origin") {
       setOrigin({
@@ -182,8 +197,8 @@ export default function CreateHubPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!origin || !destination) {
-      setErrorMessage("Please define both an Origin and a Destination for this corridor.");
+    if (!isValidPoint(origin) || !isValidPoint(destination)) {
+      setErrorMessage("Please select valid locations for both Origin and Destination.");
       return;
     }
 
@@ -196,6 +211,8 @@ export default function CreateHubPage() {
       setIsSubmitting(true);
       setErrorMessage(null);
 
+      const validCommonPoint = isValidPoint(commonPoint) ? commonPoint : null;
+
       const res = await fetch("/api/commutehub/hubs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -203,11 +220,11 @@ export default function CreateHubPage() {
           name: name.trim(),
           corridor:
             corridor.trim() ||
-            (commonPoint
-              ? `${origin.name} → ${commonPoint.name} → ${destination.name}`
+            (validCommonPoint
+              ? `${origin.name} → ${validCommonPoint.name} → ${destination.name}`
               : `${origin.name} → ${destination.name}`),
           origin,
-          commonPoint: commonPoint || null,
+          commonPoint: validCommonPoint,
           destination,
           campusId: campusId.toUpperCase().trim(),
           status,
@@ -226,6 +243,48 @@ export default function CreateHubPage() {
       setIsSubmitting(false);
     }
   };
+
+  const isOriginValid = isValidPoint(origin);
+  const isCommonValid = isValidPoint(commonPoint);
+  const isDestValid = isValidPoint(destination);
+
+  // Segment distance calculations between consecutive stops
+  let leg1Info: { distanceKm: number; durationMinutes: number } | null = null;
+  let leg2Info: { distanceKm: number; durationMinutes: number } | null = null;
+  let directInfo: { distanceKm: number; durationMinutes: number } | null = null;
+
+  if (calculatedRoute) {
+    if (isOriginValid && isCommonValid && isDestValid) {
+      if (calculatedRoute.legs && calculatedRoute.legs.length >= 2) {
+        leg1Info = calculatedRoute.legs[0];
+        leg2Info = calculatedRoute.legs[1];
+      } else {
+        leg1Info = {
+          distanceKm: Math.round(calculatedRoute.distanceKm * 0.55 * 10) / 10,
+          durationMinutes: Math.max(1, Math.round(calculatedRoute.durationMinutes * 0.55)),
+        };
+        leg2Info = {
+          distanceKm: Math.round((calculatedRoute.distanceKm - leg1Info.distanceKm) * 10) / 10,
+          durationMinutes: Math.max(1, calculatedRoute.durationMinutes - leg1Info.durationMinutes),
+        };
+      }
+    } else if (isOriginValid && isCommonValid && !isDestValid) {
+      leg1Info = {
+        distanceKm: calculatedRoute.distanceKm,
+        durationMinutes: calculatedRoute.durationMinutes,
+      };
+    } else if (!isOriginValid && isCommonValid && isDestValid) {
+      leg2Info = {
+        distanceKm: calculatedRoute.distanceKm,
+        durationMinutes: calculatedRoute.durationMinutes,
+      };
+    } else if (isOriginValid && !isCommonValid && isDestValid) {
+      directInfo = {
+        distanceKm: calculatedRoute.distanceKm,
+        durationMinutes: calculatedRoute.durationMinutes,
+      };
+    }
+  }
 
   return (
     <div className="space-y-3 max-w-7xl mx-auto">
@@ -249,16 +308,24 @@ export default function CreateHubPage() {
         </div>
 
         {calculatedRoute && (
-          <div className="flex items-center gap-3 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-xl px-3 py-1 text-xs">
-            <span className="flex items-center gap-1 font-semibold">
+          <div className="flex flex-wrap items-center gap-2 bg-emerald-50 text-emerald-900 border border-emerald-200/80 rounded-xl px-3 py-1 text-xs">
+            <span className="flex items-center gap-1 font-bold text-slate-900">
               <Route className="h-3.5 w-3.5 text-emerald-600" />
               {calculatedRoute.distanceKm} km
             </span>
-            <span>•</span>
-            <span className="flex items-center gap-1 font-semibold">
+            <span className="text-emerald-300">•</span>
+            <span className="flex items-center gap-1 font-semibold text-emerald-800">
               <Clock className="h-3.5 w-3.5 text-emerald-600" />
               ~{calculatedRoute.durationMinutes} mins
             </span>
+            {leg1Info && leg2Info && (
+              <>
+                <span className="text-emerald-300">•</span>
+                <span className="text-[11px] text-emerald-700">
+                  (Leg 1: <strong>{leg1Info.distanceKm} km</strong>, Leg 2: <strong>{leg2Info.distanceKm} km</strong>)
+                </span>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -287,7 +354,7 @@ export default function CreateHubPage() {
               </div>
             </CardHeader>
 
-            <CardContent className="p-3.5 space-y-2.5 text-xs">
+            <CardContent className="p-3.5 space-y-2 text-xs">
               {/* Row 1: Hub Name & Corridor Label */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
@@ -322,7 +389,7 @@ export default function CreateHubPage() {
               </div>
 
               {/* Row 2: Campus & Initial Status */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center pt-1">
                 <div>
                   <Label htmlFor="campus" className="text-[11px] font-semibold text-slate-700">
                     Associated Campus <span className="text-rose-500">*</span>
@@ -404,16 +471,39 @@ export default function CreateHubPage() {
                 <LocationSearchInput
                   value={origin?.address || ""}
                   placeholder="Search origin (e.g. Poonamallee)..."
-                  onChange={(loc) =>
+                  onChange={(loc) => {
+                    if (!loc.address || !loc.address.trim()) {
+                      setOrigin(null);
+                      return;
+                    }
+                    if (Math.abs(loc.latitude) < 0.01 || Math.abs(loc.longitude) < 0.01) {
+                      return;
+                    }
                     setOrigin({
                       name: loc.address.split(",")[0] || "Origin",
                       address: loc.address,
                       latitude: loc.latitude,
                       longitude: loc.longitude,
-                    })
-                  }
+                    });
+                  }}
                 />
               </div>
+
+              {/* Distance Connector: Origin -> Common Point */}
+              {leg1Info && (
+                <div className="flex items-center justify-between px-3 py-1 bg-emerald-50/90 border border-emerald-200/90 rounded-xl text-emerald-900 text-[11px] font-medium shadow-2xs">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Navigation className="h-3 w-3 text-emerald-600 shrink-0" />
+                    <span className="truncate">
+                      Distance to Common Point (<strong>{commonPoint?.name}</strong>):
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 font-bold text-emerald-700">
+                    <span>{leg1Info.distanceKm} km</span>
+                    <span className="text-emerald-600 font-normal text-[10px]">(~{leg1Info.durationMinutes} mins)</span>
+                  </div>
+                </div>
+              )}
 
               {/* Row 4: Common Point Hub (Intermediate Meeting Point between Origin & Destination) */}
               <div className="space-y-1">
@@ -450,16 +540,39 @@ export default function CreateHubPage() {
                 <LocationSearchInput
                   value={commonPoint?.address || ""}
                   placeholder="Assign common hub stop (e.g. Maduravoyal, Kattupakkam)..."
-                  onChange={(loc) =>
+                  onChange={(loc) => {
+                    if (!loc.address || !loc.address.trim()) {
+                      setCommonPoint(null);
+                      return;
+                    }
+                    if (Math.abs(loc.latitude) < 0.01 || Math.abs(loc.longitude) < 0.01) {
+                      return;
+                    }
                     setCommonPoint({
                       name: loc.address.split(",")[0] || "Common Point Hub",
                       address: loc.address,
                       latitude: loc.latitude,
                       longitude: loc.longitude,
-                    })
-                  }
+                    });
+                  }}
                 />
               </div>
+
+              {/* Distance Connector: Common Point -> Destination */}
+              {leg2Info && (
+                <div className="flex items-center justify-between px-3 py-1 bg-amber-50/90 border border-amber-200/90 rounded-xl text-amber-950 text-[11px] font-medium shadow-2xs">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Navigation className="h-3 w-3 text-amber-600 shrink-0" />
+                    <span className="truncate">
+                      Distance to Destination (<strong>{destination?.name}</strong>):
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 font-bold text-amber-800">
+                    <span>{leg2Info.distanceKm} km</span>
+                    <span className="text-amber-700 font-normal text-[10px]">(~{leg2Info.durationMinutes} mins)</span>
+                  </div>
+                </div>
+              )}
 
               {/* Row 5: Destination Search */}
               <div className="space-y-1">
@@ -485,22 +598,43 @@ export default function CreateHubPage() {
                 <LocationSearchInput
                   value={destination?.address || ""}
                   placeholder="Search destination (e.g. Porur, DLF IT Park)..."
-                  onChange={(loc) =>
+                  onChange={(loc) => {
+                    if (!loc.address || !loc.address.trim()) {
+                      setDestination(null);
+                      return;
+                    }
+                    if (Math.abs(loc.latitude) < 0.01 || Math.abs(loc.longitude) < 0.01) {
+                      return;
+                    }
                     setDestination({
                       name: loc.address.split(",")[0] || "Destination",
                       address: loc.address,
                       latitude: loc.latitude,
                       longitude: loc.longitude,
-                    })
-                  }
+                    });
+                  }}
                 />
               </div>
+
+              {/* Distance Connector: Direct Corridor (Origin -> Destination without Common Point) */}
+              {directInfo && (
+                <div className="flex items-center justify-between px-3 py-1 bg-blue-50/90 border border-blue-200/90 rounded-xl text-blue-950 text-[11px] font-medium shadow-2xs">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Navigation className="h-3 w-3 text-blue-600 shrink-0" />
+                    <span className="truncate">Direct Corridor Distance:</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 font-bold text-blue-700">
+                    <span>{directInfo.distanceKm} km</span>
+                    <span className="text-blue-600 font-normal text-[10px]">(~{directInfo.durationMinutes} mins)</span>
+                  </div>
+                </div>
+              )}
 
               {/* Submit Button */}
               <div className="pt-2">
                 <Button
                   type="submit"
-                  disabled={isSubmitting || !origin || !destination || !name}
+                  disabled={isSubmitting || !isOriginValid || !isDestValid || !name.trim()}
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold h-9 shadow-sm text-xs"
                 >
                   {isSubmitting ? "Creating Hub Corridor..." : "Create Hub Corridor"}
@@ -522,32 +656,55 @@ export default function CreateHubPage() {
                 <CardDescription className="text-[10px] text-slate-500">
                   {pickingTarget
                     ? `Click map to set ${pickingTarget.toUpperCase()}`
-                    : commonPoint
-                    ? `Route: ${origin?.name || "Origin"} → ${commonPoint.name} (Common Point Hub) → ${destination?.name || "Destination"}`
-                    : "Live preview of road route connecting origin to destination"}
+                    : isOriginValid && isCommonValid && isDestValid && leg1Info && leg2Info
+                    ? `Total: ${calculatedRoute?.distanceKm} km • Leg 1 (${origin?.name} → ${commonPoint?.name}): ${leg1Info.distanceKm} km • Leg 2 (${commonPoint?.name} → ${destination?.name}): ${leg2Info.distanceKm} km`
+                    : isOriginValid && isCommonValid
+                    ? `Route: ${origin?.name} → ${commonPoint?.name} (Common Point Hub) • ${leg1Info?.distanceKm || calculatedRoute?.distanceKm} km (~${leg1Info?.durationMinutes || calculatedRoute?.durationMinutes} mins)`
+                    : isOriginValid && isDestValid
+                    ? `Route: ${origin?.name} → ${destination?.name} • ${calculatedRoute?.distanceKm} km (~${calculatedRoute?.durationMinutes} mins)`
+                    : "Live preview of road route connecting corridor stops"}
                 </CardDescription>
               </div>
 
-              {isCalculatingRoute && (
-                <Badge variant="outline" className="text-[10px] text-emerald-700 animate-pulse">
-                  Calculating route...
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {isCalculatingRoute && (
+                  <Badge variant="outline" className="text-[10px] text-emerald-700 animate-pulse">
+                    Calculating route...
+                  </Badge>
+                )}
+                {calculatedRoute && (
+                  <div className="flex items-center gap-1.5">
+                    <Badge className="bg-slate-900 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                      <Route className="h-3 w-3 text-emerald-400" />
+                      {calculatedRoute.distanceKm} km
+                    </Badge>
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[11px] font-semibold px-2 py-0.5 rounded-lg">
+                      ~{calculatedRoute.durationMinutes} mins
+                    </Badge>
+                  </div>
+                )}
+              </div>
             </CardHeader>
 
             <CardContent className="p-0 relative">
               <LeafletRouteMap
                 startLocation={
-                  origin
+                  isOriginValid
                     ? {
                         name: origin.name,
                         latitude: origin.latitude,
                         longitude: origin.longitude,
                       }
+                    : isCommonValid
+                    ? {
+                        name: commonPoint.name,
+                        latitude: commonPoint.latitude,
+                        longitude: commonPoint.longitude,
+                      }
                     : null
                 }
                 destination={
-                  destination
+                  isDestValid
                     ? {
                         name: destination.name,
                         latitude: destination.latitude,
@@ -556,7 +713,7 @@ export default function CreateHubPage() {
                     : null
                 }
                 stops={
-                  commonPoint
+                  isCommonValid
                     ? [
                         {
                           name: commonPoint.name,

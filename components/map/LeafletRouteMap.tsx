@@ -675,32 +675,48 @@ export default function LeafletRouteMap({
           !isRecalculatedRoute &&
           startLocation &&
           typeof startLocation.latitude === "number" &&
-          startLocation.latitude !== 0 &&
-          typeof startLocation.longitude === "number"
+          Math.abs(startLocation.latitude) > 0.01 &&
+          typeof startLocation.longitude === "number" &&
+          Math.abs(startLocation.longitude) > 0.01
         ) {
-          // Standard initial route: snap to startLocation
+          // Standard initial route: snap to startLocation if within reasonable vicinity (~2km)
           const first = activeCoords[0];
           const distStart = Math.hypot(first[0] - startLocation.latitude, first[1] - startLocation.longitude);
-          if (distStart > 0.00005 && distStart <= 0.0008) {
+          if (distStart > 0.00005 && distStart <= 0.02) {
             connectedCoords.unshift([startLocation.latitude, startLocation.longitude]);
           }
         }
 
-        if (
-          destination &&
-          typeof destination.latitude === "number" &&
-          destination.latitude !== 0 &&
-          typeof destination.longitude === "number"
-        ) {
+        const endPoint =
+          destination && Math.abs(destination.latitude) > 0.01
+            ? destination
+            : stops.length > 0 && Math.abs(stops[stops.length - 1].latitude) > 0.01
+            ? stops[stops.length - 1]
+            : null;
+
+        if (endPoint && typeof endPoint.latitude === "number" && typeof endPoint.longitude === "number") {
           const last = activeCoords[activeCoords.length - 1];
-          const distEnd = Math.hypot(last[0] - destination.latitude, last[1] - destination.longitude);
-          if (distEnd > 0.00005 && distEnd <= 0.0008) {
-            connectedCoords.push([destination.latitude, destination.longitude]);
+          const distEnd = Math.hypot(last[0] - endPoint.latitude, last[1] - endPoint.longitude);
+          if (distEnd > 0.00005 && distEnd <= 0.02) {
+            connectedCoords.push([endPoint.latitude, endPoint.longitude]);
           }
         }
 
+        // Strictly filter out any rogue or Null Island (0, 0) coordinates
+        const safeCoords = connectedCoords.filter(
+          ([lat, lng]) =>
+            typeof lat === "number" &&
+            !isNaN(lat) &&
+            Math.abs(lat) > 0.01 &&
+            typeof lng === "number" &&
+            !isNaN(lng) &&
+            Math.abs(lng) > 0.01
+        );
+
+        if (safeCoords.length < 2) return;
+
         // Crisp white casing outline for Google Maps style
-        const casing = L.polyline(connectedCoords, {
+        const casing = L.polyline(safeCoords, {
           color: "#FFFFFF",
           weight: 9,
           opacity: 0.95,
@@ -709,7 +725,7 @@ export default function LeafletRouteMap({
         });
 
         // Google Maps Navigation Blue core road line
-        const polyline = L.polyline(connectedCoords, {
+        const polyline = L.polyline(safeCoords, {
           color: "#1A73E8",
           weight: 6,
           opacity: 1.0,
@@ -719,7 +735,7 @@ export default function LeafletRouteMap({
 
         routeLayerGroupRef.current.addLayer(casing);
         routeLayerGroupRef.current.addLayer(polyline);
-        connectedCoords.forEach((pt) => boundsPoints.push(pt));
+        safeCoords.forEach((pt) => boundsPoints.push(pt));
       }
     };
 

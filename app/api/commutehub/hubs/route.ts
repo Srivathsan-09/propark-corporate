@@ -211,10 +211,14 @@ export async function POST(req: NextRequest) {
     let durationMinutes = 0;
 
     const hasCommonPoint =
-      commonPoint &&
-      commonPoint.name &&
-      typeof commonPoint.latitude === "number" &&
-      typeof commonPoint.longitude === "number";
+      Boolean(
+        commonPoint &&
+        commonPoint.name &&
+        typeof commonPoint.latitude === "number" &&
+        Math.abs(commonPoint.latitude) > 0.01 &&
+        typeof commonPoint.longitude === "number" &&
+        Math.abs(commonPoint.longitude) > 0.01
+      );
 
     const waypoints = [
       { latitude: origin.latitude, longitude: origin.longitude },

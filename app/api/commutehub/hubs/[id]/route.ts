@@ -161,7 +161,11 @@ export async function PATCH(
 
       const waypoints = [
         { latitude: activeOrigin.latitude, longitude: activeOrigin.longitude },
-        ...(activeCommonPoint && typeof activeCommonPoint.latitude === "number"
+        ...(activeCommonPoint &&
+        typeof activeCommonPoint.latitude === "number" &&
+        Math.abs(activeCommonPoint.latitude) > 0.01 &&
+        typeof activeCommonPoint.longitude === "number" &&
+        Math.abs(activeCommonPoint.longitude) > 0.01
           ? [{ latitude: activeCommonPoint.latitude, longitude: activeCommonPoint.longitude }]
           : []),
         { latitude: activeDest.latitude, longitude: activeDest.longitude },
