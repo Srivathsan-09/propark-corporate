@@ -111,30 +111,29 @@ export default function AdminHubRidesPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Link href="/admin/hubs">
-              <Button variant="ghost" size="sm" className="h-8 gap-1 text-slate-600 hover:text-slate-900 rounded-xl text-xs px-2">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back to Dashboard
-              </Button>
-            </Link>
+    <div className="space-y-3 max-w-7xl mx-auto">
+      {/* Compact Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
+        <div className="flex items-center gap-2.5">
+          <Link href="/admin/hubs">
+            <Button variant="outline" size="sm" className="rounded-xl h-8 w-8 p-0 border-slate-200 text-slate-600 hover:text-slate-900 shadow-2xs">
+              <ArrowLeft className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-base font-bold tracking-tight text-slate-900 flex items-center gap-1.5 leading-tight">
+              <Car className="h-4 w-4 text-emerald-600" />
+              CommuteHub Corridor Rides
+            </h1>
+            <p className="text-[11px] text-slate-500">
+              Monitor and manage employee carpooling rides scheduled across virtual corridors
+            </p>
           </div>
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <Car className="h-6 w-6 text-emerald-600" />
-            CommuteHub Corridor Rides
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Monitor and manage employee carpooling rides scheduled exclusively across virtual corridor hubs
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Link href="/admin/hubs/create">
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs gap-1.5 shadow-sm">
+            <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs gap-1.5 shadow-2xs font-semibold">
               <Route className="h-3.5 w-3.5" />
               New Hub Corridor
             </Button>

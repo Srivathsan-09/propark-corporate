@@ -179,32 +179,31 @@ export default function HubDetailsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="space-y-3.5 max-w-7xl mx-auto">
+      {/* Compact Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
         <div>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-0.5">
             <Link href="/admin/hubs">
-              <Button variant="ghost" size="sm" className="h-8 gap-1 text-slate-600 hover:text-slate-900 rounded-xl text-xs px-2">
+              <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-slate-600 hover:text-slate-900 rounded-xl text-xs">
                 <ArrowLeft className="h-3.5 w-3.5" />
-                Hubs Directory
               </Button>
             </Link>
             <span className="text-slate-300">/</span>
-            <Badge variant="outline" className="font-mono text-[10px]">
+            <Badge variant="outline" className="font-mono text-[9px]">
               {hub.hubId}
             </Badge>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-base font-bold tracking-tight text-slate-900 leading-tight">
               {hub.name}
             </h1>
             <Badge
               className={
                 hub.status === "active"
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs"
-                  : "bg-slate-100 text-slate-600 border-slate-200 text-xs"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]"
+                  : "bg-slate-100 text-slate-600 border-slate-200 text-[10px]"
               }
               variant="outline"
             >

@@ -100,36 +100,35 @@ export default function AdminMultiHubMapPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Link href="/admin/hubs">
-              <Button variant="ghost" size="sm" className="h-8 gap-1 text-slate-600 hover:text-slate-900 rounded-xl text-xs px-2">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back to Dashboard
-              </Button>
-            </Link>
+    <div className="space-y-3 max-w-7xl mx-auto">
+      {/* Compact Header Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
+        <div className="flex items-center gap-2.5">
+          <Link href="/admin/hubs">
+            <Button variant="outline" size="sm" className="rounded-xl h-8 w-8 p-0 border-slate-200 text-slate-600 hover:text-slate-900 shadow-2xs">
+              <ArrowLeft className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-base font-bold tracking-tight text-slate-900 flex items-center gap-1.5 leading-tight">
+              <MapIcon className="h-4 w-4 text-emerald-600" />
+              Global Multi-Hub Corridor Map
+            </h1>
+            <p className="text-[11px] text-slate-500">
+              Bird’s-eye geographic visualization of all active corporate commuting corridors
+            </p>
           </div>
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <MapIcon className="h-6 w-6 text-emerald-600" />
-            Global Multi-Hub Corridor Map
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Geographic bird’s-eye visualization of all active corporate commuting corridors
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Link href="/admin/hubs/create">
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs gap-1.5 shadow-sm">
+            <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs gap-1.5 shadow-sm font-semibold">
               <Plus className="h-3.5 w-3.5" />
               Create Hub
             </Button>
           </Link>
           <Link href="/admin/hubs/manage">
-            <Button variant="outline" size="sm" className="rounded-xl text-xs gap-1.5 border-slate-200">
+            <Button variant="outline" size="sm" className="h-8 rounded-xl text-xs gap-1.5 border-slate-200 text-slate-700">
               <Layers className="h-3.5 w-3.5" />
               Directory
             </Button>
@@ -137,29 +136,31 @@ export default function AdminMultiHubMapPage() {
         </div>
       </div>
 
-      {/* Main Grid: Map (8 cols) + Corridor Selector (4 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Main Single-Screen Grid: Directory (4 cols) + Map (8 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
         {/* Left Column: Corridor Selector & Filters */}
-        <div className="lg:col-span-4 space-y-4">
-          <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
-            <CardHeader className="p-4 border-b border-slate-100">
-              <CardTitle className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                <span>Corridor Directory</span>
-                <Badge variant="outline" className="text-[10px] text-emerald-700">
+        <div className="lg:col-span-4">
+          <Card className="rounded-2xl border-slate-200 bg-white shadow-xs overflow-hidden h-[490px] flex flex-col">
+            <CardHeader className="p-3.5 pb-2 border-b border-slate-100 shrink-0">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xs font-bold text-slate-900">
+                  Corridor Directory
+                </CardTitle>
+                <Badge variant="outline" className="text-[10px] text-emerald-700 bg-emerald-50 border-emerald-200">
                   {filteredHubs.length} Hubs
                 </Badge>
-              </CardTitle>
+              </div>
               <CardDescription className="text-[11px] text-slate-500">
-                Select a corridor below to highlight and zoom into its road route
+                Click a corridor to highlight on map
               </CardDescription>
 
               {/* Campus filter for super admin */}
               {isSuperAdmin && campuses.length > 0 && (
-                <div className="mt-3">
+                <div className="mt-2">
                   <select
                     value={selectedCampus}
                     onChange={(e) => setSelectedCampus(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 shadow-xs focus:border-emerald-500 focus:outline-hidden"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 shadow-2xs focus:border-emerald-500 focus:outline-hidden h-8"
                   >
                     <option value="all">All Campuses</option>
                     {campuses.map((c) => (
@@ -173,18 +174,19 @@ export default function AdminMultiHubMapPage() {
 
               {/* Search Box */}
               <div className="relative mt-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                 <Input
                   type="text"
                   placeholder="Filter corridors..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-8 rounded-xl text-xs border-slate-200"
+                  className="pl-7.5 h-8 rounded-xl text-xs border-slate-200"
                 />
               </div>
             </CardHeader>
 
-            <CardContent className="p-2 max-h-[500px] overflow-y-auto space-y-1.5">
+            {/* Scrollable list inside the fixed height card */}
+            <CardContent className="p-2 flex-1 overflow-y-auto space-y-1.5">
               {filteredHubs.length === 0 ? (
                 <div className="p-6 text-center text-xs text-slate-400">
                   No corridors match your filter.
@@ -196,34 +198,34 @@ export default function AdminMultiHubMapPage() {
                     <div
                       key={hub._id}
                       onClick={() => setSelectedHubId(isSelected ? null : hub._id)}
-                      className={`cursor-pointer rounded-xl p-3 border text-xs transition-all ${
+                      className={`cursor-pointer rounded-xl p-2.5 border text-xs transition-all ${
                         isSelected
-                          ? "border-emerald-500 bg-emerald-50/60 shadow-xs"
+                          ? "border-emerald-500 bg-emerald-50/60 shadow-2xs"
                           : "border-slate-100 hover:border-slate-200 hover:bg-slate-50/80"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className="font-bold text-slate-900">{hub.name}</span>
+                        <span className="font-bold text-slate-900 truncate">{hub.name}</span>
                         <Badge
                           variant="outline"
                           className={
                             hub.status === "active"
-                              ? "text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "text-[9px] bg-slate-100 text-slate-600 border-slate-200"
+                              ? "text-[9px] bg-emerald-50 text-emerald-700 border-emerald-200 shrink-0"
+                              : "text-[9px] bg-slate-100 text-slate-600 border-slate-200 shrink-0"
                           }
                         >
                           {hub.status}
                         </Badge>
                       </div>
 
-                      <p className="text-[11px] text-slate-600 mt-1 flex items-center gap-1">
+                      <p className="text-[11px] text-slate-600 mt-1 flex items-center gap-1 truncate">
                         <span>{hub.origin.name}</span>
                         <span className="text-slate-400">&rarr;</span>
                         <span>{hub.destination.name}</span>
                       </p>
 
-                      <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2 border-t border-slate-100/80 pt-1.5">
-                        <span>{hub.distanceKm} km (~{hub.durationMinutes} mins)</span>
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1.5 border-t border-slate-100/80 pt-1">
+                        <span>{hub.distanceKm} km (~{hub.durationMinutes}m)</span>
                         <span className="font-medium text-emerald-700">
                           {hub.activeRidesCount || 0} rides
                         </span>
@@ -242,7 +244,7 @@ export default function AdminMultiHubMapPage() {
             hubs={filteredHubs}
             selectedHubId={selectedHubId}
             onSelectHub={(hub) => setSelectedHubId(hub ? hub._id : null)}
-            height="620px"
+            height="490px"
             viewMode="admin"
           />
         </div>

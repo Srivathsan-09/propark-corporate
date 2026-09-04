@@ -316,7 +316,7 @@ export default function MultiHubMap({
       </div>
 
       {/* Map Canvas */}
-      <div ref={mapContainerRef} style={{ height, width: "100%", minHeight: "450px" }} />
+      <div ref={mapContainerRef} style={{ height, width: "100%", minHeight: "360px" }} />
 
       {/* Selected Hub Floating Drawer / Bottom Card */}
       {activeHub && (

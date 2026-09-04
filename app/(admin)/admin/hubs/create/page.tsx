@@ -59,13 +59,13 @@ export default function CreateHubPage() {
     longitude: number;
   } | null>(null);
 
-  const [campusId, setCampusId] = useState("");
+  const [campusId, setCampusId] = useState<string>("");
   const [campuses, setCampuses] = useState<ICampusOption[]>([]);
   const [status, setStatus] = useState<"active" | "inactive">("active");
 
-  // Route calculation state
-  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+  // Calculated route geometry
   const [calculatedRoute, setCalculatedRoute] = useState<RouteResult | null>(null);
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
 
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -138,58 +138,43 @@ export default function CreateHubPage() {
     };
   }, [origin, destination]);
 
-  // Handle map click picking
-  const handleMapClick = (location: { address: string; latitude: number; longitude: number }) => {
-    const locObj = {
-      name: location.address.split(",")[0] || "Selected Location",
-      address: location.address,
-      latitude: location.latitude,
-      longitude: location.longitude,
-    };
-
+  const handleMapClick = (loc: { address: string; latitude: number; longitude: number }) => {
+    const areaName = loc.address.split(",")[0] || "Selected Point";
     if (pickingTarget === "origin") {
-      setOrigin(locObj);
+      setOrigin({
+        name: areaName,
+        address: loc.address,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+      });
       setPickingTarget(null);
     } else if (pickingTarget === "destination") {
-      setDestination(locObj);
+      setDestination({
+        name: areaName,
+        address: loc.address,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+      });
       setPickingTarget(null);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage(null);
+    if (!origin || !destination) {
+      setErrorMessage("Please define both an Origin and a Destination for this corridor.");
+      return;
+    }
 
     if (!name.trim()) {
-      setErrorMessage("Please provide a Hub Name (e.g. 'Hub 1').");
+      setErrorMessage("Please provide a name for the hub corridor.");
       return;
     }
 
-    if (!origin) {
-      setErrorMessage("Please select a valid origin for this commuting corridor.");
-      return;
-    }
-
-    if (!destination) {
-      setErrorMessage("Please select a valid destination for this commuting corridor.");
-      return;
-    }
-
-    if (
-      Math.abs(origin.latitude - destination.latitude) < 0.0001 &&
-      Math.abs(origin.longitude - destination.longitude) < 0.0001
-    ) {
-      setErrorMessage("Origin and Destination cannot be at the exact same location.");
-      return;
-    }
-
-    if (!campusId) {
-      setErrorMessage("Please select or assign a campus.");
-      return;
-    }
-
-    setIsSubmitting(true);
     try {
+      setIsSubmitting(true);
+      setErrorMessage(null);
+
       const res = await fetch("/api/commutehub/hubs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -217,165 +202,163 @@ export default function CreateHubPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in-50 duration-300 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
-        <div className="flex items-center gap-3">
+    <div className="space-y-3 max-w-7xl mx-auto">
+      {/* Compact Top Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
+        <div className="flex items-center gap-2.5">
           <Link href="/admin/hubs">
-            <Button variant="outline" size="sm" className="rounded-xl h-9 w-9 p-0 border-slate-200 text-slate-600">
-              <ArrowLeft className="h-4 w-4" />
+            <Button variant="outline" size="sm" className="rounded-xl h-8 w-8 p-0 border-slate-200 text-slate-600 hover:text-slate-900 shadow-2xs">
+              <ArrowLeft className="h-3.5 w-3.5" />
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              <Compass className="h-6 w-6 text-emerald-600" />
+            <h1 className="text-base font-bold tracking-tight text-slate-900 flex items-center gap-1.5 leading-tight">
+              <Compass className="h-4 w-4 text-emerald-600" />
               Create Commuting Hub
             </h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Define a new fixed-route corridor hub for employees to share rides.
+            <p className="text-[11px] text-slate-500">
+              Define a new fixed-route corridor hub for employees to share rides
             </p>
           </div>
         </div>
+
+        {calculatedRoute && (
+          <div className="flex items-center gap-3 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-xl px-3 py-1 text-xs">
+            <span className="flex items-center gap-1 font-semibold">
+              <Route className="h-3.5 w-3.5 text-emerald-600" />
+              {calculatedRoute.distanceKm} km
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1 font-semibold">
+              <Clock className="h-3.5 w-3.5 text-emerald-600" />
+              ~{calculatedRoute.durationMinutes} mins
+            </span>
+          </div>
+        )}
       </div>
 
       {errorMessage && (
-        <div className="rounded-2xl bg-rose-50 border border-rose-200 p-4 text-xs font-semibold text-rose-800 flex items-center gap-2.5">
+        <div className="rounded-xl bg-rose-50 border border-rose-200 p-2.5 text-xs font-semibold text-rose-800 flex items-center gap-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Form Fields */}
-        <div className="lg:col-span-5 space-y-5">
-          <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
-            <CardHeader className="p-5 pb-3 border-b border-slate-100">
-              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Layers className="h-4 w-4 text-slate-500" />
-                Hub Information
-              </CardTitle>
-              <CardDescription className="text-xs text-slate-500">
-                Identify the hub and its associated corridor
-              </CardDescription>
+      {/* Main Single-Screen Grid */}
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
+        {/* Left Column: Compact Form Card */}
+        <div className="lg:col-span-5">
+          <Card className="rounded-2xl border-slate-200 bg-white shadow-xs overflow-hidden">
+            <CardHeader className="p-3.5 pb-2.5 border-b border-slate-100 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5 text-emerald-600" />
+                  Corridor Configuration
+                </CardTitle>
+                <CardDescription className="text-[11px] text-slate-500">
+                  Set corridor route name, endpoints, and campus
+                </CardDescription>
+              </div>
             </CardHeader>
 
-            <CardContent className="p-5 space-y-4">
-              {/* Hub Name */}
-              <div className="space-y-1.5">
-                <Label htmlFor="hubName" className="text-xs font-semibold text-slate-700">
-                  Hub Name <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  id="hubName"
-                  type="text"
-                  placeholder="e.g. Hub 1, Hub 2, Tambaram Fast Hub"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="rounded-xl text-xs h-9 border-slate-200 font-medium"
-                  required
-                />
-              </div>
-
-              {/* Corridor Label */}
-              <div className="space-y-1.5">
-                <Label htmlFor="corridor" className="text-xs font-semibold text-slate-700">
-                  Corridor Label <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  id="corridor"
-                  type="text"
-                  placeholder="e.g. Poonamallee → Porur"
-                  value={corridor}
-                  onChange={(e) => setCorridor(e.target.value)}
-                  className="rounded-xl text-xs h-9 border-slate-200 font-medium"
-                  required
-                />
-                <p className="text-[11px] text-slate-400">
-                  Visible to employees when selecting rides along this corridor.
-                </p>
-              </div>
-
-              {/* Campus Selector */}
-              <div className="space-y-1.5">
-                <Label htmlFor="campus" className="text-xs font-semibold text-slate-700">
-                  Associated Campus <span className="text-rose-500">*</span>
-                </Label>
-                {isSuperAdmin ? (
-                  <select
-                    id="campus"
-                    value={campusId}
-                    onChange={(e) => setCampusId(e.target.value)}
-                    className="w-full text-xs font-medium px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 h-9"
+            <CardContent className="p-3.5 space-y-2.5 text-xs">
+              {/* Row 1: Hub Name & Corridor Label */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <Label htmlFor="hubName" className="text-[11px] font-semibold text-slate-700">
+                    Hub Name <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    id="hubName"
+                    type="text"
+                    placeholder="e.g. Hub 1, Porur Fast Hub"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="mt-1 rounded-xl text-xs h-8 border-slate-200 font-medium"
                     required
-                  >
-                    {campuses.map((c) => (
-                      <option key={c.campusId} value={c.campusId}>
-                        {c.name} ({c.campusId})
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="flex items-center gap-2 rounded-xl bg-slate-50 p-2.5 border border-slate-200 text-xs text-slate-700 font-medium">
-                    <Building2 className="h-4 w-4 text-slate-400" />
-                    <span>{session?.user?.campusName || "Your Campus"}</span>
-                    <Badge variant="outline" className="text-[10px] ml-auto">
-                      {session?.user?.campusId}
-                    </Badge>
-                  </div>
-                )}
-              </div>
+                  />
+                </div>
 
-              {/* Status */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">
-                  Initial Status
-                </Label>
-                <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-medium text-slate-600">
-                  <button
-                    type="button"
-                    onClick={() => setStatus("active")}
-                    className={`flex-1 rounded-lg py-1.5 transition-all text-center ${
-                      status === "active"
-                        ? "bg-white text-emerald-800 shadow-xs font-bold"
-                        : "hover:text-slate-900"
-                    }`}
-                  >
-                    Active
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatus("inactive")}
-                    className={`flex-1 rounded-lg py-1.5 transition-all text-center ${
-                      status === "inactive"
-                        ? "bg-white text-slate-800 shadow-xs font-bold"
-                        : "hover:text-slate-900"
-                    }`}
-                  >
-                    Inactive
-                  </button>
+                <div>
+                  <Label htmlFor="corridor" className="text-[11px] font-semibold text-slate-700">
+                    Corridor Label <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    id="corridor"
+                    type="text"
+                    placeholder="e.g. Poonamallee → Porur"
+                    value={corridor}
+                    onChange={(e) => setCorridor(e.target.value)}
+                    className="mt-1 rounded-xl text-xs h-8 border-slate-200 font-medium"
+                    required
+                  />
                 </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Location Selectors Card */}
-          <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
-            <CardHeader className="p-5 pb-3 border-b border-slate-100">
-              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-emerald-600" />
-                Origin & Destination
-              </CardTitle>
-              <CardDescription className="text-xs text-slate-500">
-                Search locations or click on the map to pick coordinates
-              </CardDescription>
-            </CardHeader>
+              {/* Row 2: Campus & Initial Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                <div>
+                  <Label htmlFor="campus" className="text-[11px] font-semibold text-slate-700">
+                    Associated Campus <span className="text-rose-500">*</span>
+                  </Label>
+                  {isSuperAdmin ? (
+                    <select
+                      id="campus"
+                      value={campusId}
+                      onChange={(e) => setCampusId(e.target.value)}
+                      className="mt-1 w-full text-xs font-medium px-2.5 py-1 rounded-xl border border-slate-200 bg-white text-slate-700 h-8 shadow-2xs focus:border-emerald-500 focus:outline-hidden"
+                      required
+                    >
+                      {campuses.map((c) => (
+                        <option key={c.campusId} value={c.campusId}>
+                          {c.name} ({c.campusId})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="mt-1 flex items-center gap-1.5 rounded-xl bg-slate-50 px-2.5 py-1 border border-slate-200 text-xs text-slate-700 font-medium h-8">
+                      <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{session?.user?.campusName || "Your Campus"}</span>
+                    </div>
+                  )}
+                </div>
 
-            <CardContent className="p-5 space-y-4">
-              {/* Origin Search */}
-              <div className="space-y-1.5">
+                <div>
+                  <Label className="text-[11px] font-semibold text-slate-700">
+                    Initial Status
+                  </Label>
+                  <div className="mt-1 flex rounded-xl bg-slate-100 p-0.5 text-xs font-medium text-slate-600 h-8 items-center">
+                    <button
+                      type="button"
+                      onClick={() => setStatus("active")}
+                      className={`flex-1 rounded-lg py-1 transition-all text-center text-xs ${
+                        status === "active"
+                          ? "bg-white text-emerald-800 shadow-xs font-bold"
+                          : "hover:text-slate-900"
+                      }`}
+                    >
+                      Active
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatus("inactive")}
+                      className={`flex-1 rounded-lg py-1 transition-all text-center text-xs ${
+                        status === "inactive"
+                          ? "bg-white text-slate-800 shadow-xs font-bold"
+                          : "hover:text-slate-900"
+                      }`}
+                    >
+                      Inactive
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 3: Origin Search */}
+              <div className="border-t border-slate-100 pt-2 space-y-1">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                  <Label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-600 shrink-0" />
                     Origin / Starting Point <span className="text-rose-500">*</span>
                   </Label>
                   <Button
@@ -383,7 +366,7 @@ export default function CreateHubPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setPickingTarget(pickingTarget === "origin" ? null : "origin")}
-                    className={`text-[11px] h-6 px-2 rounded-lg font-semibold ${
+                    className={`text-[10px] h-5 px-1.5 rounded-md font-semibold ${
                       pickingTarget === "origin"
                         ? "bg-emerald-100 text-emerald-800"
                         : "text-slate-500 hover:text-slate-800"
@@ -394,7 +377,7 @@ export default function CreateHubPage() {
                 </div>
                 <LocationSearchInput
                   value={origin?.address || ""}
-                  placeholder="Search starting area (e.g. Poonamallee)..."
+                  placeholder="Search origin (e.g. Poonamallee)..."
                   onChange={(loc) =>
                     setOrigin({
                       name: loc.address.split(",")[0] || "Origin",
@@ -406,11 +389,11 @@ export default function CreateHubPage() {
                 />
               </div>
 
-              {/* Destination Search */}
-              <div className="space-y-1.5">
+              {/* Row 4: Destination Search */}
+              <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-rose-600" />
+                  <Label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-red-600 shrink-0" />
                     Destination Point <span className="text-rose-500">*</span>
                   </Label>
                   <Button
@@ -418,7 +401,7 @@ export default function CreateHubPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setPickingTarget(pickingTarget === "destination" ? null : "destination")}
-                    className={`text-[11px] h-6 px-2 rounded-lg font-semibold ${
+                    className={`text-[10px] h-5 px-1.5 rounded-md font-semibold ${
                       pickingTarget === "destination"
                         ? "bg-rose-100 text-rose-800"
                         : "text-slate-500 hover:text-slate-800"
@@ -441,52 +424,38 @@ export default function CreateHubPage() {
                 />
               </div>
 
-              {/* Calculated Stats Ribbon */}
-              {calculatedRoute && (
-                <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-3 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <Route className="h-4 w-4 text-emerald-600" />
-                    <span className="text-slate-600">Distance:</span>
-                    <strong className="text-slate-900 font-bold">{calculatedRoute.distanceKm} km</strong>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-indigo-600" />
-                    <span className="text-slate-600">Est. Time:</span>
-                    <strong className="text-slate-900 font-bold">~{calculatedRoute.durationMinutes} mins</strong>
-                  </div>
-                </div>
-              )}
+              {/* Submit Button */}
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !origin || !destination || !name}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold h-9 shadow-sm text-xs"
+                >
+                  {isSubmitting ? "Creating Hub Corridor..." : "Create Hub Corridor"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
-
-          {/* Submit Button */}
-          <Button
-            type="submit"
-            disabled={isSubmitting || !origin || !destination || !name}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold py-2.5 shadow-sm text-xs"
-          >
-            {isSubmitting ? "Creating Hub Corridor..." : "Create Hub"}
-          </Button>
         </div>
 
         {/* Right Column: Interactive Map Preview */}
-        <div className="lg:col-span-7 space-y-4">
-          <Card className="rounded-2xl border-slate-200 bg-white shadow-xs overflow-hidden sticky top-24">
-            <CardHeader className="p-4 border-b border-slate-100 flex flex-row items-center justify-between">
+        <div className="lg:col-span-7">
+          <Card className="rounded-2xl border-slate-200 bg-white shadow-xs overflow-hidden">
+            <CardHeader className="p-3 border-b border-slate-100 flex flex-row items-center justify-between">
               <div>
-                <CardTitle className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                  <Route className="h-4 w-4 text-emerald-600" />
+                <CardTitle className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Route className="h-3.5 w-3.5 text-emerald-600" />
                   Corridor Map Preview
                 </CardTitle>
-                <CardDescription className="text-[11px] text-slate-500">
+                <CardDescription className="text-[10px] text-slate-500">
                   {pickingTarget
-                    ? `Click anywhere on the map to set ${pickingTarget}`
-                    : "Live preview of the corridor connecting origin to destination"}
+                    ? `Click map to set ${pickingTarget.toUpperCase()}`
+                    : "Live preview of road route connecting origin to destination"}
                 </CardDescription>
               </div>
 
               {isCalculatingRoute && (
-                <Badge variant="outline" className="text-[10px] text-emerald-700 animate-pulse gap-1">
+                <Badge variant="outline" className="text-[10px] text-emerald-700 animate-pulse">
                   Calculating route...
                 </Badge>
               )}
@@ -520,7 +489,7 @@ export default function CreateHubPage() {
                   pickingTarget ? `Click map to set ${pickingTarget.toUpperCase()}` : undefined
                 }
                 onMapClick={handleMapClick}
-                height="500px"
+                height="460px"
               />
             </CardContent>
           </Card>

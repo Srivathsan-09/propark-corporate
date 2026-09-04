@@ -176,35 +176,35 @@ export default function CommuteHubAdminDashboard() {
   }
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in-50 duration-300 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200">
+    <div className="space-y-4 animate-in fade-in-50 duration-300 max-w-7xl mx-auto">
+      {/* Compact Header Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              <Compass className="h-6 w-6 text-emerald-600" />
+            <h1 className="text-base font-bold tracking-tight text-slate-900 flex items-center gap-1.5 leading-tight">
+              <Compass className="h-4 w-4 text-emerald-600" />
               CommuteHub
             </h1>
-            <Badge className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2">
+            <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold px-2 py-0.5">
               Virtual Corridors
             </Badge>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-[11px] text-slate-500 mt-0.5">
             {isSuperAdmin
               ? "Oversee and configure multi-campus virtual commuting hubs across all corridors."
               : `Manage commuting corridors and hubs for ${session?.user?.campusName || "your campus"}.`}
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <Link href="/admin/hubs/map">
-            <Button variant="outline" size="sm" className="rounded-xl text-xs font-bold gap-1.5 border-slate-200 shadow-xs">
+            <Button variant="outline" size="sm" className="rounded-xl text-xs font-semibold gap-1.5 border-slate-200 h-8">
               <MapIcon className="h-3.5 w-3.5 text-slate-500" />
               Hub Map
             </Button>
           </Link>
           <Link href="/admin/hubs/create">
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold gap-1.5 shadow-xs">
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold gap-1.5 shadow-2xs h-8">
               <Plus className="h-3.5 w-3.5" />
               Create Hub
             </Button>

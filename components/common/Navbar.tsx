@@ -30,7 +30,7 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+    <header className="relative sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 md:px-6 backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="flex items-center gap-3">
         {/* Mobile menu trigger */}
         <button
@@ -62,9 +62,9 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
         </Link>
       </div>
 
-      {/* Center: Mode Switcher (CommuteX ↔ CommuteHub) */}
+      {/* Dead-Center: Mode Switcher (CommuteX ↔ CommuteHub) */}
       {session?.user && (
-        <div className="flex items-center rounded-xl bg-slate-100 p-1 text-xs font-semibold border border-slate-200/80 shadow-2xs">
+        <div className="hidden sm:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center rounded-xl bg-slate-100 p-1 text-xs font-semibold border border-slate-200/80 shadow-2xs z-20">
           <button
             type="button"
             onClick={() => router.push(isAdmin ? "/admin" : "/dashboard")}
