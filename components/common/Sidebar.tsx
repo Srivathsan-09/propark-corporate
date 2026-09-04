@@ -22,6 +22,9 @@ import {
   Cpu,
   Leaf,
   IndianRupee,
+  Layers,
+  Map,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +42,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const isCampusAdmin = session?.user?.role === "campus_admin";
   const isAdmin = isSuperAdmin || isCampusAdmin;
 
-  // Navigation specifically for Platform / Campus Admins
+  const isCommuteHub = pathname.startsWith("/commutehub") || pathname.startsWith("/admin/hubs");
+
+  // Navigation specifically for Platform / Campus Admins (CommuteX Mode)
   const adminNavItems = [
     {
       title: "Overview",
@@ -87,7 +92,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     },
   ];
 
-  // Navigation specifically for Employees / Commuters
+  // Navigation specifically for Employees / Commuters (CommuteX Mode)
   const employeeNavItems = [
     {
       title: "Dashboard",
@@ -131,7 +136,72 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     },
   ];
 
-  const currentNavItems = isAdmin ? adminNavItems : employeeNavItems;
+  // Navigation specifically for Admins (CommuteHub Mode)
+  const commuteHubAdminNavItems = [
+    {
+      title: "Dashboard",
+      href: "/admin/hubs",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Manage Hubs",
+      href: "/admin/hubs/manage",
+      icon: Layers,
+    },
+    {
+      title: "Create Hub",
+      href: "/admin/hubs/create",
+      icon: PlusCircle,
+    },
+    {
+      title: "Hub Map",
+      href: "/admin/hubs/map",
+      icon: Map,
+    },
+    {
+      title: "Hub Rides",
+      href: "/admin/hubs/rides",
+      icon: Route,
+    },
+  ];
+
+  // Navigation specifically for Employees (CommuteHub Mode)
+  const commuteHubEmployeeNavItems = [
+    {
+      title: "Dashboard",
+      href: "/commutehub",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Available Hubs",
+      href: "/commutehub/hubs",
+      icon: Layers,
+    },
+    {
+      title: "Find a Ride",
+      href: "/commutehub/rides/find",
+      icon: Search,
+    },
+    {
+      title: "Offer a Ride",
+      href: "/commutehub/rides/create",
+      icon: PlusCircle,
+    },
+    {
+      title: "My Hub Rides",
+      href: "/commutehub/my-rides",
+      icon: Clock,
+    },
+    {
+      title: "Hub Map",
+      href: "/commutehub/map",
+      icon: Map,
+    },
+  ];
+
+  const currentNavItems = isCommuteHub
+    ? (isAdmin ? commuteHubAdminNavItems : commuteHubEmployeeNavItems)
+    : (isAdmin ? adminNavItems : employeeNavItems);
 
   return (
     <>
@@ -152,7 +222,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex flex-1 flex-col overflow-y-auto px-3 py-4">
           <div className="px-3 mb-2 flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              {isAdmin ? "Admin Console" : "Corporate Commute"}
+              {isCommuteHub
+                ? isAdmin
+                  ? "CommuteHub Admin"
+                  : "CommuteHub"
+                : isAdmin
+                ? "Admin Console"
+                : "Corporate Commute"}
             </span>
             {isSuperAdmin && (
               <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-[10px] py-0 px-1.5 font-semibold">
@@ -170,7 +246,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             {currentNavItems.map((item) => {
               const Icon = item.icon;
               const isActive =
-                item.href === "/admin" || item.href === "/dashboard"
+                item.href === "/admin" || item.href === "/dashboard" || item.href === "/admin/hubs" || item.href === "/commutehub"
                   ? pathname === item.href
                   : pathname.startsWith(item.href);
 
@@ -209,10 +285,29 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Footer info box */}
         <div className="border-t border-slate-200 p-4">
-          <div className={cn("rounded-lg p-3 text-xs", isAdmin ? "bg-purple-50/70 text-purple-900" : "bg-slate-50 text-slate-600")}>
-            <p className="font-semibold">{isAdmin ? "Campus Admin Portal" : "CommuteX Campus"}</p>
+          <div
+            className={cn(
+              "rounded-lg p-3 text-xs",
+              isCommuteHub
+                ? "bg-emerald-50/70 text-emerald-900 border border-emerald-100"
+                : isAdmin
+                ? "bg-purple-50/70 text-purple-900"
+                : "bg-slate-50 text-slate-600"
+            )}
+          >
+            <p className="font-semibold">
+              {isCommuteHub
+                ? "CommuteHub Corridors"
+                : isAdmin
+                ? "Campus Admin Portal"
+                : "CommuteX Campus"}
+            </p>
             <p className="mt-0.5 text-[11px] opacity-80">
-              {isAdmin ? "Platform oversight & fleet control" : "Corporate Ride Sharing & Commute"}
+              {isCommuteHub
+                ? "Fixed corridor virtual hubs"
+                : isAdmin
+                ? "Platform oversight & fleet control"
+                : "Corporate Ride Sharing & Commute"}
             </p>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 import "./User";
 import "./Vehicle";
+import "./Hub";
 
 export interface IRideStop {
   name: string;
@@ -73,6 +74,7 @@ export interface IRide extends Document {
   stops: IRideStop[];
   notes?: string;
   campusId?: string;
+  hubId?: mongoose.Types.ObjectId;
   status: "scheduled" | "in_progress" | "completed" | "cancelled";
   acceptedPassengers: mongoose.Types.ObjectId[];
   requests: IRidePassengerRequest[];
@@ -250,6 +252,12 @@ const RideSchema = new Schema<IRide>(
       default: "CAMP001",
       uppercase: true,
       trim: true,
+      index: true,
+    },
+    hubId: {
+      type: Schema.Types.ObjectId,
+      ref: "Hub",
+      default: null,
       index: true,
     },
     status: {

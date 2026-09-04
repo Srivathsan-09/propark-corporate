@@ -10,6 +10,8 @@
  * 6. Empty state resilience.
  */
 
+export {};
+
 interface TestResult {
   testNumber: string;
   name: string;

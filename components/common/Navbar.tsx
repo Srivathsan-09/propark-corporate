@@ -2,11 +2,12 @@
 
 import React from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, Car, Shield, Menu, X, User as UserIcon } from "lucide-react";
+import { LogOut, Car, Shield, Menu, X, User as UserIcon, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getInitials } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 
 interface NavbarProps {
   onMobileMenuToggle?: () => void;
@@ -15,6 +16,14 @@ interface NavbarProps {
 
 export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
   const { data: session } = useSession();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const isSuperAdmin = session?.user?.role === "admin";
+  const isCampusAdmin = session?.user?.role === "campus_admin";
+  const isAdmin = isSuperAdmin || isCampusAdmin;
+
+  const isCommuteHub = pathname.startsWith("/commutehub") || pathname.startsWith("/admin/hubs");
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/login" });
@@ -33,7 +42,10 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
         </button>
 
         {/* Brand Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
+        <Link
+          href={isCommuteHub ? (isAdmin ? "/admin/hubs" : "/commutehub") : (isAdmin ? "/admin" : "/dashboard")}
+          className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
+        >
           <img
             src="/images/commutex-logo.png"
             alt="CommuteX"
@@ -41,14 +53,48 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
           />
           <div className="flex flex-col">
             <span className="text-base font-black tracking-tight text-slate-900 leading-tight flex items-center">
-              COMMUTE<span className="text-emerald-600">X</span>
+              COMMUTE<span className="text-emerald-600">{isCommuteHub ? "HUB" : "X"}</span>
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
-              Corporate Commute
+              {isCommuteHub ? "Hub-Based Corridors" : "Corporate Commute"}
             </span>
           </div>
         </Link>
       </div>
+
+      {/* Center: Mode Switcher (CommuteX ↔ CommuteHub) */}
+      {session?.user && (
+        <div className="flex items-center rounded-xl bg-slate-100 p-1 text-xs font-semibold border border-slate-200/80 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => router.push(isAdmin ? "/admin" : "/dashboard")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all text-xs cursor-pointer",
+              !isCommuteHub
+                ? "bg-white text-slate-900 shadow-xs font-bold"
+                : "text-slate-500 hover:text-slate-900"
+            )}
+            title="Switch to CommuteX Standard Mode"
+          >
+            <Car className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="font-semibold">CommuteX</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(isAdmin ? "/admin/hubs" : "/commutehub")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all text-xs cursor-pointer",
+              isCommuteHub
+                ? "bg-emerald-600 text-white shadow-xs font-bold"
+                : "text-slate-500 hover:text-slate-900"
+            )}
+            title="Switch to CommuteHub Corridor Mode"
+          >
+            <Compass className="h-3.5 w-3.5" />
+            <span className="font-semibold">CommuteHub</span>
+          </button>
+        </div>
+      )}
 
       {/* User info & Actions */}
       <div className="flex items-center gap-3">
