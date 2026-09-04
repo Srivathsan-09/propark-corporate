@@ -83,7 +83,8 @@ export default function FinancesPage() {
     try {
       const res = await fetch("/api/finances");
       if (!res.ok) {
-        throw new Error("Failed to load financial records.");
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || "Failed to load financial records.");
       }
       const data = await res.json();
       setSummary(data.summary);

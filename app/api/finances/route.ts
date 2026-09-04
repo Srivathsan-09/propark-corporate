@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
+import mongoose from "mongoose";
 import Ride from "@/models/Ride";
 import User from "@/models/User";
 import Vehicle from "@/models/Vehicle";
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user?.id) {
+    if (!session || (!session.user?.id && !session.user?.email)) {
       return NextResponse.json(
         { success: false, error: "Unauthorized. Please log in." },
         { status: 401 }
@@ -56,6 +57,10 @@ export async function GET(req: NextRequest) {
     }
 
     await connectToDatabase();
+
+    // Ensure models are registered in Mongoose schema cache for populate
+    const _models = [User, Vehicle, Ride];
+    void _models;
 
     let dbUserId = session.user.id;
     if (session.user.email) {
@@ -67,35 +72,47 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const driverQuery: any[] = [
-      { driver: dbUserId },
-      { driver: session.user.id },
-    ];
-    if (dbUserId !== session.user.id) {
-      try {
-        const { ObjectId } = require("mongoose").Types;
-        driverQuery.push({ driver: new ObjectId(dbUserId) });
-      } catch {}
+    const driverQuery: any[] = [];
+    if (dbUserId) {
+      driverQuery.push({ driver: dbUserId });
+      if (mongoose.Types.ObjectId.isValid(dbUserId)) {
+        driverQuery.push({ driver: new mongoose.Types.ObjectId(dbUserId) });
+      }
+    }
+    if (session.user?.id && session.user.id !== dbUserId) {
+      driverQuery.push({ driver: session.user.id });
+      if (mongoose.Types.ObjectId.isValid(session.user.id)) {
+        driverQuery.push({ driver: new mongoose.Types.ObjectId(session.user.id) });
+      }
     }
 
     // 1. Fetch rides where user is Driver
-    const driverRides = await Ride.find({
-      $or: driverQuery,
-    })
+    const driverRides = await Ride.find(
+      driverQuery.length > 0 ? { $or: driverQuery } : { driver: dbUserId }
+    )
       .populate("vehicle", "vehicleModel vehicleType registrationNumber vehiclePhoto")
       .populate("requests.passenger", "name email phone companyName department profileImage employeeId")
       .sort({ createdAt: -1 })
       .lean();
 
-    const passengerQuery = [
-      { "requests.passenger": dbUserId },
-      { "requests.passenger": session.user.id },
-    ];
+    const passengerQuery: any[] = [];
+    if (dbUserId) {
+      passengerQuery.push({ "requests.passenger": dbUserId });
+      if (mongoose.Types.ObjectId.isValid(dbUserId)) {
+        passengerQuery.push({ "requests.passenger": new mongoose.Types.ObjectId(dbUserId) });
+      }
+    }
+    if (session.user?.id && session.user.id !== dbUserId) {
+      passengerQuery.push({ "requests.passenger": session.user.id });
+      if (mongoose.Types.ObjectId.isValid(session.user.id)) {
+        passengerQuery.push({ "requests.passenger": new mongoose.Types.ObjectId(session.user.id) });
+      }
+    }
 
     // 2. Fetch rides where user is Passenger
-    const passengerRides = await Ride.find({
-      $or: passengerQuery,
-    })
+    const passengerRides = await Ride.find(
+      passengerQuery.length > 0 ? { $or: passengerQuery } : { "requests.passenger": dbUserId }
+    )
       .populate("driver", "name email phone companyName department profileImage employeeId")
       .populate("vehicle", "vehicleModel vehicleType registrationNumber vehiclePhoto")
       .populate("requests.passenger", "name email phone companyName department profileImage employeeId")
@@ -294,7 +311,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error("Finances API Error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to retrieve financial overview." },
+      { success: false, error: error?.message || "Failed to retrieve financial overview." },
       { status: 500 }
     );
   }

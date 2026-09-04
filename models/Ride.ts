@@ -1,4 +1,6 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
+import "./User";
+import "./Vehicle";
 
 export interface IRideStop {
   name: string;
