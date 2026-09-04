@@ -5,6 +5,8 @@ import L from "leaflet";
 import { geocodingService } from "@/lib/services/geocoding";
 import { Loader2, Navigation2, MapPin, IndianRupee, Car } from "lucide-react";
 import { CarLoader } from "@/components/common/CarLoader";
+import { DynamicRerouteEngine } from "@/lib/services/rerouting";
+import type { RouteResult } from "@/lib/services/routing";
 
 export interface MapPoint {
   address?: string;
@@ -53,6 +55,9 @@ interface LeafletRouteMapProps {
   onMapClick?: (location: { address: string; latitude: number; longitude: number }) => void;
   isClickPicking?: boolean;
   clickPickLabel?: string;
+  enableDynamicRerouting?: boolean;
+  reroutingThresholdMeters?: number;
+  onRouteRecalculated?: (newRoute: RouteResult) => void;
   height?: string;
   showStats?: boolean;
   className?: string;
@@ -79,6 +84,9 @@ export default function LeafletRouteMap({
   onMapClick,
   isClickPicking = false,
   clickPickLabel = "Click anywhere on the map to set location",
+  enableDynamicRerouting = true,
+  reroutingThresholdMeters = 35,
+  onRouteRecalculated,
   height = "380px",
   showStats = true,
   className = "",
@@ -94,6 +102,104 @@ export default function LeafletRouteMap({
   const hasUserPannedRef = useRef(false);
   const isInitialViewDoneRef = useRef(false);
   const mapRouteRequestIdRef = useRef(0);
+
+  const [reroutedRoute, setReroutedRoute] = useState<RouteResult | null>(null);
+  const [isRecalculatingRoute, setIsRecalculatingRoute] = useState(false);
+  const [recalculationNotice, setRecalculationNotice] = useState<string | null>(null);
+
+  const rerouteEngineRef = useRef<DynamicRerouteEngine | null>(null);
+  if (!rerouteEngineRef.current) {
+    rerouteEngineRef.current = new DynamicRerouteEngine({
+      deviationThresholdMeters: reroutingThresholdMeters,
+    });
+  }
+
+  // Reset rerouted route if routeCoordinates was explicitly replaced or cleared from parent
+  const prevParentRouteRef = useRef(routeCoordinates);
+  useEffect(() => {
+    if (routeCoordinates !== prevParentRouteRef.current) {
+      prevParentRouteRef.current = routeCoordinates;
+      if (reroutedRoute && routeCoordinates && routeCoordinates !== reroutedRoute.coordinates) {
+        setReroutedRoute(null);
+      }
+    }
+  }, [routeCoordinates]);
+
+  // Dynamic Route Recalculation Listener (Real-Time GPS Deviation Detection)
+  useEffect(() => {
+    if (!enableDynamicRerouting || !driverLocation || !destination) {
+      return;
+    }
+
+    if (
+      typeof driverLocation.latitude !== "number" ||
+      typeof driverLocation.longitude !== "number" ||
+      typeof destination.latitude !== "number" ||
+      typeof destination.longitude !== "number"
+    ) {
+      return;
+    }
+
+    const activeCoords = reroutedRoute?.coordinates || routeCoordinates;
+    if (!activeCoords || activeCoords.length < 2) {
+      return;
+    }
+
+    const engine = rerouteEngineRef.current;
+    if (!engine) return;
+
+    engine.updateConfig({ deviationThresholdMeters: reroutingThresholdMeters || 35 });
+    engine.setActivePolyline(activeCoords);
+
+    let isMounted = true;
+
+    engine
+      .onPositionUpdate(driverLocation, {
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+        name: destination.name,
+      })
+      .then((res) => {
+        if (!isMounted) return;
+
+        if (res.isRerouting) {
+          setIsRecalculatingRoute(true);
+        }
+
+        if (res.shouldReroute && res.newRoute) {
+          setIsRecalculatingRoute(false);
+          setReroutedRoute(res.newRoute);
+          setRecalculationNotice("Route updated");
+          setTimeout(() => {
+            if (isMounted) setRecalculationNotice(null);
+          }, 3000);
+          if (onRouteRecalculated) {
+            onRouteRecalculated(res.newRoute);
+          }
+        } else if (!res.isRerouting) {
+          setIsRecalculatingRoute(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setIsRecalculatingRoute(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    driverLocation?.latitude,
+    driverLocation?.longitude,
+    driverLocation?.speed,
+    driverLocation?.accuracy,
+    enableDynamicRerouting,
+    reroutingThresholdMeters,
+    destination?.latitude,
+    destination?.longitude,
+    routeCoordinates,
+    reroutedRoute,
+    onRouteRecalculated,
+  ]);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -506,8 +612,11 @@ export default function LeafletRouteMap({
       boundsPoints.push([customPickupPoint.latitude, customPickupPoint.longitude]);
     }
 
+    const isRerouted = Boolean(reroutedRoute);
+    const activeRouteToDraw = reroutedRoute?.coordinates || routeCoordinates;
+
     // 6. Draw Polyline Route & Multi-Route Options with Interactive Click Selection
-    const drawRoutePolyline = (activeCoords: [number, number][]) => {
+    const drawRoutePolyline = (activeCoords: [number, number][], isRecalculatedRoute = false) => {
       if (!map) return;
       if (routeLayerGroupRef.current) {
         routeLayerGroupRef.current.clearLayers();
@@ -515,8 +624,8 @@ export default function LeafletRouteMap({
         routeLayerGroupRef.current = L.layerGroup().addTo(map);
       }
 
-      // 6a. Render Alternative (Unselected) Routes first so selected route renders on top
-      if (alternativeRoutes && alternativeRoutes.length > 1) {
+      // 6a. Render Alternative (Unselected) Routes only if not rerouted
+      if (!isRecalculatedRoute && alternativeRoutes && alternativeRoutes.length > 1) {
         alternativeRoutes.forEach((altRoute) => {
           if (altRoute.index === selectedRouteIndex || !altRoute.coordinates || altRoute.coordinates.length < 2) {
             return;
@@ -551,14 +660,22 @@ export default function LeafletRouteMap({
         // Authoritative road geometry directly from routing engine
         const connectedCoords: [number, number][] = [...activeCoords];
 
-        // Only bridge tiny curb-to-road snap gaps (under 80 meters)
-        // Never draw artificial straight lines across terrain or buildings
-        if (
+        // When rerouted: start directly at current GPS location!
+        // Do NOT draw a route from the original origin after rerouting.
+        if (isRecalculatedRoute && driverLocation && typeof driverLocation.latitude === "number") {
+          const first = activeCoords[0];
+          const distDriver = Math.hypot(first[0] - driverLocation.latitude, first[1] - driverLocation.longitude);
+          if (distDriver > 0.00002 && distDriver <= 0.0008) {
+            connectedCoords.unshift([driverLocation.latitude, driverLocation.longitude]);
+          }
+        } else if (
+          !isRecalculatedRoute &&
           startLocation &&
           typeof startLocation.latitude === "number" &&
           startLocation.latitude !== 0 &&
           typeof startLocation.longitude === "number"
         ) {
+          // Standard initial route: snap to startLocation
           const first = activeCoords[0];
           const distStart = Math.hypot(first[0] - startLocation.latitude, first[1] - startLocation.longitude);
           if (distStart > 0.00005 && distStart <= 0.0008) {
@@ -603,11 +720,8 @@ export default function LeafletRouteMap({
       }
     };
 
-    if (routeCoordinates !== undefined) {
-      // Parent provides routeCoordinates: render authoritative route directly
-      if (routeCoordinates && routeCoordinates.length > 0) {
-        drawRoutePolyline(routeCoordinates);
-      }
+    if (activeRouteToDraw && activeRouteToDraw.length > 0) {
+      drawRoutePolyline(activeRouteToDraw, isRerouted);
     } else if (startLocation && destination && startLocation.latitude && destination.latitude) {
       // Standalone mode: only calculate if parent did not provide routeCoordinates
       const reqId = ++mapRouteRequestIdRef.current;
@@ -619,7 +733,7 @@ export default function LeafletRouteMap({
       import("@/lib/services/routing").then(({ routingService }) => {
         routingService.calculateRoute(waypoints).then((res) => {
           if (reqId === mapRouteRequestIdRef.current && res && res.coordinates && res.coordinates.length > 0) {
-            drawRoutePolyline(res.coordinates);
+            drawRoutePolyline(res.coordinates, false);
           }
         });
       });
@@ -653,7 +767,7 @@ export default function LeafletRouteMap({
         mapInstanceRef.current.invalidateSize({ animate: false });
       }
     }, 50);
-  }, [startLocation, destination, stops, customPickupPoint, driverLocation, passengerLocation, routeCoordinates, panToDriver, isClickPicking]);
+  }, [startLocation, destination, stops, customPickupPoint, driverLocation, passengerLocation, routeCoordinates, reroutedRoute, panToDriver, isClickPicking]);
 
   const handleRecenterMap = () => {
     hasUserPannedRef.current = false;
@@ -704,35 +818,60 @@ export default function LeafletRouteMap({
         </button>
       )}
 
-      {/* Floating Route Distance & ETA Badge */}
-      {showStats && (distanceText || durationText) && (
-        <div className="absolute bottom-3 right-3 z-10 bg-white/95 backdrop-blur-xs text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-2.5 text-xs">
-          {distanceText && (
-            <div className="flex items-center gap-1">
-              <Navigation2 className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="font-bold text-slate-800">{distanceText}</span>
-            </div>
-          )}
-          {durationText && (
-            <div className="flex items-center gap-1 border-l border-slate-200 pl-2 text-slate-600">
-              <span>ETA</span>
-              <strong className="text-emerald-700 font-bold">{durationText}</strong>
-            </div>
-          )}
-          {trafficLevel && (
-            <span
-              className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
-                trafficLevel === "Heavy"
-                  ? "bg-rose-50 text-rose-700 border-rose-200"
-                  : trafficLevel === "Moderate"
-                  ? "bg-amber-50 text-amber-800 border-amber-200"
-                  : "bg-emerald-50 text-emerald-800 border-emerald-200"
-              }`}
-            >
-              {trafficLevel} Traffic
-            </span>
-          )}
+      {/* Floating Recalculating Banner (Google Maps style) */}
+      {isRecalculatingRoute && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-slate-950/95 backdrop-blur-md text-white font-bold text-xs px-4 py-2 rounded-xl shadow-2xl border border-blue-500/50 flex items-center gap-2.5 animate-in fade-in slide-in-from-top-2">
+          <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
+          <span>Recalculating route...</span>
         </div>
+      )}
+
+      {recalculationNotice && !isRecalculatingRoute && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-emerald-950/95 backdrop-blur-md text-emerald-300 font-bold text-xs px-4 py-2 rounded-xl shadow-2xl border border-emerald-500/50 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>{recalculationNotice}</span>
+        </div>
+      )}
+
+      {/* Floating Route Distance & ETA Badge */}
+      {showStats && (
+        (() => {
+          const effectiveDistanceText = reroutedRoute?.formattedDistance || distanceText;
+          const effectiveDurationText = reroutedRoute?.formattedDuration || durationText;
+          const effectiveTraffic = reroutedRoute?.trafficLevel || trafficLevel;
+
+          if (!effectiveDistanceText && !effectiveDurationText) return null;
+
+          return (
+            <div className="absolute bottom-3 right-3 z-10 bg-white/95 backdrop-blur-xs text-slate-900 border border-slate-200 px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-2.5 text-xs">
+              {effectiveDistanceText && (
+                <div className="flex items-center gap-1">
+                  <Navigation2 className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="font-bold text-slate-800">{effectiveDistanceText}</span>
+                </div>
+              )}
+              {effectiveDurationText && (
+                <div className="flex items-center gap-1 border-l border-slate-200 pl-2 text-slate-600">
+                  <span>ETA</span>
+                  <strong className="text-emerald-700 font-bold">{effectiveDurationText}</strong>
+                </div>
+              )}
+              {effectiveTraffic && (
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
+                    effectiveTraffic === "Heavy"
+                      ? "bg-rose-50 text-rose-700 border-rose-200"
+                      : effectiveTraffic === "Moderate"
+                      ? "bg-amber-50 text-amber-800 border-amber-200"
+                      : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  }`}
+                >
+                  {effectiveTraffic} Traffic
+                </span>
+              )}
+            </div>
+          );
+        })()
       )}
 
       {/* OpenStreetMap Attribution pill */}

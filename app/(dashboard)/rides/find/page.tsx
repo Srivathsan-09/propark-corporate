@@ -151,6 +151,7 @@ export default function FindRidePage() {
   const [selectedRide, setSelectedRide] = useState<IRide | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedPickupStop, setSelectedPickupStop] = useState<string>("");
+  const [selectedDropStop, setSelectedDropStop] = useState<string>("");
   const [selectedFare, setSelectedFare] = useState<number>(100);
   const [seatsRequested, setSeatsRequested] = useState<number | "">(1);
   const [passengerNotes, setPassengerNotes] = useState<string>("");
@@ -165,6 +166,7 @@ export default function FindRidePage() {
   // Live GPS Tracking Modal State for Passengers
   const [liveTrackingRide, setLiveTrackingRide] = useState<IRide | null>(null);
   const [isLiveTrackingModalOpen, setIsLiveTrackingModalOpen] = useState(false);
+  const hasDynamicReroutedRef = useRef(false);
   const [liveTelemetry, setLiveTelemetry] = useState<any>(null);
   const [liveEtaResult, setLiveEtaResult] = useState<any>(null);
 
@@ -197,26 +199,34 @@ export default function FindRidePage() {
 
     const updateLiveEta = async () => {
       const { routingService } = await import("@/lib/services/routing");
-      const startPt = resolvePlaceCoordinates(
+      const driverLoc = liveTelemetry?.currentLocation;
+
+      let startPt = resolvePlaceCoordinates(
         liveTelemetry?.startingLocation || liveTrackingRide.startingLocation,
         liveTelemetry?.startLocation?.latitude || liveTrackingRide.startLocation?.latitude,
         liveTelemetry?.startLocation?.longitude || liveTrackingRide.startLocation?.longitude,
         true
       );
+
+      if (hasDynamicReroutedRef.current && driverLoc?.latitude && driverLoc?.longitude) {
+        startPt = { latitude: driverLoc.latitude, longitude: driverLoc.longitude };
+      }
+
       const endPt = resolvePlaceCoordinates(
         liveTelemetry?.destination || liveTrackingRide.destination,
         liveTelemetry?.endLocation?.latitude || liveTrackingRide.endLocation?.latitude,
         liveTelemetry?.endLocation?.longitude || liveTrackingRide.endLocation?.longitude,
         false
       );
-      const driverLoc = liveTelemetry?.currentLocation;
 
       const result = await routingService.calculateRoute(
         [startPt, endPt],
         liveTrackingRide.departureTime,
         driverLoc ? { latitude: driverLoc.latitude, longitude: driverLoc.longitude, speed: (driverLoc as any).speed } : null
       );
-      setLiveEtaResult(result);
+      if (result) {
+        setLiveEtaResult(result);
+      }
     };
 
     updateLiveEta();
@@ -349,6 +359,42 @@ export default function FindRidePage() {
     fetchRides();
   };
 
+  const calculateFareForStops = (
+    ride: IRide,
+    pickupName: string,
+    dropName: string,
+    isCustom: boolean = false
+  ): number => {
+    if (isCustom) {
+      return ride.basePrice ? Math.round(ride.basePrice * 0.8) : 120;
+    }
+    const basePrice = ride.basePrice || 100;
+    const stops = ride.stops || [];
+
+    // Helper to get cumulative price from origin to this stop
+    const getStopCumulativePrice = (name: string): number => {
+      if (name === ride.startingLocation) return 0;
+      if (name === ride.destination) return basePrice;
+      const found = stops.find((s) => s.name === name);
+      return found ? found.price : basePrice;
+    };
+
+    if (pickupName === ride.startingLocation && dropName === ride.destination) {
+      return basePrice;
+    }
+
+    const pPrice = getStopCumulativePrice(pickupName);
+    const dPrice = getStopCumulativePrice(dropName);
+
+    const diff = dPrice - pPrice;
+    if (diff > 0) {
+      return diff;
+    } else if (diff < 0) {
+      return Math.abs(diff);
+    }
+    return Math.max(20, Math.round(basePrice / Math.max(1, stops.length + 1)));
+  };
+
   const handleOpenBooking = (ride: IRide) => {
     setSelectedRide(ride);
     setIsCustomStopMode(false);
@@ -357,13 +403,10 @@ export default function FindRidePage() {
     setCustomStopLat(0);
     setCustomStopLng(0);
 
-    if (ride.stops && ride.stops.length > 0) {
-      setSelectedPickupStop(ride.stops[0].name);
-      setSelectedFare(ride.stops[0].price);
-    } else {
-      setSelectedPickupStop(ride.startingLocation);
-      setSelectedFare(ride.basePrice || 100);
-    }
+    // Default: Origin to Destination (Full commute)
+    setSelectedPickupStop(ride.startingLocation);
+    setSelectedDropStop(ride.destination);
+    setSelectedFare(ride.basePrice || 100);
 
     setSeatsRequested(1);
     setPassengerNotes("");
@@ -372,17 +415,29 @@ export default function FindRidePage() {
     setIsBookingModalOpen(true);
   };
 
-  const handleStopSelect = (stopName: string) => {
+  const handlePickupSelect = (stopName: string) => {
     setSelectedPickupStop(stopName);
     if (selectedRide) {
-      if (stopName === selectedRide.startingLocation) {
-        setSelectedFare(selectedRide.basePrice || 100);
-      } else {
-        const found = selectedRide.stops.find((s) => s.name === stopName);
-        if (found) {
-          setSelectedFare(found.price);
-        }
-      }
+      const fare = calculateFareForStops(
+        selectedRide,
+        stopName,
+        selectedDropStop || selectedRide.destination,
+        false
+      );
+      setSelectedFare(fare);
+    }
+  };
+
+  const handleDropSelect = (stopName: string) => {
+    setSelectedDropStop(stopName);
+    if (selectedRide) {
+      const fare = calculateFareForStops(
+        selectedRide,
+        selectedPickupStop || selectedRide.startingLocation,
+        stopName,
+        isCustomStopMode
+      );
+      setSelectedFare(fare);
     }
   };
 
@@ -394,7 +449,16 @@ export default function FindRidePage() {
       setCustomStopLat(loc.latitude);
       setCustomStopLng(loc.longitude);
       setSelectedPickupStop(`Custom Stop: ${short}`);
-      setSelectedFare(selectedRide?.basePrice ? Math.round(selectedRide.basePrice * 0.8) : 120);
+      if (selectedRide) {
+        setSelectedFare(
+          calculateFareForStops(
+            selectedRide,
+            `Custom Stop: ${short}`,
+            selectedDropStop || selectedRide.destination,
+            true
+          )
+        );
+      }
     }
   };
 
@@ -412,6 +476,13 @@ export default function FindRidePage() {
         : selectedPickupStop;
 
       const pickupName = isCustomStopMode ? `Custom Stop: ${requestedLocation}` : selectedPickupStop;
+      const dropName = selectedDropStop || selectedRide.destination;
+
+      if (pickupName === dropName && !isCustomStopMode) {
+        setBookingErrorMsg("Pickup and drop-off locations cannot be identical. Please choose different stops.");
+        setIsSubmittingBooking(false);
+        return;
+      }
 
       const actualSeats = typeof seatsRequested === "number" ? Math.max(1, seatsRequested) : 1;
 
@@ -437,7 +508,7 @@ export default function FindRidePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pickupStop: pickupName,
-          dropStop: selectedRide.destination,
+          dropStop: dropName,
           seatsRequested: actualSeats,
           fare: selectedFare * actualSeats,
           currentLocation,
@@ -892,6 +963,10 @@ export default function FindRidePage() {
                                   <span className="text-emerald-700">₹{stop.price}</span>
                                 </span>
                               ))}
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-[11px] font-semibold">
+                                <span>{ride.destination.split(",")[0].trim()} (Destination):</span>
+                                <span className="font-bold text-blue-700">₹{ride.basePrice}</span>
+                              </span>
                             </div>
                           </div>
                         )}
@@ -1036,7 +1111,14 @@ export default function FindRidePage() {
                       onClick={() => {
                         setIsCustomStopMode(false);
                         setSelectedPickupStop(selectedRide.startingLocation);
-                        setSelectedFare(selectedRide.basePrice || 100);
+                        setSelectedFare(
+                          calculateFareForStops(
+                            selectedRide,
+                            selectedRide.startingLocation,
+                            selectedDropStop || selectedRide.destination,
+                            false
+                          )
+                        );
                       }}
                       className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
                         !isCustomStopMode
@@ -1068,7 +1150,7 @@ export default function FindRidePage() {
                   {!isCustomStopMode ? (
                     <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
                       <Label className="text-[11px] font-semibold text-slate-600 block">Select from driver's confirmed route stops:</Label>
-                      <Select value={selectedPickupStop} onValueChange={handleStopSelect}>
+                      <Select value={selectedPickupStop} onValueChange={handlePickupSelect}>
                         <SelectTrigger className="rounded-xl text-xs h-11 bg-white border-slate-200 font-medium">
                           <SelectValue placeholder="Choose boarding stop" />
                         </SelectTrigger>
@@ -1081,6 +1163,9 @@ export default function FindRidePage() {
                               {stop.name.split(",")[0].trim()} (Stop {idx + 1}) — ₹{stop.price}
                             </SelectItem>
                           ))}
+                          <SelectItem value={selectedRide.destination}>
+                            {selectedRide.destination.split(",")[0].trim()} (Destination) — ₹{selectedRide.basePrice || 100}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1113,6 +1198,57 @@ export default function FindRidePage() {
                       )}
                     </div>
                   )}
+                </div>
+
+                {/* Drop-off Location Selection UI */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-blue-600" />
+                      <span>Drop-off Location</span>
+                    </Label>
+                    <span className="text-[10px] text-slate-400 font-semibold">Destination added at end</span>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                    <Label className="text-[11px] font-semibold text-slate-600 block">
+                      Select drop-off point along the route:
+                    </Label>
+                    <Select value={selectedDropStop} onValueChange={handleDropSelect}>
+                      <SelectTrigger className="rounded-xl text-xs h-11 bg-white border-slate-200 font-medium">
+                        <SelectValue placeholder="Choose drop-off stop" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={selectedRide.startingLocation}>
+                          {selectedRide.startingLocation.split(",")[0].trim()} (Origin) — ₹{selectedRide.basePrice || 100}
+                        </SelectItem>
+                        {selectedRide.stops?.map((stop, idx) => (
+                          <SelectItem key={idx} value={stop.name}>
+                            {stop.name.split(",")[0].trim()} (Stop {idx + 1}) — ₹{stop.price}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value={selectedRide.destination}>
+                          {selectedRide.destination.split(",")[0].trim()} (Destination) — ₹{selectedRide.basePrice || 100}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Selected Commute Leg Summary Banner */}
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs">
+                  <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                    <span className="font-bold text-emerald-950 truncate max-w-[120px] sm:max-w-[150px]">
+                      {isCustomStopMode ? (customStopText || "Custom Stop") : (selectedPickupStop.split(",")[0].trim() || "Origin")}
+                    </span>
+                    <ArrowRight className="h-3 w-3 text-emerald-600 shrink-0" />
+                    <span className="font-bold text-blue-950 truncate max-w-[120px] sm:max-w-[150px]">
+                      {selectedDropStop.split(",")[0].trim() || selectedRide.destination.split(",")[0].trim()}
+                    </span>
+                  </div>
+                  <span className="font-extrabold text-emerald-800 text-xs shrink-0">
+                    ₹{selectedFare} / seat
+                  </span>
                 </div>
 
                 {/* Seats Needed & Estimated Total Fare */}
@@ -1351,6 +1487,11 @@ export default function FindRidePage() {
                   trafficLevel={liveEtaResult?.trafficLevel}
                   height="450px"
                   showStats={true}
+                  enableDynamicRerouting={true}
+                  onRouteRecalculated={(newRoute) => {
+                    hasDynamicReroutedRef.current = true;
+                    setLiveEtaResult(newRoute);
+                  }}
                 />
               </div>
             </div>

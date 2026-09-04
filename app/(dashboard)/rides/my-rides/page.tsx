@@ -188,6 +188,7 @@ export default function MyRidesPage() {
   const [trackingModalBooking, setTrackingModalBooking] = useState<any | null>(null);
   const [liveTelemetry, setLiveTelemetry] = useState<any | null>(null);
   const [isLiveTrackingModalOpen, setIsLiveTrackingModalOpen] = useState(false);
+  const hasDynamicReroutedRef = useRef(false);
   const [passengerGpsPosition, setPassengerGpsPosition] = useState<DriverLivePoint | null>(null);
   const passengerStopWatchingRef = useRef<(() => void) | null>(null);
   const [passengerGpsStatus, setPassengerGpsStatus] = useState<"ACTIVE" | "UPDATING" | "DENIED" | "UNAVAILABLE">("UPDATING");
@@ -555,6 +556,7 @@ export default function MyRidesPage() {
   const handleOpenLiveTracking = async (ride: any, booking?: any) => {
     setTrackingModalRide(ride);
     setTrackingModalBooking(booking || null);
+    hasDynamicReroutedRef.current = false;
     setIsLiveTrackingModalOpen(true);
 
     const isDriverOfRide =
@@ -793,12 +795,19 @@ export default function MyRidesPage() {
     if (!isLiveTrackingModalOpen || !trackingModalRide) return;
 
     const updateLiveEta = async () => {
-      const startCoords = resolvePlaceCoordinates(
+      const driverLoc = liveTelemetry?.currentLocation || driverGpsPosition;
+
+      // If ride is live (in_progress) and dynamic rerouting occurred, continue calculating forward from current GPS
+      let startCoords = resolvePlaceCoordinates(
         trackingModalRide.startingLocation,
         trackingModalRide.startLocation?.latitude,
         trackingModalRide.startLocation?.longitude,
         true
       );
+
+      if (hasDynamicReroutedRef.current && driverLoc?.latitude && driverLoc?.longitude) {
+        startCoords = { latitude: driverLoc.latitude, longitude: driverLoc.longitude };
+      }
 
       const endCoords = resolvePlaceCoordinates(
         trackingModalRide.destination,
@@ -814,14 +823,14 @@ export default function MyRidesPage() {
         { latitude: endCoords.latitude, longitude: endCoords.longitude, name: trackingModalRide.destination },
       ];
 
-      const driverLoc = liveTelemetry?.currentLocation || driverGpsPosition;
-
       const result = await routingService.calculateRoute(
         waypoints,
         trackingModalRide.departureTime,
         driverLoc ? { latitude: driverLoc.latitude, longitude: driverLoc.longitude, speed: (driverLoc as any).speed } : null
       );
-      setLiveEtaResult(result);
+      if (result) {
+        setLiveEtaResult(result);
+      }
     };
 
     updateLiveEta();
@@ -1200,7 +1209,7 @@ export default function MyRidesPage() {
                                       {req.passenger.phone && <span>• {req.passenger.phone}</span>}
                                     </div>
                                     <div className="text-[11px] text-slate-600 mt-1">
-                                      Boarding: <strong className="text-slate-800">{req.pickupStop}</strong> • Seats: <strong>{req.seatsRequested}</strong> • Fare: <strong>₹{req.fare}</strong>
+                                      Boarding: <strong className="text-slate-800">{req.pickupStop}</strong> • Drop: <strong className="text-slate-800">{req.dropStop || ride.destination}</strong> • Seats: <strong>{req.seatsRequested}</strong> • Fare: <strong>₹{req.fare}</strong>
                                     </div>
                                     {req.notes && (
                                       <div className="text-[10px] text-slate-500 italic mt-0.5">&ldquo;{req.notes}&rdquo;</div>
@@ -1470,10 +1479,14 @@ export default function MyRidesPage() {
                     </CardHeader>
 
                   <CardContent className="p-4 sm:p-5 space-y-3 text-xs">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                       <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                         <span className="text-[10px] text-slate-400 block font-semibold">Your Boarding Stop</span>
-                        <span className="font-bold text-slate-800">{booking.pickupStop}</span>
+                        <span className="font-bold text-slate-800 truncate block">{booking.pickupStop}</span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="text-[10px] text-slate-400 block font-semibold">Your Drop-off Stop</span>
+                        <span className="font-bold text-slate-800 truncate block">{booking.dropStop || ride.destination}</span>
                       </div>
                       <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                         <span className="text-[10px] text-slate-400 block font-semibold">Departure Time</span>
@@ -1737,6 +1750,11 @@ export default function MyRidesPage() {
                     trafficLevel={isRideLive ? liveEtaResult?.trafficLevel : undefined}
                     height="450px"
                     showStats={true}
+                    enableDynamicRerouting={true}
+                    onRouteRecalculated={(newRoute) => {
+                      hasDynamicReroutedRef.current = true;
+                      setLiveEtaResult(newRoute);
+                    }}
                   />
                 </div>
               </div>

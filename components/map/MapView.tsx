@@ -38,6 +38,9 @@ export interface MapViewProps {
   onMapClick?: (location: { address: string; latitude: number; longitude: number }) => void;
   isClickPicking?: boolean;
   clickPickLabel?: string;
+  enableDynamicRerouting?: boolean;
+  reroutingThresholdMeters?: number;
+  onRouteRecalculated?: (newRoute: import("@/lib/services/routing").RouteResult) => void;
   height?: string;
   showStats?: boolean;
   className?: string;

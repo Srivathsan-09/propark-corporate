@@ -21,6 +21,7 @@ import {
   Building2,
   Cpu,
   Leaf,
+  IndianRupee,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +108,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "My Rides",
       href: "/rides/my-rides",
       icon: Clock,
+    },
+    {
+      title: "Earnings & Spendings",
+      href: "/finances",
+      icon: IndianRupee,
     },
     {
       title: "My Vehicles",
