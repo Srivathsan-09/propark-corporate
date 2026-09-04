@@ -95,10 +95,10 @@ export default function AdminConcurrencyPage() {
         setExecutionLogs(data.result.log || []);
         fetchMetrics();
       } else {
-        setExecutionLogs((prev) => [...prev, `❌ Error: ${data.error || "Load test failed"}`]);
+        setExecutionLogs((prev) => [...prev, `Error: ${data.error || "Load test failed"}`]);
       }
     } catch (err: any) {
-      setExecutionLogs((prev) => [...prev, `❌ Error: ${err?.message || "Network error"}`]);
+      setExecutionLogs((prev) => [...prev, `Error: ${err?.message || "Network error"}`]);
     } finally {
       setIsRunningTest(false);
       setActiveTestId(null);
@@ -377,11 +377,11 @@ export default function AdminConcurrencyPage() {
                 <div className="flex items-center gap-2">
                   {testResult.isConcurrencySafe ? (
                     <Badge className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 gap-1">
-                      <ShieldCheck className="h-4 w-4" /> PASS ✓
+                      <ShieldCheck className="h-4 w-4" /> Passed
                     </Badge>
                   ) : (
                     <Badge className="bg-rose-600 text-white text-xs font-bold px-3 py-1 gap-1">
-                      <XCircle className="h-4 w-4" /> FAIL ✗
+                      <XCircle className="h-4 w-4" /> Failed
                     </Badge>
                   )}
                 </div>
@@ -434,11 +434,11 @@ export default function AdminConcurrencyPage() {
                   <div
                     key={idx}
                     className={
-                      logLine.includes("✅")
+                      logLine.toLowerCase().includes("verified") || logLine.includes("PASS")
                         ? "text-emerald-400 font-bold"
-                        : logLine.includes("🚀") || logLine.includes("🏁")
+                        : logLine.toLowerCase().includes("starting") || logLine.toLowerCase().includes("dispatching")
                         ? "text-purple-300 font-bold"
-                        : logLine.includes("❌")
+                        : logLine.toLowerCase().includes("error") || logLine.toLowerCase().includes("fail")
                         ? "text-rose-400 font-bold"
                         : "text-slate-300"
                     }

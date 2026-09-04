@@ -18,7 +18,6 @@ import {
   X,
   ArrowUpRight,
   ArrowDownLeft,
-  Sparkles,
   Calendar,
   Layers,
   ChevronRight,
@@ -235,14 +234,13 @@ export default function FinancesPage() {
   return (
     <div className="space-y-6 pb-12 animate-in fade-in-50 duration-300 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
-            <IndianRupee className="h-7 w-7 text-emerald-600" />
-            Commute Earnings & Spendings
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Finances
           </h1>
-          <p className="text-sm text-slate-500">
-            Track revenue collected from driving coworkers and expenses spent on campus carpooling
+          <p className="text-sm text-slate-500 mt-0.5">
+            Track your carpool earnings, travel expenses, and payment records.
           </p>
         </div>
 
@@ -252,14 +250,14 @@ export default function FinancesPage() {
             size="sm"
             onClick={handleExportCSV}
             disabled={transactions.length === 0}
-            className="rounded-xl border-slate-200 text-xs font-semibold gap-1.5 shadow-xs hover:bg-slate-50"
+            className="rounded-xl border-slate-200 text-xs font-semibold gap-1.5 shadow-xs hover:bg-slate-50 text-slate-700"
           >
-            <Download className="h-3.5 w-3.5 text-slate-600" />
-            Export Statement
+            <Download className="h-3.5 w-3.5 text-slate-500" />
+            Export CSV
           </Button>
 
           <Link href="/rides/offer">
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold gap-1.5 shadow-xs">
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold gap-1.5 shadow-xs">
               Offer a Ride
             </Button>
           </Link>
@@ -269,121 +267,89 @@ export default function FinancesPage() {
       {/* 4 Core KPI Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Card 1: Total Driver Earnings */}
-        <Card className="rounded-2xl border-slate-200/80 shadow-xs relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Driver Earnings
-              </span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                <TrendingUp className="h-4 w-4" />
-              </div>
+        <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium text-slate-500">
+              Driver Earnings
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-emerald-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-900">
+              ₹{summary.totalDriverCollected.toLocaleString()}
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-black text-slate-900">
-                ₹{summary.totalDriverCollected.toLocaleString()}
-              </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Total collected from coworkers
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-              <span className="text-slate-500">
-                Pending: <strong className="text-amber-700 font-bold">₹{summary.totalDriverPending.toLocaleString()}</strong>
-              </span>
-              <span className="text-slate-500 font-medium">
-                {summary.passengersCarriedCount} passengers
-              </span>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Collected from coworkers
+            </p>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <span>Pending: <strong className="text-slate-700 font-semibold">₹{summary.totalDriverPending.toLocaleString()}</strong></span>
+              <span>{summary.passengersCarriedCount} passengers</span>
             </div>
           </CardContent>
         </Card>
 
         {/* Card 2: Total Carpool Spendings */}
-        <Card className="rounded-2xl border-slate-200/80 shadow-xs relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-500" />
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Carpool Spendings
-              </span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                <TrendingDown className="h-4 w-4" />
-              </div>
+        <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium text-slate-500">
+              Carpool Expenses
+            </CardTitle>
+            <TrendingDown className="h-4 w-4 text-slate-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-900">
+              ₹{summary.totalPassengerSpent.toLocaleString()}
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-black text-slate-900">
-                ₹{summary.totalPassengerSpent.toLocaleString()}
-              </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Total fare paid as passenger
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-              <span className="text-slate-500">
-                Due to drivers: <strong className="text-rose-600 font-bold">₹{summary.totalPassengerDue.toLocaleString()}</strong>
-              </span>
-              <span className="text-slate-500 font-medium">
-                {summary.carpoolsTakenCount} carpools
-              </span>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Spent as a passenger
+            </p>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <span>Due: <strong className="text-slate-700 font-semibold">₹{summary.totalPassengerDue.toLocaleString()}</strong></span>
+              <span>{summary.carpoolsTakenCount} rides</span>
             </div>
           </CardContent>
         </Card>
 
         {/* Card 3: Net Financial Balance */}
-        <Card className="rounded-2xl border-slate-200/80 shadow-xs relative overflow-hidden">
-          <div className={`absolute top-0 left-0 right-0 h-1 ${isNetProfit ? "bg-teal-500" : "bg-blue-500"}`} />
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Net Commute Balance
-              </span>
-              <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${isNetProfit ? "bg-teal-50 text-teal-600" : "bg-blue-50 text-blue-600"}`}>
-                <Wallet className="h-4 w-4" />
-              </div>
+        <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium text-slate-500">
+              Net Balance
+            </CardTitle>
+            <Wallet className="h-4 w-4 text-slate-500" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${isNetProfit && summary.netBalance > 0 ? "text-emerald-700" : "text-slate-900"}`}>
+              {isNetProfit && summary.netBalance > 0 ? "+" : ""}₹{summary.netBalance.toLocaleString()}
             </div>
-            <div className="mt-3">
-              <div className={`text-2xl font-black ${isNetProfit ? "text-emerald-700" : "text-slate-800"}`}>
-                {isNetProfit ? "+" : ""}₹{summary.netBalance.toLocaleString()}
-              </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                {isNetProfit ? "Earnings exceed carpool spendings" : "Net commuter expense"}
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-              <Badge className={`text-[10px] font-bold px-2 py-0.5 ${isNetProfit ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>
-                {isNetProfit ? "Net Profit" : "Net Expense"}
-              </Badge>
-              <span className="text-slate-400 text-[10px]">Earned - Spent</span>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Earnings minus expenses
+            </p>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <span className="font-medium text-slate-700">{isNetProfit ? "Positive cashflow" : "Net spending"}</span>
+              <span>Overall balance</span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Card 4: Estimated Savings vs Solo Cab */}
-        <Card className="rounded-2xl border-slate-200/80 shadow-xs relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-purple-500" />
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Solo Taxi Savings
-              </span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-                <Sparkles className="h-4 w-4" />
-              </div>
+        {/* Card 4: Shared Rides */}
+        <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-medium text-slate-500">
+              Shared Rides
+            </CardTitle>
+            <Car className="h-4 w-4 text-slate-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-slate-900">
+              {summary.ridesOfferedCount + summary.carpoolsTakenCount}
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-black text-purple-900">
-                ₹{summary.savingsVsSoloCab.toLocaleString()}
-              </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Saved vs individual taxi fares
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-              <span className="text-slate-400">
-                Solo cab est.: ₹{summary.estimatedSoloCost.toLocaleString()}
-              </span>
-              <span className="text-emerald-600 font-bold">~60% Saved</span>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Total completed commutes
+            </p>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <span>{summary.ridesOfferedCount} as driver</span>
+              <span>{summary.carpoolsTakenCount} as passenger</span>
             </div>
           </CardContent>
         </Card>
@@ -391,26 +357,26 @@ export default function FinancesPage() {
 
       {/* Monthly Financial Trend Chart */}
       {monthlyTrends.length > 0 && (
-        <Card className="rounded-2xl border-slate-200/80 shadow-xs overflow-hidden">
+        <Card className="rounded-2xl border-slate-200 bg-white shadow-xs overflow-hidden">
           <CardHeader className="p-5 pb-2">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-emerald-600" />
-                  Monthly Earnings vs Spendings Trend
+                <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-slate-500" />
+                  Monthly Breakdown
                 </CardTitle>
-                <CardDescription className="text-xs text-slate-500">
-                  Month-by-month cashflow of driver earnings and passenger carpool expenses
+                <CardDescription className="text-xs text-slate-500 mt-0.5">
+                  Monthly cashflow of driver earnings and passenger expenses
                 </CardDescription>
               </div>
 
-              <div className="flex items-center gap-3 text-xs font-medium">
+              <div className="flex items-center gap-4 text-xs font-medium">
                 <div className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 rounded-sm bg-emerald-500 inline-block" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-600 inline-block" />
                   <span className="text-slate-600">Earned (Driver)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 rounded-sm bg-indigo-500 inline-block" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-indigo-500 inline-block" />
                   <span className="text-slate-600">Spent (Passenger)</span>
                 </div>
               </div>
@@ -420,22 +386,22 @@ export default function FinancesPage() {
             <div className="h-[220px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyTrends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={{ stroke: "#cbd5e1" }} />
-                  <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={{ stroke: "#cbd5e1" }} tickFormatter={(val) => `₹${val}`} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={{ stroke: "#e2e8f0" }} />
+                  <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={{ stroke: "#e2e8f0" }} tickFormatter={(val) => `₹${val}`} />
                   <Tooltip
                     formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, ""]}
                     contentStyle={{
-                      backgroundColor: "rgba(15, 23, 42, 0.95)",
+                      backgroundColor: "#0f172a",
                       borderRadius: "10px",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      border: "none",
                       color: "#fff",
                       fontSize: "12px",
                       padding: "8px 12px",
                     }}
                   />
-                  <Bar dataKey="earned" name="Earned as Driver" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={38} />
-                  <Bar dataKey="spent" name="Spent as Passenger" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={38} />
+                  <Bar dataKey="earned" name="Earned as Driver" fill="#059669" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                  <Bar dataKey="spent" name="Spent as Passenger" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={36} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -443,27 +409,27 @@ export default function FinancesPage() {
         </Card>
       )}
 
-      {/* Transaction Ledger & Activity Section */}
-      <Card className="rounded-2xl border-slate-200/80 shadow-xs overflow-hidden">
+      {/* Payment History & Activity Section */}
+      <Card className="rounded-2xl border-slate-200 bg-white shadow-xs overflow-hidden">
         <CardHeader className="p-5 pb-3 border-b border-slate-100">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Layers className="h-4 w-4 text-emerald-600" />
-                Commute Transaction Ledger
+              <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Layers className="h-4 w-4 text-slate-500" />
+                Payment History
               </CardTitle>
-              <CardDescription className="text-xs text-slate-500">
-                Detailed record of all ride fares received as driver and paid as passenger
+              <CardDescription className="text-xs text-slate-500 mt-0.5">
+                Detailed record of fares received and paid
               </CardDescription>
             </div>
 
             {/* Tab switchers */}
-            <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-semibold text-slate-600">
+            <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-medium text-slate-600">
               <button
                 type="button"
                 onClick={() => setActiveTab("all")}
                 className={`rounded-lg px-3 py-1.5 transition-all ${
-                  activeTab === "all" ? "bg-white text-slate-900 shadow-xs font-bold" : "hover:text-slate-900"
+                  activeTab === "all" ? "bg-white text-slate-900 shadow-xs font-semibold" : "hover:text-slate-900"
                 }`}
               >
                 All ({transactions.length})
@@ -472,7 +438,7 @@ export default function FinancesPage() {
                 type="button"
                 onClick={() => setActiveTab("earnings")}
                 className={`rounded-lg px-3 py-1.5 transition-all flex items-center gap-1.5 ${
-                  activeTab === "earnings" ? "bg-white text-emerald-700 shadow-xs font-bold" : "hover:text-slate-900"
+                  activeTab === "earnings" ? "bg-white text-emerald-800 shadow-xs font-semibold" : "hover:text-slate-900"
                 }`}
               >
                 <ArrowUpRight className="h-3.5 w-3.5 text-emerald-600" />
@@ -482,11 +448,11 @@ export default function FinancesPage() {
                 type="button"
                 onClick={() => setActiveTab("spendings")}
                 className={`rounded-lg px-3 py-1.5 transition-all flex items-center gap-1.5 ${
-                  activeTab === "spendings" ? "bg-white text-indigo-700 shadow-xs font-bold" : "hover:text-slate-900"
+                  activeTab === "spendings" ? "bg-white text-indigo-800 shadow-xs font-semibold" : "hover:text-slate-900"
                 }`}
               >
                 <ArrowDownLeft className="h-3.5 w-3.5 text-indigo-600" />
-                Carpool Spendings ({transactions.filter((t) => t.type === "spending").length})
+                Carpool Expenses ({transactions.filter((t) => t.type === "spending").length})
               </button>
             </div>
           </div>
@@ -514,11 +480,11 @@ export default function FinancesPage() {
             </div>
 
             <div className="flex items-center gap-1 w-full sm:w-auto shrink-0">
-              <span className="text-[11px] font-bold text-slate-500 px-1">Status:</span>
+              <span className="text-[11px] font-semibold text-slate-500 px-1">Status:</span>
               <button
                 type="button"
                 onClick={() => setStatusFilter("all")}
-                className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-all ${
+                className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all ${
                   statusFilter === "all"
                     ? "bg-slate-900 text-white border-slate-900"
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
@@ -529,10 +495,10 @@ export default function FinancesPage() {
               <button
                 type="button"
                 onClick={() => setStatusFilter("paid")}
-                className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-all ${
+                className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all ${
                   statusFilter === "paid"
-                    ? "bg-emerald-600 text-white border-emerald-600"
-                    : "bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                    ? "bg-emerald-700 text-white border-emerald-700"
+                    : "bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-50"
                 }`}
               >
                 Paid
@@ -540,9 +506,9 @@ export default function FinancesPage() {
               <button
                 type="button"
                 onClick={() => setStatusFilter("partially_paid")}
-                className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-all ${
+                className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all ${
                   statusFilter === "partially_paid"
-                    ? "bg-amber-600 text-white border-amber-600"
+                    ? "bg-amber-700 text-white border-amber-700"
                     : "bg-white text-amber-800 border-amber-200 hover:bg-amber-50"
                 }`}
               >
@@ -551,13 +517,13 @@ export default function FinancesPage() {
               <button
                 type="button"
                 onClick={() => setStatusFilter("not_paid")}
-                className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-all ${
+                className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all ${
                   statusFilter === "not_paid"
-                    ? "bg-rose-600 text-white border-rose-600"
-                    : "bg-white text-rose-700 border-rose-200 hover:bg-rose-50"
+                    ? "bg-slate-700 text-white border-slate-700"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                 }`}
               >
-                Not Paid
+                Unpaid
               </button>
             </div>
           </div>
@@ -603,29 +569,29 @@ export default function FinancesPage() {
                     {/* Left: Transaction Type & Route Info */}
                     <div className="flex items-start gap-3.5">
                       <div
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                           isEarning
-                            ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
-                            : "bg-indigo-50 text-indigo-600 border border-indigo-200"
+                            ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                            : "bg-slate-100 text-slate-600 border border-slate-200"
                         }`}
                       >
                         {isEarning ? (
-                          <ArrowUpRight className="h-5 w-5 stroke-[2.5]" />
+                          <ArrowUpRight className="h-5 w-5 stroke-[2]" />
                         ) : (
-                          <ArrowDownLeft className="h-5 w-5 stroke-[2.5]" />
+                          <ArrowDownLeft className="h-5 w-5 stroke-[2]" />
                         )}
                       </div>
 
                       <div className="space-y-1 text-xs">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`font-black text-xs px-2 py-0.5 rounded-md ${
+                            className={`font-semibold text-[11px] px-2 py-0.5 rounded-md ${
                               isEarning
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-indigo-100 text-indigo-800"
+                                ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
+                                : "bg-slate-100 text-slate-700 border border-slate-200"
                             }`}
                           >
-                            {isEarning ? "Driver Earning" : "Carpool Expense"}
+                            {isEarning ? "Driver" : "Passenger"}
                           </span>
                           <span className="text-[11px] text-slate-400">•</span>
                           <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
@@ -642,7 +608,7 @@ export default function FinancesPage() {
 
                         <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-2 pt-0.5">
                           <span>
-                            {isEarning ? "Passenger:" : "Driver:"}{" "}
+                            {isEarning ? "Received from" : "Paid to"}:{" "}
                             <strong className="text-slate-800 font-semibold">
                               {tx.counterpart?.name || "Coworker"}
                             </strong>
@@ -650,7 +616,7 @@ export default function FinancesPage() {
                           </span>
                           <span>•</span>
                           <span>
-                            Boarding: <strong>{tx.pickupStop}</strong>
+                            Pickup: <strong>{tx.pickupStop}</strong>
                           </span>
                           <span>→</span>
                           <span>
@@ -669,8 +635,8 @@ export default function FinancesPage() {
                     <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
                       <div className="flex items-center gap-1.5">
                         <span
-                          className={`text-base font-black ${
-                            isEarning ? "text-emerald-600" : "text-slate-900"
+                          className={`text-base font-bold ${
+                            isEarning ? "text-emerald-700" : "text-slate-900"
                           }`}
                         >
                           {isEarning ? "+" : "-"}₹{tx.amountPaid}
@@ -682,16 +648,16 @@ export default function FinancesPage() {
 
                       <div className="mt-1">
                         {isPaid ? (
-                          <Badge className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 gap-1">
-                            <CheckCircle2 className="h-3 w-3" /> Full Paid
+                          <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-medium px-2 py-0.5 gap-1">
+                            <CheckCircle2 className="h-3 w-3" /> Paid
                           </Badge>
                         ) : isPartiallyPaid ? (
-                          <Badge className="bg-amber-600 text-white text-[10px] font-bold px-2 py-0.5 gap-1">
-                            <AlertCircle className="h-3 w-3" /> Partial (Due: ₹{tx.remainingAmount})
+                          <Badge className="bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-medium px-2 py-0.5 gap-1">
+                            <AlertCircle className="h-3 w-3" /> Due: ₹{tx.remainingAmount}
                           </Badge>
                         ) : (
-                          <Badge className="bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 gap-1">
-                            <X className="h-3 w-3" /> Not Paid (₹{tx.fare})
+                          <Badge className="bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-medium px-2 py-0.5 gap-1">
+                            <X className="h-3 w-3" /> Unpaid
                           </Badge>
                         )}
                       </div>

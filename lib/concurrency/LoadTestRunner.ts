@@ -39,7 +39,7 @@ class LoadTestRunnerService {
         logs.push(`[${new Date().toISOString().split("T")[1].slice(0, 12)}] ${msg}`);
       };
 
-      log(`🚀 Starting CommuteX Load Test Run: ${testRunId}`);
+      log(`Starting CommuteX Load Test Run: ${testRunId}`);
       log(`Config: ${concurrentUsers} Concurrent Users competing for ${totalSeats} Available Seats`);
 
       // Reset in-memory metrics & queues for fresh test run
@@ -247,9 +247,9 @@ class LoadTestRunnerService {
       log(`----------------------------------------`);
 
       if (isConcurrencySafe) {
-        log(`✅ CONCURRENCY SAFETY VERIFIED: ZERO double bookings, ZERO negative seats, ZERO lost requests!`);
+        log(`CONCURRENCY SAFETY VERIFIED: ZERO double bookings, ZERO negative seats, ZERO lost requests!`);
       } else {
-        log(`⚠️ CONCURRENCY SAFETY WARNING: Unexpected counts detected.`);
+        log(`CONCURRENCY SAFETY WARNING: Unexpected counts detected.`);
       }
 
       // 4. CLEAN UP ONLY THIS TEST RUN'S DATA AFTER VERIFICATION IS COMPLETE
