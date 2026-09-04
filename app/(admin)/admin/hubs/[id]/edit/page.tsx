@@ -30,6 +30,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import LocationSearchInput from "@/components/map/LocationSearchInput";
 import { routingService, RouteResult } from "@/lib/services/routing";
+import { resolvePlaceCoordinates } from "@/lib/services/geocoding";
+import { snapPointToRoute } from "@/lib/services/routeCorridor";
 import { CarLoader } from "@/components/common/CarLoader";
 
 const LeafletRouteMap = dynamic(
@@ -253,14 +255,13 @@ export default function EditHubPage() {
     const validIntermediates = intermediateHubs.filter(isValidPoint);
     const isDestValid = isValidPoint(destination);
 
-    const activeWaypoints: { latitude: number; longitude: number }[] = [];
-    if (isOriginValid) activeWaypoints.push({ latitude: origin.latitude, longitude: origin.longitude });
-    validIntermediates.forEach((h) => {
-      activeWaypoints.push({ latitude: h.latitude, longitude: h.longitude });
-    });
-    if (isDestValid) activeWaypoints.push({ latitude: destination.latitude, longitude: destination.longitude });
+    if (!isOriginValid && !isDestValid && validIntermediates.length === 0) {
+      setCalculatedRoute(null);
+      return;
+    }
 
-    if (activeWaypoints.length < 2) {
+    const waypointsCount = (isOriginValid ? 1 : 0) + validIntermediates.length + (isDestValid ? 1 : 0);
+    if (waypointsCount < 2) {
       setCalculatedRoute(null);
       return;
     }
@@ -268,19 +269,60 @@ export default function EditHubPage() {
     let isMounted = true;
     setIsCalculatingRoute(true);
 
-    routingService
-      .calculateRoute(activeWaypoints)
-      .then((res) => {
+    const computeCorridorRoute = async () => {
+      try {
+        let activeWaypoints: { latitude: number; longitude: number }[] = [];
+
+        if (isOriginValid && isDestValid) {
+          // 1. Calculate base highway corridor between Origin and Destination
+          let baseHighway: RouteResult | null = null;
+          try {
+            baseHighway = await routingService.calculateRoute([
+              { latitude: origin.latitude, longitude: origin.longitude },
+              { latitude: destination.latitude, longitude: destination.longitude },
+            ]);
+          } catch (e) {
+            console.warn("Base highway calculation failed in edit:", e);
+          }
+
+          // 2. If intermediate hubs exist, snap them to the base highway route polyline
+          const snappedIntermediates = validIntermediates.map((hub) => {
+            let lat = hub.latitude;
+            let lng = hub.longitude;
+            if (baseHighway?.coordinates && baseHighway.coordinates.length >= 2) {
+              const snapped = snapPointToRoute(lat, lng, baseHighway.coordinates, 6.0);
+              if (!snapped.isTooFar) {
+                lat = snapped.snappedLatitude;
+                lng = snapped.snappedLongitude;
+              }
+            }
+            return { latitude: lat, longitude: lng };
+          });
+
+          activeWaypoints = [
+            { latitude: origin.latitude, longitude: origin.longitude },
+            ...snappedIntermediates,
+            { latitude: destination.latitude, longitude: destination.longitude },
+          ];
+        } else {
+          // Fallback if one end is missing
+          if (isOriginValid) activeWaypoints.push({ latitude: origin.latitude, longitude: origin.longitude });
+          validIntermediates.forEach((hub) => activeWaypoints.push({ latitude: hub.latitude, longitude: hub.longitude }));
+          if (isDestValid) activeWaypoints.push({ latitude: destination.latitude, longitude: destination.longitude });
+        }
+
+        const res = await routingService.calculateRoute(activeWaypoints);
         if (isMounted && res) {
           setCalculatedRoute(res);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.warn("Hub route calculation failed:", err);
-      })
-      .finally(() => {
+      } finally {
         if (isMounted) setIsCalculatingRoute(false);
-      });
+      }
+    };
+
+    computeCorridorRoute();
 
     return () => {
       isMounted = false;
@@ -294,28 +336,31 @@ export default function EditHubPage() {
     if (!pickingTarget) return;
 
     if (pickingTarget.type === "origin") {
+      const resolved = resolvePlaceCoordinates(loc.address, loc.latitude, loc.longitude, true, true);
       setOrigin({
         name: areaName,
         address: loc.address,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
+        latitude: resolved.latitude,
+        longitude: resolved.longitude,
       });
       setPickingTarget(null);
     } else if (pickingTarget.type === "destination") {
+      const resolved = resolvePlaceCoordinates(loc.address, loc.latitude, loc.longitude, false, true);
       setDestination({
         name: areaName,
         address: loc.address,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
+        latitude: resolved.latitude,
+        longitude: resolved.longitude,
       });
       setPickingTarget(null);
     } else if (pickingTarget.type === "intermediate") {
       const idx = pickingTarget.index;
+      const resolved = resolvePlaceCoordinates(loc.address, loc.latitude, loc.longitude, false, true);
       handleUpdateIntermediateHub(idx, {
         name: areaName,
         address: loc.address,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
+        latitude: resolved.latitude,
+        longitude: resolved.longitude,
       });
       setPickingTarget(null);
     }
@@ -620,11 +665,12 @@ export default function EditHubPage() {
                     if (Math.abs(loc.latitude) < 0.01 || Math.abs(loc.longitude) < 0.01) {
                       return;
                     }
+                    const resolved = resolvePlaceCoordinates(loc.address, loc.latitude, loc.longitude, true, true);
                     setOrigin({
                       name: loc.address.split(",")[0] || "Origin",
                       address: loc.address,
-                      latitude: loc.latitude,
-                      longitude: loc.longitude,
+                      latitude: resolved.latitude,
+                      longitude: resolved.longitude,
                     });
                   }}
                 />
@@ -755,11 +801,12 @@ export default function EditHubPage() {
                             if (Math.abs(loc.latitude) < 0.01 || Math.abs(loc.longitude) < 0.01) {
                               return;
                             }
+                            const resolved = resolvePlaceCoordinates(loc.address, loc.latitude, loc.longitude, false, true);
                             handleUpdateIntermediateHub(idx, {
                               name: loc.address.split(",")[0] || `Hub ${idx + 1}`,
                               address: loc.address,
-                              latitude: loc.latitude,
-                              longitude: loc.longitude,
+                              latitude: resolved.latitude,
+                              longitude: resolved.longitude,
                             });
                           }}
                         />
@@ -841,11 +888,12 @@ export default function EditHubPage() {
                     if (Math.abs(loc.latitude) < 0.01 || Math.abs(loc.longitude) < 0.01) {
                       return;
                     }
+                    const resolved = resolvePlaceCoordinates(loc.address, loc.latitude, loc.longitude, false, true);
                     setDestination({
                       name: loc.address.split(",")[0] || "Destination",
                       address: loc.address,
-                      latitude: loc.latitude,
-                      longitude: loc.longitude,
+                      latitude: resolved.latitude,
+                      longitude: resolved.longitude,
                     });
                   }}
                 />

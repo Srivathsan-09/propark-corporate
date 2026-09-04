@@ -7,6 +7,7 @@ import { Loader2, Navigation2, MapPin, IndianRupee, Car, Crosshair } from "lucid
 import { CarLoader } from "@/components/common/CarLoader";
 import { DynamicRerouteEngine } from "@/lib/services/rerouting";
 import type { RouteResult } from "@/lib/services/routing";
+import { snapPointToRoute } from "@/lib/services/routeCorridor";
 
 export interface MapPoint {
   address?: string;
@@ -373,6 +374,8 @@ export default function LeafletRouteMap({
     }
 
     const boundsPoints: L.LatLngExpression[] = [];
+    const isRerouted = Boolean(reroutedRoute);
+    const activeRouteToDraw = reroutedRoute?.coordinates || routeCoordinates;
 
     // Helper to create custom HTML markers with needle pointer and exact road anchoring
     const createHtmlMarker = (
@@ -411,9 +414,18 @@ export default function LeafletRouteMap({
       typeof startLocation.latitude === "number" &&
       startLocation.latitude !== 0
     ) {
+      let lat = startLocation.latitude;
+      let lng = startLocation.longitude;
+      if (activeRouteToDraw && activeRouteToDraw.length >= 2) {
+        const snapped = snapPointToRoute(lat, lng, activeRouteToDraw, 1.5);
+        if (!snapped.isTooFar) {
+          lat = snapped.snappedLatitude;
+          lng = snapped.snappedLongitude;
+        }
+      }
       const marker = createHtmlMarker(
-        startLocation.latitude,
-        startLocation.longitude,
+        lat,
+        lng,
         "bg-emerald-600",
         "A",
         startLocation.name || startLocation.address?.split(",")[0] || "Origin"
@@ -429,11 +441,20 @@ export default function LeafletRouteMap({
         stop.latitude !== 0 &&
         typeof stop.longitude === "number"
       ) {
+        let lat = stop.latitude;
+        let lng = stop.longitude;
+        if (activeRouteToDraw && activeRouteToDraw.length >= 2) {
+          const snapped = snapPointToRoute(lat, lng, activeRouteToDraw, 2.0);
+          if (!snapped.isTooFar) {
+            lat = snapped.snappedLatitude;
+            lng = snapped.snappedLongitude;
+          }
+        }
         const priceLabel = stop.price ? `₹${stop.price}` : "";
         const title = `${stop.name || "Stop " + (index + 1)} ${priceLabel ? "(" + priceLabel + ")" : ""}`;
         const marker = createHtmlMarker(
-          stop.latitude,
-          stop.longitude,
+          lat,
+          lng,
           "bg-amber-500",
           `${index + 1}`,
           title,
@@ -453,9 +474,18 @@ export default function LeafletRouteMap({
       typeof destination.latitude === "number" &&
       destination.latitude !== 0
     ) {
+      let lat = destination.latitude;
+      let lng = destination.longitude;
+      if (activeRouteToDraw && activeRouteToDraw.length >= 2) {
+        const snapped = snapPointToRoute(lat, lng, activeRouteToDraw, 1.5);
+        if (!snapped.isTooFar) {
+          lat = snapped.snappedLatitude;
+          lng = snapped.snappedLongitude;
+        }
+      }
       const marker = createHtmlMarker(
-        destination.latitude,
-        destination.longitude,
+        lat,
+        lng,
         "bg-blue-600",
         "B",
         destination.name || destination.address?.split(",")[0] || "Campus"
@@ -616,9 +646,6 @@ export default function LeafletRouteMap({
       `);
       boundsPoints.push([customPickupPoint.latitude, customPickupPoint.longitude]);
     }
-
-    const isRerouted = Boolean(reroutedRoute);
-    const activeRouteToDraw = reroutedRoute?.coordinates || routeCoordinates;
 
     // 6. Draw Polyline Route & Multi-Route Options with Interactive Click Selection
     const drawRoutePolyline = (activeCoords: [number, number][], isRecalculatedRoute = false) => {

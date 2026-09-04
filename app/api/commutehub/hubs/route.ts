@@ -6,6 +6,8 @@ import Hub from "@/models/Hub";
 import Ride from "@/models/Ride";
 import Campus from "@/models/Campus";
 import { routingService } from "@/lib/services/routing";
+import { resolvePlaceCoordinates } from "@/lib/services/geocoding";
+import { snapPointToRoute } from "@/lib/services/routeCorridor";
 
 export const dynamic = "force-dynamic";
 
@@ -249,15 +251,78 @@ export async function POST(req: NextRequest) {
       ];
     }
 
-    // Calculate route geometry and travel statistics (via intermediate waypoints)
+    // Resolve Origin and Destination on authoritative main road / highway coordinates
+    const originCoords = resolvePlaceCoordinates(
+      origin.name || origin.address,
+      origin.latitude,
+      origin.longitude,
+      true,
+      true
+    );
+    const destCoords = resolvePlaceCoordinates(
+      destination.name || destination.address,
+      destination.latitude,
+      destination.longitude,
+      false,
+      true
+    );
+
+    const mainRoadOrigin = {
+      name: origin.name.trim(),
+      address: origin.address || origin.name,
+      latitude: originCoords.latitude,
+      longitude: originCoords.longitude,
+    };
+
+    const mainRoadDest = {
+      name: destination.name.trim(),
+      address: destination.address || destination.name,
+      latitude: destCoords.latitude,
+      longitude: destCoords.longitude,
+    };
+
+    // Calculate direct highway corridor between Origin and Destination
+    let baseHighwayRoute: any = null;
+    try {
+      baseHighwayRoute = await routingService.calculateRoute([
+        { latitude: mainRoadOrigin.latitude, longitude: mainRoadOrigin.longitude },
+        { latitude: mainRoadDest.latitude, longitude: mainRoadDest.longitude },
+      ]);
+    } catch (e) {
+      console.warn("Base highway calculation failed, will use direct waypoints:", e);
+    }
+
+    // Snap each intermediate point directly to the main road highway corridor polyline
+    const mainRoadIntermediatePoints = normalizedIntermediatePoints.map((p) => {
+      const resolved = resolvePlaceCoordinates(p.name || p.address, p.latitude, p.longitude, false, true);
+      let lat = resolved.latitude;
+      let lng = resolved.longitude;
+
+      if (baseHighwayRoute?.coordinates && baseHighwayRoute.coordinates.length >= 2) {
+        const snapped = snapPointToRoute(lat, lng, baseHighwayRoute.coordinates, 6.0);
+        if (!snapped.isTooFar) {
+          lat = snapped.snappedLatitude;
+          lng = snapped.snappedLongitude;
+        }
+      }
+
+      return {
+        name: p.name.trim(),
+        address: p.address || p.name,
+        latitude: lat,
+        longitude: lng,
+      };
+    });
+
+    // Calculate route geometry and travel statistics along the main road corridor
     let routeCoordinates: [number, number][] = [];
     let distanceKm = 0;
     let durationMinutes = 0;
 
     const waypoints = [
-      { latitude: origin.latitude, longitude: origin.longitude },
-      ...normalizedIntermediatePoints.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
-      { latitude: destination.latitude, longitude: destination.longitude },
+      { latitude: mainRoadOrigin.latitude, longitude: mainRoadOrigin.longitude },
+      ...mainRoadIntermediatePoints.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
+      { latitude: mainRoadDest.latitude, longitude: mainRoadDest.longitude },
     ];
 
     try {
@@ -278,29 +343,19 @@ export async function POST(req: NextRequest) {
     const count = await Hub.countDocuments();
     const formattedHubId = `HUB-${String(count + 1).padStart(3, "0")}`;
     const autoCorridor =
-      normalizedIntermediatePoints.length > 0
-        ? `${origin.name} → ${normalizedIntermediatePoints.map((p) => p.name).join(" → ")} → ${destination.name}`
-        : `${origin.name} → ${destination.name}`;
+      mainRoadIntermediatePoints.length > 0
+        ? `${mainRoadOrigin.name} → ${mainRoadIntermediatePoints.map((p) => p.name).join(" → ")} → ${mainRoadDest.name}`
+        : `${mainRoadOrigin.name} → ${mainRoadDest.name}`;
     const corridorLabel = corridor?.trim() || autoCorridor;
 
     const newHub = await Hub.create({
       hubId: formattedHubId,
       name: name.trim(),
       corridor: corridorLabel,
-      origin: {
-        name: origin.name.trim(),
-        address: origin.address || origin.name,
-        latitude: origin.latitude,
-        longitude: origin.longitude,
-      },
-      commonPoint: normalizedIntermediatePoints[0] || null,
-      intermediatePoints: normalizedIntermediatePoints,
-      destination: {
-        name: destination.name.trim(),
-        address: destination.address || destination.name,
-        latitude: destination.latitude,
-        longitude: destination.longitude,
-      },
+      origin: mainRoadOrigin,
+      commonPoint: mainRoadIntermediatePoints[0] || null,
+      intermediatePoints: mainRoadIntermediatePoints,
+      destination: mainRoadDest,
       campusId: targetCampusId.toUpperCase().trim(),
       campusName,
       routeCoordinates,

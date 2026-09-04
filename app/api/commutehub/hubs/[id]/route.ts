@@ -7,6 +7,8 @@ import Hub from "@/models/Hub";
 import Ride from "@/models/Ride";
 import Campus from "@/models/Campus";
 import { routingService } from "@/lib/services/routing";
+import { resolvePlaceCoordinates } from "@/lib/services/geocoding";
+import { snapPointToRoute } from "@/lib/services/routeCorridor";
 
 export const dynamic = "force-dynamic";
 
@@ -159,48 +161,50 @@ export async function PATCH(
     let pointsChanged = false;
 
     if (origin) {
-      hub.origin = origin;
+      const origCoords = resolvePlaceCoordinates(
+        origin.name || origin.address,
+        origin.latitude,
+        origin.longitude,
+        true,
+        true
+      );
+      hub.origin = {
+        name: origin.name.trim(),
+        address: origin.address || origin.name,
+        latitude: origCoords.latitude,
+        longitude: origCoords.longitude,
+      };
       pointsChanged = true;
     }
     if (destination) {
-      hub.destination = destination;
+      const destCoords = resolvePlaceCoordinates(
+        destination.name || destination.address,
+        destination.latitude,
+        destination.longitude,
+        false,
+        true
+      );
+      hub.destination = {
+        name: destination.name.trim(),
+        address: destination.address || destination.name,
+        latitude: destCoords.latitude,
+        longitude: destCoords.longitude,
+      };
       pointsChanged = true;
     }
 
+    let inputIntermediates: any[] | null = null;
     if (intermediatePoints !== undefined) {
-      const validPoints = Array.isArray(intermediatePoints)
-        ? intermediatePoints
-            .filter(
-              (p: any) =>
-                p &&
-                p.name &&
-                typeof p.latitude === "number" &&
-                typeof p.longitude === "number" &&
-                Math.abs(p.latitude) > 0.01 &&
-                Math.abs(p.longitude) > 0.01
-            )
-            .map((p: any) => ({
-              name: p.name.trim(),
-              address: p.address || p.name,
-              latitude: p.latitude,
-              longitude: p.longitude,
-            }))
-        : [];
-      hub.intermediatePoints = validPoints;
-      hub.commonPoint = validPoints[0] || null;
+      inputIntermediates = Array.isArray(intermediatePoints) ? intermediatePoints : [];
       pointsChanged = true;
     } else if (commonPoint !== undefined) {
-      hub.commonPoint = commonPoint;
-      if (
+      inputIntermediates =
         commonPoint &&
         commonPoint.name &&
         typeof commonPoint.latitude === "number" &&
         typeof commonPoint.longitude === "number"
-      ) {
-        hub.intermediatePoints = [commonPoint];
-      } else {
-        hub.intermediatePoints = [];
-      }
+          ? [commonPoint]
+          : [];
       pointsChanged = true;
     }
 
@@ -213,16 +217,89 @@ export async function PATCH(
       }
     }
 
-    // If locations changed, re-calculate route
+    // If locations changed, re-calculate route along the main highway corridor
     if (pointsChanged) {
-      const activeOrigin = hub.origin;
-      const activeDest = hub.destination;
-      const activeIntermediates = hub.intermediatePoints || (hub.commonPoint ? [hub.commonPoint] : []);
+      // Ensure origin and destination coordinates are on main road
+      const origResolved = resolvePlaceCoordinates(
+        hub.origin.name || hub.origin.address,
+        hub.origin.latitude,
+        hub.origin.longitude,
+        true,
+        true
+      );
+      hub.origin.latitude = origResolved.latitude;
+      hub.origin.longitude = origResolved.longitude;
+
+      const destResolved = resolvePlaceCoordinates(
+        hub.destination.name || hub.destination.address,
+        hub.destination.latitude,
+        hub.destination.longitude,
+        false,
+        true
+      );
+      hub.destination.latitude = destResolved.latitude;
+      hub.destination.longitude = destResolved.longitude;
+
+      // Calculate direct highway corridor between Origin and Destination
+      let baseHighwayRoute: any = null;
+      try {
+        baseHighwayRoute = await routingService.calculateRoute([
+          { latitude: hub.origin.latitude, longitude: hub.origin.longitude },
+          { latitude: hub.destination.latitude, longitude: hub.destination.longitude },
+        ]);
+      } catch (e) {
+        console.warn("Base highway calculation failed in PATCH, will use direct waypoints:", e);
+      }
+
+      const rawIntermediates =
+        inputIntermediates !== null
+          ? inputIntermediates
+          : hub.intermediatePoints || (hub.commonPoint ? [hub.commonPoint] : []);
+
+      const validPoints = rawIntermediates
+        .filter(
+          (p: any) =>
+            p &&
+            p.name &&
+            typeof p.latitude === "number" &&
+            typeof p.longitude === "number" &&
+            Math.abs(p.latitude) > 0.01 &&
+            Math.abs(p.longitude) > 0.01
+        )
+        .map((p: any) => {
+          const resolved = resolvePlaceCoordinates(
+            p.name || p.address,
+            p.latitude,
+            p.longitude,
+            false,
+            true
+          );
+          let lat = resolved.latitude;
+          let lng = resolved.longitude;
+
+          if (baseHighwayRoute?.coordinates && baseHighwayRoute.coordinates.length >= 2) {
+            const snapped = snapPointToRoute(lat, lng, baseHighwayRoute.coordinates, 6.0);
+            if (!snapped.isTooFar) {
+              lat = snapped.snappedLatitude;
+              lng = snapped.snappedLongitude;
+            }
+          }
+
+          return {
+            name: p.name.trim(),
+            address: p.address || p.name,
+            latitude: lat,
+            longitude: lng,
+          };
+        });
+
+      hub.intermediatePoints = validPoints;
+      hub.commonPoint = validPoints[0] || null;
 
       const waypoints = [
-        { latitude: activeOrigin.latitude, longitude: activeOrigin.longitude },
-        ...activeIntermediates.map((p: any) => ({ latitude: p.latitude, longitude: p.longitude })),
-        { latitude: activeDest.latitude, longitude: activeDest.longitude },
+        { latitude: hub.origin.latitude, longitude: hub.origin.longitude },
+        ...validPoints.map((p: any) => ({ latitude: p.latitude, longitude: p.longitude })),
+        { latitude: hub.destination.latitude, longitude: hub.destination.longitude },
       ];
 
       try {

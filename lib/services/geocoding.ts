@@ -340,9 +340,132 @@ export function resolvePlaceCoordinates(
   placeName: string | undefined,
   existingLat?: number,
   existingLng?: number,
-  isOrigin: boolean = true
+  isOrigin: boolean = true,
+  preferMainRoad: boolean = true
 ): { latitude: number; longitude: number } {
-  // 1. If valid real numeric coordinates are explicitly passed, always respect them first!
+  const name = (placeName || "").toLowerCase().trim();
+
+  // Helper with authoritative main highway/arterial road coordinates
+  const lookupMainRoadPlace = (str: string): { latitude: number; longitude: number } | null => {
+    if (
+      str.includes("karayanchavadi") ||
+      str.includes("karayan") ||
+      str.includes("poonamallee") ||
+      str.includes("kumunanchavadi")
+    ) {
+      return { latitude: 13.048, longitude: 80.091 }; // Poonamallee High Road / Bus Terminus
+    }
+
+    if (str.includes("porur bypass") || str.includes("porur")) {
+      return { latitude: 13.0382, longitude: 80.1565 }; // Mount-Poonamallee / Porur Junction
+    }
+
+    if (str.includes("mugalivakkam")) {
+      return { latitude: 13.0285, longitude: 80.1715 }; // Mount-Poonamallee High Road at Mugalivakkam Main Junction
+    }
+
+    if (str.includes("ramapuram") || str.includes("dlf")) {
+      return { latitude: 13.0298, longitude: 80.1770 }; // Mount-Poonamallee High Road (DLF IT Park Gate)
+    }
+
+    if (str.includes("nandambakkam")) {
+      return { latitude: 13.0186, longitude: 80.1843 }; // Mount-Poonamallee High Road (Trade Centre)
+    }
+
+    if (str.includes("kathipara") || str.includes("guindy")) {
+      return { latitude: 13.0067, longitude: 80.202 }; // Kathipara / GST Main Road / Guindy Metro
+    }
+
+    if (str.includes("alandur")) {
+      return { latitude: 13.0035, longitude: 80.2005 }; // GST Main Road / Alandur Metro
+    }
+
+    if (str.includes("saidapet") || str.includes("little mount")) {
+      return { latitude: 13.0175, longitude: 80.2205 }; // Anna Salai Main Road
+    }
+
+    if (str.includes("vadapalani")) {
+      return { latitude: 13.0500, longitude: 80.2121 }; // 100 Feet Road / Vadapalani Junction
+    }
+
+    if (str.includes("ashok nagar")) {
+      return { latitude: 13.0368, longitude: 80.2132 }; // 100 Feet Road (Ashok Pillar)
+    }
+
+    if (str.includes("koyambedu")) {
+      return { latitude: 13.0694, longitude: 80.1948 }; // Poonamallee High Road / CMBT Main Road
+    }
+
+    if (str.includes("maduravoyal")) {
+      return { latitude: 13.0645, longitude: 80.1627 }; // Maduravoyal Bypass / Grade Separator
+    }
+
+    if (str.includes("kattupakkam")) {
+      return { latitude: 13.0456, longitude: 80.1214 }; // Mount-Poonamallee High Road
+    }
+
+    if (str.includes("iyyappanthangal") || str.includes("iyapanthangal")) {
+      return { latitude: 13.0418, longitude: 80.1417 }; // Mount-Poonamallee High Road Bus Depot
+    }
+
+    if (str.includes("ambattur")) {
+      return { latitude: 13.1147, longitude: 80.1548 }; // Ambattur Industrial Estate Main Road
+    }
+
+    if (str.includes("avadi")) {
+      return { latitude: 13.1188, longitude: 80.1017 }; // Avadi Main Road / Railway Station
+    }
+
+    if (str.includes("chromepet")) {
+      return { latitude: 12.9516, longitude: 80.1413 }; // GST Road / Chromepet Main Road
+    }
+
+    if (str.includes("pallavaram")) {
+      return { latitude: 12.9675, longitude: 80.1491 }; // GST Road / Pallavaram Flyover
+    }
+
+    if (str.includes("tambaram")) {
+      return { latitude: 12.9249, longitude: 80.1332 }; // GST Road / Tambaram Sanatorium Main Road
+    }
+
+    if (
+      str.includes("taramani") ||
+      str.includes("tech park") ||
+      str.includes("campus") ||
+      str.includes("ascendas") ||
+      str.includes("tidel")
+    ) {
+      return { latitude: 12.9852, longitude: 80.2461 }; // OMR / Taramani Main Road
+    }
+
+    if (str.includes("velachery")) {
+      return { latitude: 12.9815, longitude: 80.218 }; // Velachery Main Road / Bypass
+    }
+
+    if (str.includes("t. nagar") || str.includes("tnagar")) {
+      return { latitude: 13.0418, longitude: 80.2341 }; // Usman Road / Panagal Park Main Road
+    }
+
+    if (str.includes("sholinganallur") || str.includes("siruseri")) {
+      return { latitude: 12.8988, longitude: 80.2284 }; // Rajiv Gandhi Salai / OMR Main Road
+    }
+
+    if (str.includes("anna nagar")) {
+      return { latitude: 13.0850, longitude: 80.2101 }; // 2nd Avenue / Anna Nagar Roundtana
+    }
+
+    return null;
+  };
+
+  // 1. If preferMainRoad is enabled (default true for corridors), check known arterial hubs first
+  if (preferMainRoad && name) {
+    const mainRoadMatch = lookupMainRoadPlace(name);
+    if (mainRoadMatch) {
+      return mainRoadMatch;
+    }
+  }
+
+  // 2. If valid numeric coordinates are explicitly passed, use them
   if (
     typeof existingLat === "number" &&
     !isNaN(existingLat) &&
@@ -356,74 +479,15 @@ export function resolvePlaceCoordinates(
     return { latitude: existingLat, longitude: existingLng };
   }
 
-  const name = (placeName || "").toLowerCase().trim();
-
-  // 2. Specific Chennai / Tamil Nadu locality keyword lookup
-  if (
-    name.includes("karayanchavadi") ||
-    name.includes("karayan") ||
-    name.includes("poonamallee") ||
-    name.includes("kumunanchavadi")
-  ) {
-    return { latitude: 13.048, longitude: 80.091 };
+  // 3. Fallback check name
+  if (name) {
+    const mainRoadMatch = lookupMainRoadPlace(name);
+    if (mainRoadMatch) {
+      return mainRoadMatch;
+    }
   }
 
-  if (name.includes("porur")) {
-    return { latitude: 13.0382, longitude: 80.1565 };
-  }
-
-  // Tech Park Chennai is located in Taramani (Ascendas / TIDEL Park / Ramanujan IT City)
-  if (
-    name.includes("taramani") ||
-    name.includes("tech park") ||
-    name.includes("campus") ||
-    name.includes("ascendas") ||
-    name.includes("tidel")
-  ) {
-    return { latitude: 12.9852, longitude: 80.2461 };
-  }
-
-  if (name.includes("guindy")) {
-    return { latitude: 13.0067, longitude: 80.202 };
-  }
-
-  if (name.includes("mugalivakkam")) {
-    return { latitude: 13.0238, longitude: 80.1691 };
-  }
-
-  if (name.includes("nandambakkam")) {
-    return { latitude: 13.0186, longitude: 80.1843 };
-  }
-
-  if (name.includes("kattupakkam")) {
-    return { latitude: 13.0456, longitude: 80.1214 };
-  }
-
-  if (name.includes("iyyappanthangal") || name.includes("iyapanthangal")) {
-    return { latitude: 13.0418, longitude: 80.1417 };
-  }
-
-  if (name.includes("maduravoyal")) {
-    return { latitude: 13.0645, longitude: 80.1627 };
-  }
-
-  if (name.includes("velachery")) {
-    return { latitude: 12.9815, longitude: 80.218 };
-  }
-
-  if (name.includes("t. nagar") || name.includes("tnagar")) {
-    return { latitude: 13.0418, longitude: 80.2341 };
-  }
-
-  if (name.includes("sholinganallur") || name.includes("siruseri")) {
-    return { latitude: 12.8988, longitude: 80.2284 };
-  }
-
-  if (name.includes("tambaram")) {
-    return { latitude: 12.9249, longitude: 80.1332 };
-  }
-
-  // 3. Fallback defaults (Poonamallee -> Tech Park Taramani Chennai)
+  // 4. Fallback defaults (Poonamallee -> Tech Park Taramani Chennai)
   return isOrigin ? { latitude: 13.048, longitude: 80.091 } : { latitude: 12.9852, longitude: 80.2461 };
 }
 
