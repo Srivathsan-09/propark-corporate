@@ -148,6 +148,7 @@ export async function POST(req: NextRequest) {
       corridor,
       origin,
       commonPoint,
+      intermediatePoints,
       destination,
       status = "active",
     } = body;
@@ -205,24 +206,57 @@ export async function POST(req: NextRequest) {
 
     const campusName = campusDoc?.name || targetCampusId;
 
-    // Calculate route geometry and travel statistics (via commonPoint if assigned)
+    // Normalize intermediate corridor stops (between Origin and Destination)
+    let normalizedIntermediatePoints: Array<{
+      name: string;
+      address?: string;
+      latitude: number;
+      longitude: number;
+    }> = [];
+
+    if (Array.isArray(intermediatePoints) && intermediatePoints.length > 0) {
+      normalizedIntermediatePoints = intermediatePoints
+        .filter(
+          (p: any) =>
+            p &&
+            p.name &&
+            typeof p.latitude === "number" &&
+            typeof p.longitude === "number" &&
+            Math.abs(p.latitude) > 0.01 &&
+            Math.abs(p.longitude) > 0.01
+        )
+        .map((p: any) => ({
+          name: p.name.trim(),
+          address: p.address || p.name,
+          latitude: p.latitude,
+          longitude: p.longitude,
+        }));
+    } else if (
+      commonPoint &&
+      commonPoint.name &&
+      typeof commonPoint.latitude === "number" &&
+      typeof commonPoint.longitude === "number" &&
+      Math.abs(commonPoint.latitude) > 0.01 &&
+      Math.abs(commonPoint.longitude) > 0.01
+    ) {
+      normalizedIntermediatePoints = [
+        {
+          name: commonPoint.name.trim(),
+          address: commonPoint.address || commonPoint.name,
+          latitude: commonPoint.latitude,
+          longitude: commonPoint.longitude,
+        },
+      ];
+    }
+
+    // Calculate route geometry and travel statistics (via intermediate waypoints)
     let routeCoordinates: [number, number][] = [];
     let distanceKm = 0;
     let durationMinutes = 0;
 
-    const hasCommonPoint =
-      Boolean(
-        commonPoint &&
-        commonPoint.name &&
-        typeof commonPoint.latitude === "number" &&
-        Math.abs(commonPoint.latitude) > 0.01 &&
-        typeof commonPoint.longitude === "number" &&
-        Math.abs(commonPoint.longitude) > 0.01
-      );
-
     const waypoints = [
       { latitude: origin.latitude, longitude: origin.longitude },
-      ...(hasCommonPoint ? [{ latitude: commonPoint.latitude, longitude: commonPoint.longitude }] : []),
+      ...normalizedIntermediatePoints.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
       { latitude: destination.latitude, longitude: destination.longitude },
     ];
 
@@ -243,11 +277,11 @@ export async function POST(req: NextRequest) {
     // Auto-generate hub ID
     const count = await Hub.countDocuments();
     const formattedHubId = `HUB-${String(count + 1).padStart(3, "0")}`;
-    const corridorLabel =
-      corridor?.trim() ||
-      (hasCommonPoint
-        ? `${origin.name} → ${commonPoint.name} → ${destination.name}`
-        : `${origin.name} → ${destination.name}`);
+    const autoCorridor =
+      normalizedIntermediatePoints.length > 0
+        ? `${origin.name} → ${normalizedIntermediatePoints.map((p) => p.name).join(" → ")} → ${destination.name}`
+        : `${origin.name} → ${destination.name}`;
+    const corridorLabel = corridor?.trim() || autoCorridor;
 
     const newHub = await Hub.create({
       hubId: formattedHubId,
@@ -259,14 +293,8 @@ export async function POST(req: NextRequest) {
         latitude: origin.latitude,
         longitude: origin.longitude,
       },
-      commonPoint: hasCommonPoint
-        ? {
-            name: commonPoint.name.trim(),
-            address: commonPoint.address || commonPoint.name,
-            latitude: commonPoint.latitude,
-            longitude: commonPoint.longitude,
-          }
-        : null,
+      commonPoint: normalizedIntermediatePoints[0] || null,
+      intermediatePoints: normalizedIntermediatePoints,
       destination: {
         name: destination.name.trim(),
         address: destination.address || destination.name,

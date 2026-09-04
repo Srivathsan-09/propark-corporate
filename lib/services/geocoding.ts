@@ -14,7 +14,7 @@ export interface LocationResult {
  */
 class GeocodingService {
   private nominatimUrl = "https://nominatim.openstreetmap.org";
-  private photonUrl = "https://photon.komoot.io/api";
+  private photonBaseUrl = "https://photon.komoot.io";
 
   // Preferred center focus (Chennai / Tamil Nadu campus region)
   private defaultLat = 13.048;
@@ -41,101 +41,120 @@ class GeocodingService {
     // 1. Try Photon OSM Typeahead API (Built specifically for instant prefix search)
     try {
       const photonRes = await fetch(
-        `${this.photonUrl}/?q=${encodeURIComponent(cleanQuery)}&limit=${limit}&lat=${this.defaultLat}&lon=${this.defaultLon}`,
+        `${this.photonBaseUrl}/api/?q=${encodeURIComponent(cleanQuery)}&limit=${limit}&lat=${this.defaultLat}&lon=${this.defaultLon}`,
         {
           headers: {
             "Accept-Language": "en",
           },
+          signal: AbortSignal.timeout(3500),
         }
       );
 
       if (photonRes.ok) {
-        const photonData = await photonRes.json();
+        const text = await photonRes.text();
+        let photonData: any = null;
+        try {
+          photonData = JSON.parse(text);
+        } catch {
+          // not JSON
+        }
         if (photonData && Array.isArray(photonData.features) && photonData.features.length > 0) {
           const results: LocationResult[] = photonData.features
-            .map((feature: any) => {
-              const props = feature.properties || {};
-              const coords = feature.geometry?.coordinates || [0, 0]; // [lon, lat]
-              const lon = parseFloat(coords[0]);
-              const lat = parseFloat(coords[1]);
-
-              if (!lat || !lon) return null;
-
-              const name = props.name || props.street || props.district || props.city;
-              if (!name) return null;
+            .map((feat: any) => {
+              const props = feat.properties || {};
+              const coords = feat.geometry?.coordinates || [0, 0];
+              const shortName = extractLocalityName(props, props.name || props.street || props.city);
 
               const parts = [
-                props.name,
-                props.street,
+                shortName,
+                props.street !== shortName ? props.street : null,
                 props.district || props.suburb,
                 props.city || props.county,
                 props.state,
               ].filter(Boolean);
 
-              // Unique formatted display name
-              const displayName = Array.from(new Set(parts)).join(", ");
-
               return {
-                displayName,
-                shortName: props.name || name,
-                latitude: lat,
-                longitude: lon,
-                city: props.city || props.county || props.district,
+                displayName: Array.from(new Set(parts)).join(", "),
+                shortName,
+                latitude: parseFloat(coords[1]),
+                longitude: parseFloat(coords[0]),
+                city: props.city || props.county,
                 state: props.state,
               };
             })
-            .filter((item: LocationResult | null): item is LocationResult => item !== null);
+            .filter(
+              (r: LocationResult) =>
+                !isNaN(r.latitude) &&
+                !isNaN(r.longitude) &&
+                Math.abs(r.latitude) > 0.01 &&
+                Math.abs(r.longitude) > 0.01
+            );
 
           if (results.length > 0) {
+            this.searchCache.set(cacheKey, results);
             return results;
           }
         }
       }
     } catch (err) {
-      console.warn("Photon autocomplete search warning:", err);
+      console.warn("Photon typeahead warning:", err);
     }
 
-    // 2. Fallback to OpenStreetMap Nominatim with viewbox bias & custom User-Agent
+    // 2. Fallback to Nominatim Search API
     try {
-      const viewbox = "79.5,12.5,80.5,13.5"; // Bounded area around Chennai/TN campus region
       const url = `${this.nominatimUrl}/search?format=json&q=${encodeURIComponent(
         cleanQuery
-      )}&addressdetails=1&limit=${limit}&countrycodes=in&viewbox=${viewbox}`;
+      )}&limit=${limit}&addressdetails=1&countrycodes=in&viewbox=79.7,13.4,80.4,12.7`;
+
+      const headers: Record<string, string> = { "Accept-Language": "en" };
+      if (typeof window === "undefined") {
+        headers["User-Agent"] = "CommuteX-Corporate-App/1.0 (contact@commutex.com)";
+      }
 
       const res = await fetch(url, {
-        headers: {
-          "Accept-Language": "en",
-          "User-Agent": "CommuteX-Corporate-App/1.0 (contact@commutex.com)",
-        },
+        headers,
+        signal: AbortSignal.timeout(3500),
       });
 
       if (!res.ok) {
         throw new Error(`Nominatim HTTP ${res.status}`);
       }
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: any = [];
+      try {
+        data = JSON.parse(text);
+      } catch {
+        // not JSON
+      }
       if (!Array.isArray(data)) return [];
 
-      return data.map((item: any) => {
-        const address = item.address || {};
-        const shortName =
-          item.name ||
-          address.suburb ||
-          address.neighbourhood ||
-          address.road ||
-          item.display_name.split(",")[0];
+      const results: LocationResult[] = data
+        .map((item: any) => {
+          const address = item.address || {};
+          const shortName = extractLocalityName(address, item.name || item.display_name);
 
-        return {
-          displayName: item.display_name,
-          shortName: shortName.trim(),
-          latitude: parseFloat(item.lat),
-          longitude: parseFloat(item.lon),
-          city: address.city || address.town || address.state_district,
-          state: address.state,
-        };
-      });
+          return {
+            displayName: item.display_name,
+            shortName,
+            latitude: parseFloat(item.lat),
+            longitude: parseFloat(item.lon),
+            city: address.city || address.town || address.state_district,
+            state: address.state,
+          };
+        })
+        .filter(
+          (r: LocationResult) =>
+            !isNaN(r.latitude) &&
+            !isNaN(r.longitude) &&
+            Math.abs(r.latitude) > 0.01 &&
+            Math.abs(r.longitude) > 0.01
+        );
+
+      this.searchCache.set(cacheKey, results);
+      return results;
     } catch (error) {
-      console.warn("Nominatim fallback search failed:", error);
+      console.warn("Geocoding search failed:", error);
       return [];
     }
   }
@@ -144,20 +163,32 @@ class GeocodingService {
    * Reverse geocode coordinates to a human-readable address
    */
   async reverse(latitude: number, longitude: number): Promise<LocationResult | null> {
+    if (isNaN(latitude) || isNaN(longitude) || Math.abs(latitude) < 0.01 || Math.abs(longitude) < 0.01) {
+      return null;
+    }
+
     const cacheKey = `${latitude.toFixed(4)}_${longitude.toFixed(4)}`;
     if (this.reverseCache.has(cacheKey)) {
       return this.reverseCache.get(cacheKey)!;
     }
 
-    // 1. Try Photon Reverse API first
+    // 1. Try Photon Reverse API first (fast, open, exact locality names)
     try {
-      const photonUrl = `${this.photonUrl}/reverse?lat=${latitude}&lon=${longitude}`;
+      const photonUrl = `${this.photonBaseUrl}/reverse?lat=${latitude}&lon=${longitude}&lang=en`;
       const res = await fetch(photonUrl, {
         headers: { "Accept-Language": "en" },
+        signal: AbortSignal.timeout(3500),
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        let data: any = null;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // not JSON
+        }
+
         if (data && Array.isArray(data.features) && data.features.length > 0) {
           const props = data.features[0].properties || {};
           const coords = data.features[0].geometry?.coordinates || [longitude, latitude];
@@ -166,20 +197,23 @@ class GeocodingService {
 
           const parts = [
             shortName,
-            props.street !== shortName ? props.street : null,
+            props.street && props.street !== shortName ? props.street : null,
             props.district || props.suburb,
             props.city || props.county,
             props.state,
           ].filter(Boolean);
 
-          return {
+          const result: LocationResult = {
             displayName: Array.from(new Set(parts)).join(", "),
             shortName,
-            latitude: parseFloat(coords[1]),
-            longitude: parseFloat(coords[0]),
+            latitude: parseFloat(coords[1]) || latitude,
+            longitude: parseFloat(coords[0]) || longitude,
             city: props.city || props.county,
             state: props.state,
           };
+
+          this.reverseCache.set(cacheKey, result);
+          return result;
         }
       }
     } catch (err) {
@@ -190,35 +224,57 @@ class GeocodingService {
     try {
       const url = `${this.nominatimUrl}/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`;
 
-      const res = await fetch(url, {
-        headers: {
-          "Accept-Language": "en",
-          "User-Agent": "CommuteX-Corporate-App/1.0 (contact@commutex.com)",
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(`Nominatim reverse HTTP ${res.status}`);
+      const headers: Record<string, string> = {
+        "Accept-Language": "en",
+      };
+      if (typeof window === "undefined") {
+        headers["User-Agent"] = "CommuteX-Corporate-App/1.0 (contact@commutex.com)";
       }
 
-      const item = await res.json();
-      if (!item || !item.display_name) return null;
+      const res = await fetch(url, {
+        headers,
+        signal: AbortSignal.timeout(3500),
+      });
 
-      const address = item.address || {};
-      const shortName = extractLocalityName(address, item.name || item.display_name);
+      if (res.ok) {
+        const text = await res.text();
+        let item: any = null;
+        try {
+          item = JSON.parse(text);
+        } catch {
+          // not JSON
+        }
 
-      return {
-        displayName: item.display_name,
-        shortName,
-        latitude: parseFloat(item.lat),
-        longitude: parseFloat(item.lon),
-        city: address.city || address.town || address.state_district,
-        state: address.state,
-      };
+        if (item && item.display_name) {
+          const address = item.address || {};
+          const shortName = extractLocalityName(address, item.name || item.display_name);
+
+          const result: LocationResult = {
+            displayName: item.display_name,
+            shortName,
+            latitude: parseFloat(item.lat) || latitude,
+            longitude: parseFloat(item.lon) || longitude,
+            city: address.city || address.town || address.state_district,
+            state: address.state,
+          };
+
+          this.reverseCache.set(cacheKey, result);
+          return result;
+        }
+      }
     } catch (error) {
       console.warn("Reverse geocoding failed:", error);
-      return null;
     }
+
+    // 3. Fallback: Exact coordinates format so map-picking NEVER fails
+    const fallback: LocationResult = {
+      displayName: `Selected Location (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+      shortName: "Selected Point",
+      latitude,
+      longitude,
+    };
+    this.reverseCache.set(cacheKey, fallback);
+    return fallback;
   }
 }
 

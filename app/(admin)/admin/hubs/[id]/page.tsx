@@ -52,6 +52,12 @@ interface IHubDetail {
     latitude: number;
     longitude: number;
   } | null;
+  intermediatePoints?: {
+    name: string;
+    address?: string;
+    latitude: number;
+    longitude: number;
+  }[];
   destination: {
     name: string;
     address?: string;
@@ -361,7 +367,14 @@ export default function HubDetailsPage() {
                   longitude: hub.destination.longitude,
                 }}
                 stops={
-                  hub.commonPoint
+                  hub.intermediatePoints && hub.intermediatePoints.length > 0
+                    ? hub.intermediatePoints.map((pt) => ({
+                        name: pt.name,
+                        address: pt.address,
+                        latitude: pt.latitude,
+                        longitude: pt.longitude,
+                      }))
+                    : hub.commonPoint
                     ? [
                         {
                           name: hub.commonPoint.name,
@@ -381,7 +394,7 @@ export default function HubDetailsPage() {
           </Card>
         </div>
 
-        {/* Right 5 cols: Origin, Common Point Hub & Destination Points Breakdown */}
+        {/* Right 5 cols: Origin, Intermediate Hubs & Destination Points Breakdown */}
         <div className="lg:col-span-5 space-y-3">
           <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
             <CardHeader className="p-3.5 pb-2 border-b border-slate-100">
@@ -410,7 +423,41 @@ export default function HubDetailsPage() {
             </CardContent>
           </Card>
 
-          {hub.commonPoint && (
+          {hub.intermediatePoints && hub.intermediatePoints.length > 0 ? (
+            hub.intermediatePoints.map((pt, idx) => (
+              <Card key={idx} className="rounded-2xl border-amber-200 bg-amber-50/20 shadow-xs">
+                <CardHeader className="p-3.5 pb-2 border-b border-amber-100 flex flex-row items-center justify-between">
+                  <CardTitle className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                    <span className="h-4 w-4 rounded-full bg-amber-500 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </span>
+                    Intermediate Hub {idx + 1}
+                  </CardTitle>
+                  <Badge variant="outline" className="text-[9px] bg-amber-50 text-amber-800 border-amber-300">
+                    Corridor Stop
+                  </Badge>
+                </CardHeader>
+                <CardContent className="p-3.5 space-y-1.5 text-xs">
+                  <div>
+                    <span className="text-slate-400 text-[10px] block">Name</span>
+                    <p className="font-semibold text-slate-900">{pt.name}</p>
+                  </div>
+                  {pt.address && (
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Full Address</span>
+                      <p className="text-slate-600 text-[11px]">{pt.address}</p>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-slate-400 text-[10px] block">Coordinates</span>
+                    <p className="font-mono text-[11px] text-slate-500">
+                      {pt.latitude.toFixed(5)}, {pt.longitude.toFixed(5)}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : hub.commonPoint ? (
             <Card className="rounded-2xl border-amber-200 bg-amber-50/20 shadow-xs">
               <CardHeader className="p-3.5 pb-2 border-b border-amber-100">
                 <CardTitle className="text-xs font-bold text-slate-900 flex items-center gap-2">
@@ -437,7 +484,7 @@ export default function HubDetailsPage() {
                 </div>
               </CardContent>
             </Card>
-          )}
+          ) : null}
 
           <Card className="rounded-2xl border-slate-200 bg-white shadow-xs">
             <CardHeader className="p-3.5 pb-2 border-b border-slate-100">

@@ -15,6 +15,7 @@ export interface IHub extends Document {
   corridor: string;
   origin: IHubPoint;
   commonPoint?: IHubPoint | null;
+  intermediatePoints?: IHubPoint[];
   destination: IHubPoint;
   campusId: string;
   campusName: string;
@@ -69,6 +70,10 @@ const HubSchema = new Schema<IHub>(
       type: HubPointSchema,
       default: null,
       required: false,
+    },
+    intermediatePoints: {
+      type: [HubPointSchema],
+      default: [],
     },
     destination: {
       type: HubPointSchema,

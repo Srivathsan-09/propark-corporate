@@ -18,6 +18,10 @@ import {
   Layers,
   Navigation,
   Edit3,
+  Plus,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +43,20 @@ interface ICampusOption {
   city?: string;
 }
 
+export interface IntermediateHub {
+  id: string;
+  name: string;
+  address?: string;
+  latitude: number;
+  longitude: number;
+}
+
+type PickingTarget =
+  | { type: "origin" }
+  | { type: "destination" }
+  | { type: "intermediate"; index: number }
+  | null;
+
 const isValidPoint = (
   p: { latitude?: number; longitude?: number; address?: string; name?: string } | null | undefined
 ): p is { name: string; address: string; latitude: number; longitude: number } => {
@@ -49,9 +67,7 @@ const isValidPoint = (
     Math.abs(p.latitude) > 0.01 &&
     typeof p.longitude === "number" &&
     !isNaN(p.longitude) &&
-    Math.abs(p.longitude) > 0.01 &&
-    p.address &&
-    p.address.trim().length > 0
+    Math.abs(p.longitude) > 0.01
   );
 };
 
@@ -82,12 +98,10 @@ export default function EditHubPage() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [commonPoint, setCommonPoint] = useState<{
-    name: string;
-    address: string;
-    latitude: number;
-    longitude: number;
-  } | null>(null);
+
+  // Dynamic intermediate hubs in between origin and destination
+  const [intermediateHubs, setIntermediateHubs] = useState<IntermediateHub[]>([]);
+
   const [destination, setDestination] = useState<{
     name: string;
     address: string;
@@ -109,7 +123,7 @@ export default function EditHubPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Map picking mode
-  const [pickingTarget, setPickingTarget] = useState<"origin" | "commonPoint" | "destination" | null>(null);
+  const [pickingTarget, setPickingTarget] = useState<PickingTarget>(null);
 
   // Fetch hub data
   useEffect(() => {
@@ -128,7 +142,32 @@ export default function EditHubPage() {
           setName(h.name || "");
           setCorridor(h.corridor || "");
           setOrigin(h.origin || null);
-          setCommonPoint(h.commonPoint || null);
+
+          // Populate intermediate hubs from intermediatePoints or fallback to commonPoint
+          if (Array.isArray(h.intermediatePoints) && h.intermediatePoints.length > 0) {
+            setIntermediateHubs(
+              h.intermediatePoints.map((pt: any, idx: number) => ({
+                id: pt.id || `hub-stop-${idx}-${Date.now()}`,
+                name: pt.name || `Intermediate Hub ${idx + 1}`,
+                address: pt.address || "",
+                latitude: pt.latitude,
+                longitude: pt.longitude,
+              }))
+            );
+          } else if (h.commonPoint && isValidPoint(h.commonPoint)) {
+            setIntermediateHubs([
+              {
+                id: `hub-stop-0-${Date.now()}`,
+                name: h.commonPoint.name,
+                address: h.commonPoint.address || "",
+                latitude: h.commonPoint.latitude,
+                longitude: h.commonPoint.longitude,
+              },
+            ]);
+          } else {
+            setIntermediateHubs([]);
+          }
+
           setDestination(h.destination || null);
           setCampusId(h.campusId || "");
           setStatus(h.status || "active");
@@ -170,17 +209,55 @@ export default function EditHubPage() {
     }
   }, [isSuperAdmin]);
 
-  // Recalculate route whenever origin, commonPoint, or destination changes
+  // Intermediate Hub Management Helpers
+  const handleAddIntermediateHub = () => {
+    const nextIndex = intermediateHubs.length + 1;
+    const newHub: IntermediateHub = {
+      id: `hub-stop-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: `Intermediate Hub ${nextIndex}`,
+      address: "",
+      latitude: 0,
+      longitude: 0,
+    };
+    setIntermediateHubs([...intermediateHubs, newHub]);
+  };
+
+  const handleRemoveIntermediateHub = (index: number) => {
+    setIntermediateHubs((prev) => prev.filter((_, i) => i !== index));
+    if (pickingTarget?.type === "intermediate" && pickingTarget.index === index) {
+      setPickingTarget(null);
+    }
+  };
+
+  const handleMoveIntermediateHub = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= intermediateHubs.length) return;
+    const updated = [...intermediateHubs];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setIntermediateHubs(updated);
+  };
+
+  const handleUpdateIntermediateHub = (index: number, data: Partial<IntermediateHub>) => {
+    setIntermediateHubs((prev) =>
+      prev.map((h, i) => (i === index ? { ...h, ...data } : h))
+    );
+  };
+
+  // Recalculate route whenever origin, intermediateHubs, or destination changes
   useEffect(() => {
     if (loading) return;
 
     const isOriginValid = isValidPoint(origin);
-    const isCommonValid = isValidPoint(commonPoint);
+    const validIntermediates = intermediateHubs.filter(isValidPoint);
     const isDestValid = isValidPoint(destination);
 
     const activeWaypoints: { latitude: number; longitude: number }[] = [];
     if (isOriginValid) activeWaypoints.push({ latitude: origin.latitude, longitude: origin.longitude });
-    if (isCommonValid) activeWaypoints.push({ latitude: commonPoint.latitude, longitude: commonPoint.longitude });
+    validIntermediates.forEach((h) => {
+      activeWaypoints.push({ latitude: h.latitude, longitude: h.longitude });
+    });
     if (isDestValid) activeWaypoints.push({ latitude: destination.latitude, longitude: destination.longitude });
 
     if (activeWaypoints.length < 2) {
@@ -208,12 +285,15 @@ export default function EditHubPage() {
     return () => {
       isMounted = false;
     };
-  }, [origin, commonPoint, destination, loading]);
+  }, [origin, intermediateHubs, destination, loading]);
 
   const handleMapClick = (loc: { address: string; latitude: number; longitude: number }) => {
     if (!loc.latitude || !loc.longitude || Math.abs(loc.latitude) < 0.01 || Math.abs(loc.longitude) < 0.01) return;
     const areaName = loc.address.split(",")[0] || "Selected Point";
-    if (pickingTarget === "origin") {
+
+    if (!pickingTarget) return;
+
+    if (pickingTarget.type === "origin") {
       setOrigin({
         name: areaName,
         address: loc.address,
@@ -221,16 +301,17 @@ export default function EditHubPage() {
         longitude: loc.longitude,
       });
       setPickingTarget(null);
-    } else if (pickingTarget === "commonPoint") {
-      setCommonPoint({
+    } else if (pickingTarget.type === "destination") {
+      setDestination({
         name: areaName,
         address: loc.address,
         latitude: loc.latitude,
         longitude: loc.longitude,
       });
       setPickingTarget(null);
-    } else if (pickingTarget === "destination") {
-      setDestination({
+    } else if (pickingTarget.type === "intermediate") {
+      const idx = pickingTarget.index;
+      handleUpdateIntermediateHub(idx, {
         name: areaName,
         address: loc.address,
         latitude: loc.latitude,
@@ -257,22 +338,31 @@ export default function EditHubPage() {
       setErrorMessage(null);
       setSuccessMessage(null);
 
-      const validCommonPoint = isValidPoint(commonPoint) ? commonPoint : null;
+      const validIntermediatePoints = intermediateHubs
+        .filter(isValidPoint)
+        .map((h) => ({
+          name: h.name.trim(),
+          address: h.address || h.name,
+          latitude: h.latitude,
+          longitude: h.longitude,
+        }));
+
+      const autoCorridor =
+        validIntermediatePoints.length > 0
+          ? `${origin.name} → ${validIntermediatePoints.map((p) => p.name).join(" → ")} → ${destination.name}`
+          : `${origin.name} → ${destination.name}`;
 
       const res = await fetch(`/api/commutehub/hubs/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          corridor:
-            corridor.trim() ||
-            (validCommonPoint
-              ? `${origin.name} → ${validCommonPoint.name} → ${destination.name}`
-              : `${origin.name} → ${destination.name}`),
+          corridor: corridor.trim() || autoCorridor,
           origin,
-          commonPoint: validCommonPoint,
+          commonPoint: validIntermediatePoints[0] || null,
+          intermediatePoints: validIntermediatePoints,
           destination,
-          campusId: campusId.toUpperCase().trim(),
+          campusId: campusId ? campusId.toUpperCase().trim() : undefined,
           status,
         }),
       });
@@ -294,46 +384,25 @@ export default function EditHubPage() {
   };
 
   const isOriginValid = isValidPoint(origin);
-  const isCommonValid = isValidPoint(commonPoint);
   const isDestValid = isValidPoint(destination);
+  const validIntermediateList = intermediateHubs.filter(isValidPoint);
 
-  // Segment distance calculations between consecutive stops
-  let leg1Info: { distanceKm: number; durationMinutes: number } | null = null;
-  let leg2Info: { distanceKm: number; durationMinutes: number } | null = null;
-  let directInfo: { distanceKm: number; durationMinutes: number } | null = null;
+  // Dynamic legs info calculation
+  const totalLegsCount = (isOriginValid ? 1 : 0) + validIntermediateList.length + (isDestValid ? 1 : 0) - 1;
 
-  if (calculatedRoute) {
-    if (isOriginValid && isCommonValid && isDestValid) {
-      if (calculatedRoute.legs && calculatedRoute.legs.length >= 2) {
-        leg1Info = calculatedRoute.legs[0];
-        leg2Info = calculatedRoute.legs[1];
-      } else {
-        leg1Info = {
-          distanceKm: Math.round(calculatedRoute.distanceKm * 0.55 * 10) / 10,
-          durationMinutes: Math.max(1, Math.round(calculatedRoute.durationMinutes * 0.55)),
-        };
-        leg2Info = {
-          distanceKm: Math.round((calculatedRoute.distanceKm - leg1Info.distanceKm) * 10) / 10,
-          durationMinutes: Math.max(1, calculatedRoute.durationMinutes - leg1Info.durationMinutes),
-        };
-      }
-    } else if (isOriginValid && isCommonValid && !isDestValid) {
-      leg1Info = {
-        distanceKm: calculatedRoute.distanceKm,
-        durationMinutes: calculatedRoute.durationMinutes,
-      };
-    } else if (!isOriginValid && isCommonValid && isDestValid) {
-      leg2Info = {
-        distanceKm: calculatedRoute.distanceKm,
-        durationMinutes: calculatedRoute.durationMinutes,
-      };
-    } else if (isOriginValid && !isCommonValid && isDestValid) {
-      directInfo = {
-        distanceKm: calculatedRoute.distanceKm,
-        durationMinutes: calculatedRoute.durationMinutes,
+  const getLegDistanceInfo = (legIndex: number): { distanceKm: number; durationMinutes: number } | null => {
+    if (!calculatedRoute || totalLegsCount < 1) return null;
+    if (calculatedRoute.legs && calculatedRoute.legs[legIndex]) {
+      return calculatedRoute.legs[legIndex];
+    }
+    if (calculatedRoute.distanceKm > 0 && totalLegsCount > 0) {
+      return {
+        distanceKm: Math.round((calculatedRoute.distanceKm / totalLegsCount) * 10) / 10,
+        durationMinutes: Math.max(1, Math.round(calculatedRoute.durationMinutes / totalLegsCount)),
       };
     }
-  }
+    return null;
+  };
 
   if (loading) {
     return (
@@ -366,7 +435,7 @@ export default function EditHubPage() {
               )}
             </div>
             <p className="text-[11px] text-slate-500">
-              Modify corridor route, origin, common meeting point, destination, or status
+              Modify corridor route, origin, intermediate stops, destination, or status
             </p>
           </div>
         </div>
@@ -382,11 +451,11 @@ export default function EditHubPage() {
               <Clock className="h-3.5 w-3.5 text-emerald-600" />
               ~{calculatedRoute.durationMinutes} mins
             </span>
-            {leg1Info && leg2Info && (
+            {totalLegsCount > 1 && (
               <>
                 <span className="text-emerald-300">•</span>
                 <span className="text-[11px] text-emerald-700">
-                  (Leg 1: <strong>{leg1Info.distanceKm} km</strong>, Leg 2: <strong>{leg2Info.distanceKm} km</strong>)
+                  ({totalLegsCount} Route Legs)
                 </span>
               </>
             )}
@@ -420,12 +489,12 @@ export default function EditHubPage() {
                   Corridor Configuration
                 </CardTitle>
                 <CardDescription className="text-[11px] text-slate-500">
-                  Adjust corridor endpoints and common intermediate stop
+                  Adjust endpoints and intermediate hub stops between route
                 </CardDescription>
               </div>
             </CardHeader>
 
-            <CardContent className="p-3.5 space-y-2 text-xs">
+            <CardContent className="p-3.5 space-y-2.5 text-xs">
               {/* Row 1: Hub Name & Corridor Label */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
@@ -460,7 +529,7 @@ export default function EditHubPage() {
               </div>
 
               {/* Row 2: Campus & Status */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center pt-0.5">
                 <div>
                   <Label htmlFor="campus" className="text-[11px] font-semibold text-slate-700">
                     Associated Campus <span className="text-rose-500">*</span>
@@ -529,19 +598,20 @@ export default function EditHubPage() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setPickingTarget(pickingTarget === "origin" ? null : "origin")}
+                    onClick={() => setPickingTarget(pickingTarget?.type === "origin" ? null : { type: "origin" })}
                     className={`text-[10px] h-5 px-1.5 rounded-md font-semibold ${
-                      pickingTarget === "origin"
+                      pickingTarget?.type === "origin"
                         ? "bg-emerald-100 text-emerald-800"
                         : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
-                    {pickingTarget === "origin" ? "Cancel picking" : "Pick on map"}
+                    {pickingTarget?.type === "origin" ? "Cancel picking" : "Pick on map"}
                   </Button>
                 </div>
                 <LocationSearchInput
                   value={origin?.address || origin?.name || ""}
                   placeholder="Search origin (e.g. Poonamallee)..."
+                  showCurrentLocation={false}
                   onChange={(loc) => {
                     if (!loc.address || !loc.address.trim()) {
                       setOrigin(null);
@@ -560,93 +630,186 @@ export default function EditHubPage() {
                 />
               </div>
 
-              {/* Distance Connector: Origin -> Common Point */}
-              {leg1Info && (
-                <div className="flex items-center justify-between px-3 py-1 bg-emerald-50/90 border border-emerald-200/90 rounded-xl text-emerald-900 text-[11px] font-medium shadow-2xs">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <Navigation className="h-3 w-3 text-emerald-600 shrink-0" />
-                    <span className="truncate">
-                      Distance to Common Point (<strong>{commonPoint?.name}</strong>):
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0 font-bold text-emerald-700">
-                    <span>{leg1Info.distanceKm} km</span>
-                    <span className="text-emerald-600 font-normal text-[10px]">(~{leg1Info.durationMinutes} mins)</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Row 4: Common Point Hub (Intermediate Meeting Point between Origin & Destination) */}
-              <div className="space-y-1">
+              {/* Dynamic Intermediate Hubs Section */}
+              <div className="space-y-2 pt-1 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <Label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-                    Common Point Hub (Intermediate Corridor Stop)
+                    Intermediate Hubs (Between Route)
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-800 bg-amber-50 font-semibold">
+                      {intermediateHubs.length}
+                    </Badge>
                   </Label>
-                  <div className="flex items-center gap-1">
-                    {commonPoint && (
-                      <button
-                        type="button"
-                        onClick={() => setCommonPoint(null)}
-                        className="text-[10px] text-slate-400 hover:text-slate-700 px-1"
-                      >
-                        Clear
-                      </button>
-                    )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setPickingTarget(pickingTarget === "commonPoint" ? null : "commonPoint")}
-                      className={`text-[10px] h-5 px-1.5 rounded-md font-semibold ${
-                        pickingTarget === "commonPoint"
-                          ? "bg-amber-100 text-amber-800"
-                          : "text-slate-500 hover:text-slate-800"
-                      }`}
-                    >
-                      {pickingTarget === "commonPoint" ? "Cancel picking" : "Pick on map"}
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddIntermediateHub}
+                    className="text-[10px] h-6 px-2 rounded-lg border-emerald-300 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-100 font-bold flex items-center gap-1 shadow-2xs"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add Intermediate Hub
+                  </Button>
                 </div>
-                <LocationSearchInput
-                  value={commonPoint?.address || commonPoint?.name || ""}
-                  placeholder="Assign common hub stop (e.g. Maduravoyal, Kattupakkam)..."
-                  onChange={(loc) => {
-                    if (!loc.address || !loc.address.trim()) {
-                      setCommonPoint(null);
-                      return;
-                    }
-                    if (Math.abs(loc.latitude) < 0.01 || Math.abs(loc.longitude) < 0.01) {
-                      return;
-                    }
-                    setCommonPoint({
-                      name: loc.address.split(",")[0] || "Common Point Hub",
-                      address: loc.address,
-                      latitude: loc.latitude,
-                      longitude: loc.longitude,
-                    });
-                  }}
-                />
+
+                {intermediateHubs.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-2.5 text-center text-slate-500 text-[11px]">
+                    No intermediate hubs added. Click <strong className="text-emerald-700 font-semibold">&quot;Add Intermediate Hub&quot;</strong> to insert transit stops between Origin and Destination.
+                  </div>
+                )}
+
+                {/* Render Each Intermediate Hub */}
+                {intermediateHubs.map((hub, idx) => {
+                  const legInfoBefore = getLegDistanceInfo(idx);
+                  const isThisTarget = pickingTarget?.type === "intermediate" && pickingTarget.index === idx;
+
+                  return (
+                    <div key={hub.id} className="space-y-1.5">
+                      {/* Leg Distance Connector from Previous Stop */}
+                      {legInfoBefore && (
+                        <div className="flex items-center justify-between px-2.5 py-1 bg-amber-50/80 border border-amber-200/80 rounded-xl text-amber-950 text-[10.5px] font-medium shadow-2xs animate-in fade-in-50">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Navigation className="h-3 w-3 text-amber-600 shrink-0" />
+                            <span className="truncate">
+                              Leg {idx + 1}: {idx === 0 ? origin?.name || "Origin" : intermediateHubs[idx - 1]?.name || `Hub ${idx}`} → <strong>{hub.name}</strong>
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0 font-bold text-amber-800">
+                            <span>{legInfoBefore.distanceKm} km</span>
+                            <span className="text-amber-700 font-normal text-[10px]">(~{legInfoBefore.durationMinutes} mins)</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Intermediate Hub Card */}
+                      <div className={`p-2 rounded-xl border ${isThisTarget ? "border-amber-400 bg-amber-50/40 ring-2 ring-amber-200" : "border-slate-200 bg-slate-50/40"} space-y-1.5 transition-all`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-4 w-4 rounded-full bg-amber-500 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                              {idx + 1}
+                            </span>
+                            <span className="font-semibold text-slate-800 text-[11px]">
+                              Intermediate Hub {idx + 1}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleMoveIntermediateHub(idx, "up")}
+                                title="Move up"
+                                className="p-0.5 text-slate-400 hover:text-slate-700 rounded-md"
+                              >
+                                <ChevronUp className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {idx < intermediateHubs.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleMoveIntermediateHub(idx, "down")}
+                                title="Move down"
+                                className="p-0.5 text-slate-400 hover:text-slate-700 rounded-md"
+                              >
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setPickingTarget(isThisTarget ? null : { type: "intermediate", index: idx })}
+                              className={`text-[10px] h-5 px-1.5 rounded-md font-semibold ${
+                                isThisTarget
+                                  ? "bg-amber-200 text-amber-900 font-bold"
+                                  : "text-slate-500 hover:text-slate-800"
+                              }`}
+                            >
+                              {isThisTarget ? "Cancel picking" : "Pick on map"}
+                            </Button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveIntermediateHub(idx)}
+                              title="Delete intermediate hub"
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded-md transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <LocationSearchInput
+                          value={hub.address || hub.name || ""}
+                          placeholder={`Search intermediate stop ${idx + 1} (e.g. Porur Toll Gate, Kathipara)...`}
+                          showCurrentLocation={false}
+                          onChange={(loc) => {
+                            if (!loc.address || !loc.address.trim()) {
+                              handleUpdateIntermediateHub(idx, {
+                                name: `Intermediate Hub ${idx + 1}`,
+                                address: "",
+                                latitude: 0,
+                                longitude: 0,
+                              });
+                              return;
+                            }
+                            if (Math.abs(loc.latitude) < 0.01 || Math.abs(loc.longitude) < 0.01) {
+                              return;
+                            }
+                            handleUpdateIntermediateHub(idx, {
+                              name: loc.address.split(",")[0] || `Hub ${idx + 1}`,
+                              address: loc.address,
+                              latitude: loc.latitude,
+                              longitude: loc.longitude,
+                            });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              {/* Distance Connector: Common Point -> Destination */}
-              {leg2Info && (
-                <div className="flex items-center justify-between px-3 py-1 bg-amber-50/90 border border-amber-200/90 rounded-xl text-amber-950 text-[11px] font-medium shadow-2xs">
+              {/* Leg Distance Connector from Last Intermediate Stop to Destination */}
+              {intermediateHubs.length > 0 && isDestValid && destination && (
+                (() => {
+                  const lastLegIndex = intermediateHubs.length;
+                  const lastLegInfo = getLegDistanceInfo(lastLegIndex);
+                  if (!lastLegInfo) return null;
+                  const lastHub = intermediateHubs[intermediateHubs.length - 1];
+
+                  return (
+                    <div className="flex items-center justify-between px-2.5 py-1 bg-amber-50/80 border border-amber-200/80 rounded-xl text-amber-950 text-[10.5px] font-medium shadow-2xs animate-in fade-in-50">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Navigation className="h-3 w-3 text-amber-600 shrink-0" />
+                        <span className="truncate">
+                          Final Leg ({lastHub.name} → <strong>{destination.name}</strong>):
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 font-bold text-amber-800">
+                        <span>{lastLegInfo.distanceKm} km</span>
+                        <span className="text-amber-700 font-normal text-[10px]">(~{lastLegInfo.durationMinutes} mins)</span>
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
+
+              {/* Direct Corridor Distance Badge if 0 intermediate hubs */}
+              {intermediateHubs.length === 0 && isOriginValid && isDestValid && calculatedRoute && (
+                <div className="flex items-center justify-between px-2.5 py-1 bg-blue-50/90 border border-blue-200/90 rounded-xl text-blue-950 text-[10.5px] font-medium shadow-2xs">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <Navigation className="h-3 w-3 text-amber-600 shrink-0" />
-                    <span className="truncate">
-                      Distance to Destination (<strong>{destination?.name}</strong>):
-                    </span>
+                    <Navigation className="h-3 w-3 text-blue-600 shrink-0" />
+                    <span className="truncate">Direct Corridor Distance ({origin?.name} → {destination?.name}):</span>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0 font-bold text-amber-800">
-                    <span>{leg2Info.distanceKm} km</span>
-                    <span className="text-amber-700 font-normal text-[10px]">(~{leg2Info.durationMinutes} mins)</span>
+                  <div className="flex items-center gap-1 shrink-0 font-bold text-blue-700">
+                    <span>{calculatedRoute.distanceKm} km</span>
+                    <span className="text-blue-600 font-normal text-[10px]">(~{calculatedRoute.durationMinutes} mins)</span>
                   </div>
                 </div>
               )}
 
-              {/* Row 5: Destination Search */}
-              <div className="space-y-1">
+              {/* Row 4: Destination Search */}
+              <div className="space-y-1 pt-1 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <Label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-red-600 shrink-0" />
@@ -656,19 +819,20 @@ export default function EditHubPage() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setPickingTarget(pickingTarget === "destination" ? null : "destination")}
+                    onClick={() => setPickingTarget(pickingTarget?.type === "destination" ? null : { type: "destination" })}
                     className={`text-[10px] h-5 px-1.5 rounded-md font-semibold ${
-                      pickingTarget === "destination"
+                      pickingTarget?.type === "destination"
                         ? "bg-rose-100 text-rose-800"
                         : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
-                    {pickingTarget === "destination" ? "Cancel picking" : "Pick on map"}
+                    {pickingTarget?.type === "destination" ? "Cancel picking" : "Pick on map"}
                   </Button>
                 </div>
                 <LocationSearchInput
                   value={destination?.address || destination?.name || ""}
                   placeholder="Search destination (e.g. Porur, DLF IT Park)..."
+                  showCurrentLocation={false}
                   onChange={(loc) => {
                     if (!loc.address || !loc.address.trim()) {
                       setDestination(null);
@@ -686,20 +850,6 @@ export default function EditHubPage() {
                   }}
                 />
               </div>
-
-              {/* Distance Connector: Direct Corridor */}
-              {directInfo && (
-                <div className="flex items-center justify-between px-3 py-1 bg-blue-50/90 border border-blue-200/90 rounded-xl text-blue-950 text-[11px] font-medium shadow-2xs">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <Navigation className="h-3 w-3 text-blue-600 shrink-0" />
-                    <span className="truncate">Direct Corridor Distance:</span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0 font-bold text-blue-700">
-                    <span>{directInfo.distanceKm} km</span>
-                    <span className="text-blue-600 font-normal text-[10px]">(~{directInfo.durationMinutes} mins)</span>
-                  </div>
-                </div>
-              )}
 
               {/* Action Buttons */}
               <div className="pt-2 flex items-center gap-2">
@@ -735,13 +885,13 @@ export default function EditHubPage() {
                 </CardTitle>
                 <CardDescription className="text-[10px] text-slate-500">
                   {pickingTarget
-                    ? `Click map to set ${pickingTarget.toUpperCase()}`
-                    : isOriginValid && isCommonValid && isDestValid && leg1Info && leg2Info
-                    ? `Total: ${calculatedRoute?.distanceKm} km • Leg 1 (${origin?.name} → ${commonPoint?.name}): ${leg1Info.distanceKm} km • Leg 2 (${commonPoint?.name} → ${destination?.name}): ${leg2Info.distanceKm} km`
-                    : isOriginValid && isCommonValid
-                    ? `Route: ${origin?.name} → ${commonPoint?.name} • ${leg1Info?.distanceKm || calculatedRoute?.distanceKm} km (~${leg1Info?.durationMinutes || calculatedRoute?.durationMinutes} mins)`
-                    : isOriginValid && isDestValid
-                    ? `Route: ${origin?.name} → ${destination?.name} • ${calculatedRoute?.distanceKm} km (~${calculatedRoute?.durationMinutes} mins)`
+                    ? pickingTarget.type === "origin"
+                      ? "Click map to set Origin"
+                      : pickingTarget.type === "destination"
+                      ? "Click map to set Destination"
+                      : `Click map to set Intermediate Hub ${pickingTarget.index + 1}`
+                    : calculatedRoute
+                    ? `Total: ${calculatedRoute.distanceKm} km • ${intermediateHubs.length} intermediate stops connecting corridor`
                     : "Live preview of road route connecting corridor stops"}
                 </CardDescription>
               </div>
@@ -769,22 +919,16 @@ export default function EditHubPage() {
             <CardContent className="p-0 relative">
               <LeafletRouteMap
                 startLocation={
-                  isOriginValid
+                  isOriginValid && origin
                     ? {
                         name: origin.name,
                         latitude: origin.latitude,
                         longitude: origin.longitude,
                       }
-                    : isCommonValid
-                    ? {
-                        name: commonPoint.name,
-                        latitude: commonPoint.latitude,
-                        longitude: commonPoint.longitude,
-                      }
                     : null
                 }
                 destination={
-                  isDestValid
+                  isDestValid && destination
                     ? {
                         name: destination.name,
                         latitude: destination.latitude,
@@ -792,27 +936,29 @@ export default function EditHubPage() {
                       }
                     : null
                 }
-                stops={
-                  isCommonValid
-                    ? [
-                        {
-                          name: commonPoint.name,
-                          address: commonPoint.address,
-                          latitude: commonPoint.latitude,
-                          longitude: commonPoint.longitude,
-                        },
-                      ]
-                    : []
-                }
+                stops={intermediateHubs
+                  .filter(isValidPoint)
+                  .map((h, i) => ({
+                    name: h.name,
+                    address: h.address,
+                    latitude: h.latitude,
+                    longitude: h.longitude,
+                  }))}
                 routeCoordinates={calculatedRoute?.coordinates || []}
                 distanceText={calculatedRoute ? `${calculatedRoute.distanceKm} km` : undefined}
                 durationText={calculatedRoute ? `~${calculatedRoute.durationMinutes} mins` : undefined}
                 isClickPicking={Boolean(pickingTarget)}
                 clickPickLabel={
-                  pickingTarget ? `Click map to set ${pickingTarget.toUpperCase()}` : undefined
+                  pickingTarget?.type === "origin"
+                    ? "Click map to set ORIGIN"
+                    : pickingTarget?.type === "destination"
+                    ? "Click map to set DESTINATION"
+                    : pickingTarget?.type === "intermediate"
+                    ? `Click map to set INTERMEDIATE HUB ${pickingTarget.index + 1}`
+                    : undefined
                 }
                 onMapClick={handleMapClick}
-                height="500px"
+                height="540px"
               />
             </CardContent>
           </Card>

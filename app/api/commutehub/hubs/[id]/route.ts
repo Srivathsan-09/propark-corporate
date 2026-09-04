@@ -79,6 +79,12 @@ export async function GET(
       success: true,
       hub: {
         ...hub,
+        intermediatePoints:
+          (hub as any).intermediatePoints && (hub as any).intermediatePoints.length > 0
+            ? (hub as any).intermediatePoints
+            : hub.commonPoint
+            ? [hub.commonPoint]
+            : [],
         activeRidesCount: hubRides.length,
         employeesUsingHubCount: employeeSet.size,
         rides: hubRides,
@@ -144,12 +150,59 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { name, corridor, status, origin, commonPoint, destination, campusId } = body;
+    const { name, corridor, status, origin, commonPoint, intermediatePoints, destination, campusId } = body;
 
     if (name && name.trim()) hub.name = name.trim();
     if (corridor && corridor.trim()) hub.corridor = corridor.trim();
     if (status && (status === "active" || status === "inactive")) hub.status = status;
-    if (commonPoint !== undefined) hub.commonPoint = commonPoint;
+
+    let pointsChanged = false;
+
+    if (origin) {
+      hub.origin = origin;
+      pointsChanged = true;
+    }
+    if (destination) {
+      hub.destination = destination;
+      pointsChanged = true;
+    }
+
+    if (intermediatePoints !== undefined) {
+      const validPoints = Array.isArray(intermediatePoints)
+        ? intermediatePoints
+            .filter(
+              (p: any) =>
+                p &&
+                p.name &&
+                typeof p.latitude === "number" &&
+                typeof p.longitude === "number" &&
+                Math.abs(p.latitude) > 0.01 &&
+                Math.abs(p.longitude) > 0.01
+            )
+            .map((p: any) => ({
+              name: p.name.trim(),
+              address: p.address || p.name,
+              latitude: p.latitude,
+              longitude: p.longitude,
+            }))
+        : [];
+      hub.intermediatePoints = validPoints;
+      hub.commonPoint = validPoints[0] || null;
+      pointsChanged = true;
+    } else if (commonPoint !== undefined) {
+      hub.commonPoint = commonPoint;
+      if (
+        commonPoint &&
+        commonPoint.name &&
+        typeof commonPoint.latitude === "number" &&
+        typeof commonPoint.longitude === "number"
+      ) {
+        hub.intermediatePoints = [commonPoint];
+      } else {
+        hub.intermediatePoints = [];
+      }
+      pointsChanged = true;
+    }
 
     if (isSuperAdmin && campusId && campusId.trim()) {
       const trimmedCampus = campusId.toUpperCase().trim();
@@ -161,23 +214,14 @@ export async function PATCH(
     }
 
     // If locations changed, re-calculate route
-    if (origin || destination || commonPoint !== undefined) {
-      if (origin) hub.origin = origin;
-      if (destination) hub.destination = destination;
-
+    if (pointsChanged) {
       const activeOrigin = hub.origin;
       const activeDest = hub.destination;
-      const activeCommonPoint = hub.commonPoint;
+      const activeIntermediates = hub.intermediatePoints || (hub.commonPoint ? [hub.commonPoint] : []);
 
       const waypoints = [
         { latitude: activeOrigin.latitude, longitude: activeOrigin.longitude },
-        ...(activeCommonPoint &&
-        typeof activeCommonPoint.latitude === "number" &&
-        Math.abs(activeCommonPoint.latitude) > 0.01 &&
-        typeof activeCommonPoint.longitude === "number" &&
-        Math.abs(activeCommonPoint.longitude) > 0.01
-          ? [{ latitude: activeCommonPoint.latitude, longitude: activeCommonPoint.longitude }]
-          : []),
+        ...activeIntermediates.map((p: any) => ({ latitude: p.latitude, longitude: p.longitude })),
         { latitude: activeDest.latitude, longitude: activeDest.longitude },
       ];
 

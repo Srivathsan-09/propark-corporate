@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import { geocodingService } from "@/lib/services/geocoding";
-import { Loader2, Navigation2, MapPin, IndianRupee, Car } from "lucide-react";
+import { Loader2, Navigation2, MapPin, IndianRupee, Car, Crosshair } from "lucide-react";
 import { CarLoader } from "@/components/common/CarLoader";
 import { DynamicRerouteEngine } from "@/lib/services/rerouting";
 import type { RouteResult } from "@/lib/services/routing";
@@ -98,6 +98,13 @@ export default function LeafletRouteMap({
 
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [hasUserPanned, setHasUserPanned] = useState(false);
+  const [pickedTempPoint, setPickedTempPoint] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  useEffect(() => {
+    if (!isClickPicking) {
+      setPickedTempPoint(null);
+    }
+  }, [isClickPicking]);
 
   const hasUserPannedRef = useRef(false);
   const isInitialViewDoneRef = useRef(false);
@@ -313,50 +320,32 @@ export default function LeafletRouteMap({
     };
   }, []);
 
-  // Handle map click events (disambiguate drag vs click)
+  // Handle map click events
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    let pointerStartPos: { x: number; y: number } | null = null;
-
-    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
-      const clientX = "touches" in e ? e.touches[0]?.clientX : (e as MouseEvent).clientX;
-      const clientY = "touches" in e ? e.touches[0]?.clientY : (e as MouseEvent).clientY;
-      if (typeof clientX === "number" && typeof clientY === "number") {
-        pointerStartPos = { x: clientX, y: clientY };
-      }
-    };
-
     const handleMapClick = async (e: L.LeafletMouseEvent) => {
       if (!onMapClick) return;
 
-      // Disambiguate drag vs tap: if pointer moved more than 6px, it's a drag gesture
-      if (pointerStartPos && e.originalEvent) {
-        const orig = e.originalEvent as MouseEvent | TouchEvent;
-        const clientX = "changedTouches" in orig ? orig.changedTouches[0]?.clientX : (orig as MouseEvent).clientX;
-        const clientY = "changedTouches" in orig ? orig.changedTouches[0]?.clientY : (orig as MouseEvent).clientY;
-        if (typeof clientX === "number" && typeof clientY === "number") {
-          const dx = clientX - pointerStartPos.x;
-          const dy = clientY - pointerStartPos.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist > 6) {
-            // Drag gesture - do not trigger stop selection
-            return;
-          }
-        }
+      // Ignore click if the user was dragging/panning the map
+      if (map.dragging && (map.dragging as any)._draggable && (map.dragging as any)._draggable._moved) {
+        return;
       }
 
       const { lat, lng } = e.latlng;
+      if (!lat || !lng || isNaN(lat) || isNaN(lng) || Math.abs(lat) < 0.01 || Math.abs(lng) < 0.01) return;
+
+      setPickedTempPoint({ latitude: lat, longitude: lng });
       setIsReverseGeocoding(true);
 
       try {
         const rev = await geocodingService.reverse(lat, lng);
-        const address = rev?.displayName || rev?.shortName || "Selected Commute Stop";
+        const address = rev?.displayName || rev?.shortName || `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
         onMapClick({ address, latitude: lat, longitude: lng });
       } catch (err) {
         onMapClick({
-          address: "Selected Commute Stop",
+          address: `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
           latitude: lat,
           longitude: lng,
         });
@@ -365,16 +354,8 @@ export default function LeafletRouteMap({
       }
     };
 
-    const container = mapContainerRef.current;
-    if (container) {
-      container.addEventListener("pointerdown", handlePointerDown, { passive: true });
-    }
-
     map.on("click", handleMapClick);
     return () => {
-      if (container) {
-        container.removeEventListener("pointerdown", handlePointerDown);
-      }
       map.off("click", handleMapClick);
     };
   }, [onMapClick]);
@@ -480,6 +461,27 @@ export default function LeafletRouteMap({
         destination.name || destination.address?.split(",")[0] || "Campus"
       );
       marker.bindPopup(`<strong>Destination:</strong><br/>${destination.address || "End point"}`);
+    }
+
+    // Temporary Click-Picked Marker (Instant visual feedback on map click)
+    if (
+      pickedTempPoint &&
+      typeof pickedTempPoint.latitude === "number" &&
+      typeof pickedTempPoint.longitude === "number"
+    ) {
+      const tempIcon = L.divIcon({
+        className: "temp-picked-marker",
+        html: `
+          <div style="position: relative; display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); pointer-events: none;">
+            <span style="position: absolute; width: 34px; height: 34px; border-radius: 9999px; background: rgba(16, 185, 129, 0.4); animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>
+            <span style="position: relative; width: 14px; height: 14px; border-radius: 9999px; background: #10B981; border: 2.5px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.4);"></span>
+          </div>
+        `,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      });
+      const tempMarker = L.marker([pickedTempPoint.latitude, pickedTempPoint.longitude], { icon: tempIcon });
+      markersGroup.addLayer(tempMarker);
     }
 
     // 4. LIVE MOVING DRIVER GPS MARKER (Pulsing Emerald / Car)
@@ -786,7 +788,7 @@ export default function LeafletRouteMap({
         mapInstanceRef.current.invalidateSize({ animate: false });
       }
     }, 50);
-  }, [startLocation, destination, stops, customPickupPoint, driverLocation, passengerLocation, routeCoordinates, reroutedRoute, panToDriver, isClickPicking]);
+  }, [startLocation, destination, stops, customPickupPoint, driverLocation, passengerLocation, routeCoordinates, reroutedRoute, panToDriver, isClickPicking, pickedTempPoint]);
 
   const handleRecenterMap = () => {
     hasUserPannedRef.current = false;
@@ -819,11 +821,23 @@ export default function LeafletRouteMap({
           height: "100%",
           minHeight: "100%",
           touchAction: "none",
-          transform: "translate3d(0,0,0)",
-          willChange: "transform",
         }}
-        className="z-0 cursor-grab active:cursor-grabbing"
+        className={`z-0 ${isClickPicking ? "cursor-crosshair" : "cursor-grab active:cursor-grabbing"}`}
       />
+
+      {/* Floating Map Picking Mode Banner */}
+      {isClickPicking && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-slate-900/95 backdrop-blur-md text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-2xl border border-emerald-500/70 flex items-center gap-2.5 animate-in fade-in slide-in-from-top-2 max-w-[90%]">
+          <Crosshair className="h-4 w-4 text-emerald-400 animate-spin shrink-0" />
+          <span className="truncate">{clickPickLabel || "Click anywhere on the map to set location"}</span>
+          {isReverseGeocoding && (
+            <span className="flex items-center gap-1.5 pl-2 border-l border-slate-700 text-emerald-300 text-[11px] shrink-0">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Resolving...
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Floating Recenter Map Button when user has panned */}
       {hasUserPanned && (

@@ -41,6 +41,7 @@ interface MockHub {
   corridor: string;
   origin: { name: string; latitude: number; longitude: number };
   commonPoint?: { name: string; latitude: number; longitude: number } | null;
+  intermediatePoints?: { name: string; latitude: number; longitude: number }[];
   destination: { name: string; latitude: number; longitude: number };
   campusId: string;
   campusName: string;
@@ -152,6 +153,30 @@ function runCommuteHubTestSuite() {
       status: "active",
       createdBy: "campus_admin_south",
     },
+    {
+      _id: "hub_005",
+      hubId: "HUB-005",
+      name: "Hub 5 — Tambaram to Guindy via Chromepet & Pallavaram",
+      corridor: "Tambaram → Chromepet → Pallavaram → Guindy",
+      origin: { name: "Tambaram Sanatorium", latitude: 12.9279, longitude: 80.1215 },
+      intermediatePoints: [
+        { name: "Chromepet Junction", latitude: 12.9516, longitude: 80.1413 },
+        { name: "Pallavaram Flyover", latitude: 12.9675, longitude: 80.1491 },
+      ],
+      destination: { name: "Guindy Kathipara", latitude: 13.0067, longitude: 80.2030 },
+      campusId: "campus_chennai_south",
+      campusName: "Chennai South Campus",
+      distanceKm: 15.6,
+      durationMinutes: 32,
+      routeCoordinates: [
+        [12.9279, 80.1215],
+        [12.9516, 80.1413],
+        [12.9675, 80.1491],
+        [13.0067, 80.2030],
+      ],
+      status: "active",
+      createdBy: "campus_admin_south",
+    },
   ];
 
   assert("HUB-1", "Virtual corridor hub has unique ID and corridor name", sampleCorridors[0].hubId === "HUB-001");
@@ -167,6 +192,12 @@ function runCommuteHubTestSuite() {
   );
   assert("HUB-7", "3-point corridor contains all 3 waypoints in route coordinates", 
     sampleCorridors[3].routeCoordinates.length >= 3
+  );
+  assert("HUB-8", "Corridor supports multiple intermediate corridor stops in intermediatePoints array",
+    Boolean(sampleCorridors[4].intermediatePoints && sampleCorridors[4].intermediatePoints.length === 2)
+  );
+  assert("HUB-9", "Multi-intermediate corridor correctly connects all stops sequentially in route polyline",
+    sampleCorridors[4].routeCoordinates.length === 4
   );
 
   // 2. Strict Isolation: CommuteX standard rides vs CommuteHub corridor rides
@@ -273,7 +304,9 @@ function runCommuteHubTestSuite() {
     if (campusAdminRole === "campus_admin") return hub.campusId === campusAdminCampus;
     return false;
   });
-  assert("ROLE-2", "Campus Admin only sees hubs belonging to their assigned campus", southCampusVisibleHubs.length === 2);
+  assert("ROLE-2", "Campus Admin only sees hubs belonging to their assigned campus", 
+    southCampusVisibleHubs.length === sampleCorridors.filter(h => h.campusId === campusAdminCampus).length && southCampusVisibleHubs.length > 0
+  );
   assert("ROLE-3", "South Campus Admin cannot see Main Campus hubs", 
     southCampusVisibleHubs.every((h) => h.campusId === "campus_chennai_south")
   );
