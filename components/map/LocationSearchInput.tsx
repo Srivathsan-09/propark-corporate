@@ -119,7 +119,7 @@ export default function LocationSearchInput({
   };
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className={`relative w-full ${isOpen ? "z-50" : "z-10"}`}>
       <div className="relative flex items-center">
         <MapPin className="absolute left-3 h-4 w-4 text-emerald-600 pointer-events-none" />
 

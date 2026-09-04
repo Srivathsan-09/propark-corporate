@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   XCircle,
   Power,
+  Edit3,
   Trash2,
   Calendar,
   IndianRupee,
@@ -236,6 +237,17 @@ export default function HubDetailsPage() {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          <Link href={`/admin/hubs/${hub._id}/edit`}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50"
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              Edit Corridor
+            </Button>
+          </Link>
+
           <Button
             variant="outline"
             size="sm"

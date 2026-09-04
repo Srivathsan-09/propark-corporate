@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/lib/db/mongodb";
 import mongoose from "mongoose";
 import Hub from "@/models/Hub";
 import Ride from "@/models/Ride";
+import Campus from "@/models/Campus";
 import { routingService } from "@/lib/services/routing";
 
 export const dynamic = "force-dynamic";
@@ -143,12 +144,21 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { name, corridor, status, origin, commonPoint, destination } = body;
+    const { name, corridor, status, origin, commonPoint, destination, campusId } = body;
 
     if (name && name.trim()) hub.name = name.trim();
     if (corridor && corridor.trim()) hub.corridor = corridor.trim();
     if (status && (status === "active" || status === "inactive")) hub.status = status;
     if (commonPoint !== undefined) hub.commonPoint = commonPoint;
+
+    if (isSuperAdmin && campusId && campusId.trim()) {
+      const trimmedCampus = campusId.toUpperCase().trim();
+      hub.campusId = trimmedCampus;
+      const campusDoc = await Campus.findOne({ campusId: trimmedCampus }).lean();
+      if (campusDoc) {
+        hub.campusName = (campusDoc as any).name;
+      }
+    }
 
     // If locations changed, re-calculate route
     if (origin || destination || commonPoint !== undefined) {

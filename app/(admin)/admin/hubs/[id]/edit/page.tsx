@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
@@ -17,6 +17,7 @@ import {
   Car,
   Layers,
   Navigation,
+  Edit3,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,13 +55,25 @@ const isValidPoint = (
   );
 };
 
-export default function CreateHubPage() {
+interface IRoutePreview {
+  coordinates: [number, number][];
+  distanceKm: number;
+  durationMinutes: number;
+  legs?: { distanceKm: number; durationMinutes: number }[];
+  [key: string]: any;
+}
+
+export default function EditHubPage() {
+  const params = useParams();
   const router = useRouter();
   const { data: session } = useSession();
+  const id = params?.id as string;
 
   const isSuperAdmin = session?.user?.role === "admin";
   const isCampusAdmin = session?.user?.role === "campus_admin";
 
+  const [loading, setLoading] = useState(true);
+  const [hubIdCode, setHubIdCode] = useState("");
   const [name, setName] = useState("");
   const [corridor, setCorridor] = useState("");
   const [origin, setOrigin] = useState<{
@@ -87,15 +100,61 @@ export default function CreateHubPage() {
   const [status, setStatus] = useState<"active" | "inactive">("active");
 
   // Calculated route geometry
-  const [calculatedRoute, setCalculatedRoute] = useState<RouteResult | null>(null);
+  const [calculatedRoute, setCalculatedRoute] = useState<IRoutePreview | RouteResult | null>(null);
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
 
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Map picking mode
   const [pickingTarget, setPickingTarget] = useState<"origin" | "commonPoint" | "destination" | null>(null);
+
+  // Fetch hub data
+  useEffect(() => {
+    if (!id) return;
+
+    let isMounted = true;
+    setLoading(true);
+
+    fetch(`/api/commutehub/hubs/${id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted) return;
+        if (data.success && data.hub) {
+          const h = data.hub;
+          setHubIdCode(h.hubId || "");
+          setName(h.name || "");
+          setCorridor(h.corridor || "");
+          setOrigin(h.origin || null);
+          setCommonPoint(h.commonPoint || null);
+          setDestination(h.destination || null);
+          setCampusId(h.campusId || "");
+          setStatus(h.status || "active");
+
+          if (h.routeCoordinates && h.routeCoordinates.length > 0) {
+            setCalculatedRoute({
+              coordinates: h.routeCoordinates,
+              distanceKm: h.distanceKm || 0,
+              durationMinutes: h.durationMinutes || 0,
+            });
+          }
+        } else {
+          setErrorMessage(data.error || "Failed to load hub details.");
+        }
+      })
+      .catch((err) => {
+        if (isMounted) setErrorMessage(err?.message || "Failed to load hub details.");
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
 
   // Fetch campuses for Super Admin
   useEffect(() => {
@@ -105,19 +164,16 @@ export default function CreateHubPage() {
         .then((data) => {
           if (data.campuses) {
             setCampuses(data.campuses);
-            if (data.campuses.length > 0) {
-              setCampusId(data.campuses[0].campusId);
-            }
           }
         })
         .catch(console.error);
-    } else if (session?.user?.campusId) {
-      setCampusId(session.user.campusId);
     }
-  }, [isSuperAdmin, session]);
+  }, [isSuperAdmin]);
 
   // Recalculate route whenever origin, commonPoint, or destination changes
   useEffect(() => {
+    if (loading) return;
+
     const isOriginValid = isValidPoint(origin);
     const isCommonValid = isValidPoint(commonPoint);
     const isDestValid = isValidPoint(destination);
@@ -149,21 +205,10 @@ export default function CreateHubPage() {
         if (isMounted) setIsCalculatingRoute(false);
       });
 
-    // Auto-fill corridor label if not manually changed
-    if (!corridor || corridor.includes("→")) {
-      if (isOriginValid && isCommonValid && isDestValid) {
-        setCorridor(`${origin.name} → ${commonPoint.name} → ${destination.name}`);
-      } else if (isOriginValid && isDestValid) {
-        setCorridor(`${origin.name} → ${destination.name}`);
-      } else if (isOriginValid && isCommonValid) {
-        setCorridor(`${origin.name} → ${commonPoint.name}`);
-      }
-    }
-
     return () => {
       isMounted = false;
     };
-  }, [origin, commonPoint, destination]);
+  }, [origin, commonPoint, destination, loading]);
 
   const handleMapClick = (loc: { address: string; latitude: number; longitude: number }) => {
     if (!loc.latitude || !loc.longitude || Math.abs(loc.latitude) < 0.01 || Math.abs(loc.longitude) < 0.01) return;
@@ -210,11 +255,12 @@ export default function CreateHubPage() {
     try {
       setIsSubmitting(true);
       setErrorMessage(null);
+      setSuccessMessage(null);
 
       const validCommonPoint = isValidPoint(commonPoint) ? commonPoint : null;
 
-      const res = await fetch("/api/commutehub/hubs", {
-        method: "POST",
+      const res = await fetch(`/api/commutehub/hubs/${id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
@@ -233,12 +279,15 @@ export default function CreateHubPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || "Failed to create hub.");
+        throw new Error(data?.error || "Failed to update hub corridor.");
       }
 
-      router.push("/admin/hubs");
+      setSuccessMessage("Hub corridor updated successfully!");
+      setTimeout(() => {
+        router.push(`/admin/hubs/${id}`);
+      }, 800);
     } catch (err: any) {
-      setErrorMessage(err.message || "An unexpected error occurred.");
+      setErrorMessage(err.message || "An unexpected error occurred while updating hub.");
     } finally {
       setIsSubmitting(false);
     }
@@ -286,23 +335,38 @@ export default function CreateHubPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex h-96 flex-col items-center justify-center gap-3">
+        <CarLoader message="Loading Hub Corridor..." />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3 max-w-7xl mx-auto">
       {/* Compact Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
         <div className="flex items-center gap-2.5">
-          <Link href="/admin/hubs">
+          <Link href={`/admin/hubs/${id}`}>
             <Button variant="outline" size="sm" className="rounded-xl h-8 w-8 p-0 border-slate-200 text-slate-600 hover:text-slate-900 shadow-2xs">
               <ArrowLeft className="h-3.5 w-3.5" />
             </Button>
           </Link>
           <div>
-            <h1 className="text-base font-bold tracking-tight text-slate-900 flex items-center gap-1.5 leading-tight">
-              <Compass className="h-4 w-4 text-emerald-600" />
-              Create Commuting Hub
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-bold tracking-tight text-slate-900 flex items-center gap-1.5 leading-tight">
+                <Edit3 className="h-4 w-4 text-emerald-600" />
+                Edit Commuting Hub
+              </h1>
+              {hubIdCode && (
+                <Badge variant="outline" className="text-[10px] font-mono py-0 border-slate-200 text-slate-500">
+                  {hubIdCode}
+                </Badge>
+              )}
+            </div>
             <p className="text-[11px] text-slate-500">
-              Define a fixed-route corridor hub with origin, common meeting point, and destination
+              Modify corridor route, origin, common meeting point, destination, or status
             </p>
           </div>
         </div>
@@ -337,6 +401,13 @@ export default function CreateHubPage() {
         </div>
       )}
 
+      {successMessage && (
+        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-xs font-semibold text-emerald-800 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
       {/* Main Single-Screen Grid */}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
         {/* Left Column: Compact Form Card */}
@@ -349,7 +420,7 @@ export default function CreateHubPage() {
                   Corridor Configuration
                 </CardTitle>
                 <CardDescription className="text-[11px] text-slate-500">
-                  Set corridor route, common meeting point, and campus
+                  Adjust corridor endpoints and common intermediate stop
                 </CardDescription>
               </div>
             </CardHeader>
@@ -388,13 +459,13 @@ export default function CreateHubPage() {
                 </div>
               </div>
 
-              {/* Row 2: Campus & Initial Status */}
+              {/* Row 2: Campus & Status */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center pt-1">
                 <div>
                   <Label htmlFor="campus" className="text-[11px] font-semibold text-slate-700">
                     Associated Campus <span className="text-rose-500">*</span>
                   </Label>
-                  {isSuperAdmin ? (
+                  {isSuperAdmin && campuses.length > 0 ? (
                     <select
                       id="campus"
                       value={campusId}
@@ -411,14 +482,14 @@ export default function CreateHubPage() {
                   ) : (
                     <div className="mt-1 flex items-center gap-1.5 rounded-xl bg-slate-50 px-2.5 py-1 border border-slate-200 text-xs text-slate-700 font-medium h-8">
                       <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{session?.user?.campusName || "Your Campus"}</span>
+                      <span className="truncate">{campusId || session?.user?.campusName || "Campus"}</span>
                     </div>
                   )}
                 </div>
 
                 <div>
                   <Label className="text-[11px] font-semibold text-slate-700">
-                    Initial Status
+                    Status
                   </Label>
                   <div className="mt-1 flex rounded-xl bg-slate-100 p-0.5 text-xs font-medium text-slate-600 h-8 items-center">
                     <button
@@ -469,7 +540,7 @@ export default function CreateHubPage() {
                   </Button>
                 </div>
                 <LocationSearchInput
-                  value={origin?.address || ""}
+                  value={origin?.address || origin?.name || ""}
                   placeholder="Search origin (e.g. Poonamallee)..."
                   onChange={(loc) => {
                     if (!loc.address || !loc.address.trim()) {
@@ -538,7 +609,7 @@ export default function CreateHubPage() {
                   </div>
                 </div>
                 <LocationSearchInput
-                  value={commonPoint?.address || ""}
+                  value={commonPoint?.address || commonPoint?.name || ""}
                   placeholder="Assign common hub stop (e.g. Maduravoyal, Kattupakkam)..."
                   onChange={(loc) => {
                     if (!loc.address || !loc.address.trim()) {
@@ -596,7 +667,7 @@ export default function CreateHubPage() {
                   </Button>
                 </div>
                 <LocationSearchInput
-                  value={destination?.address || ""}
+                  value={destination?.address || destination?.name || ""}
                   placeholder="Search destination (e.g. Porur, DLF IT Park)..."
                   onChange={(loc) => {
                     if (!loc.address || !loc.address.trim()) {
@@ -616,7 +687,7 @@ export default function CreateHubPage() {
                 />
               </div>
 
-              {/* Distance Connector: Direct Corridor (Origin -> Destination without Common Point) */}
+              {/* Distance Connector: Direct Corridor */}
               {directInfo && (
                 <div className="flex items-center justify-between px-3 py-1 bg-blue-50/90 border border-blue-200/90 rounded-xl text-blue-950 text-[11px] font-medium shadow-2xs">
                   <div className="flex items-center gap-1.5 min-w-0">
@@ -630,14 +701,23 @@ export default function CreateHubPage() {
                 </div>
               )}
 
-              {/* Submit Button */}
-              <div className="pt-2">
+              {/* Action Buttons */}
+              <div className="pt-2 flex items-center gap-2">
+                <Link href={`/admin/hubs/${id}`} className="w-1/3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full rounded-xl border-slate-200 text-slate-700 font-semibold h-9 text-xs"
+                  >
+                    Cancel
+                  </Button>
+                </Link>
                 <Button
                   type="submit"
                   disabled={isSubmitting || !isOriginValid || !isDestValid || !name.trim()}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold h-9 shadow-sm text-xs"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold h-9 shadow-sm text-xs"
                 >
-                  {isSubmitting ? "Creating Hub Corridor..." : "Create Hub Corridor"}
+                  {isSubmitting ? "Saving Changes..." : "Save Changes"}
                 </Button>
               </div>
             </CardContent>
@@ -659,7 +739,7 @@ export default function CreateHubPage() {
                     : isOriginValid && isCommonValid && isDestValid && leg1Info && leg2Info
                     ? `Total: ${calculatedRoute?.distanceKm} km • Leg 1 (${origin?.name} → ${commonPoint?.name}): ${leg1Info.distanceKm} km • Leg 2 (${commonPoint?.name} → ${destination?.name}): ${leg2Info.distanceKm} km`
                     : isOriginValid && isCommonValid
-                    ? `Route: ${origin?.name} → ${commonPoint?.name} (Common Point Hub) • ${leg1Info?.distanceKm || calculatedRoute?.distanceKm} km (~${leg1Info?.durationMinutes || calculatedRoute?.durationMinutes} mins)`
+                    ? `Route: ${origin?.name} → ${commonPoint?.name} • ${leg1Info?.distanceKm || calculatedRoute?.distanceKm} km (~${leg1Info?.durationMinutes || calculatedRoute?.durationMinutes} mins)`
                     : isOriginValid && isDestValid
                     ? `Route: ${origin?.name} → ${destination?.name} • ${calculatedRoute?.distanceKm} km (~${calculatedRoute?.durationMinutes} mins)`
                     : "Live preview of road route connecting corridor stops"}

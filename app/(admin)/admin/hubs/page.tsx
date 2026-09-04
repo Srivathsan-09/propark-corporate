@@ -16,6 +16,7 @@ import {
   Clock,
   ArrowRight,
   Eye,
+  Edit3,
   Trash2,
   Power,
   Building2,
@@ -361,7 +362,7 @@ export default function CommuteHubAdminDashboard() {
 
           {/* Search Input Bar */}
           <div className="mt-4 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
             <Input
               type="text"
               placeholder="Search by hub name (e.g. Hub 1), corridor, landmark, or campus..."
@@ -498,6 +499,18 @@ export default function CommuteHubAdminDashboard() {
                           >
                             <Eye className="h-3.5 w-3.5" />
                             View
+                          </Button>
+                        </Link>
+
+                        <Link href={`/admin/hubs/${hub._id}/edit`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl h-8 px-2.5 text-xs font-semibold border-slate-200 text-blue-700 hover:bg-blue-50 gap-1"
+                            title="Edit Corridor Hub"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            Edit
                           </Button>
                         </Link>
 

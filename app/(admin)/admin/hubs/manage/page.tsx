@@ -16,6 +16,7 @@ import {
   Clock,
   ArrowRight,
   Eye,
+  Edit3,
   Trash2,
   Power,
   Building2,
@@ -214,7 +215,7 @@ export default function ManageHubsPage() {
       <Card className="rounded-2xl border-slate-200 bg-white shadow-xs p-4">
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
             <Input
               type="text"
               placeholder="Search hubs by name, corridor (e.g. Poonamallee → Porur) or area..."
@@ -359,15 +360,27 @@ export default function ManageHubsPage() {
                   </div>
 
                   {/* Card Actions */}
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-1.5">
                     <Link href={`/admin/hubs/${hub._id}`} className="flex-1">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full rounded-xl text-xs font-bold border-slate-200 text-slate-700 hover:bg-slate-50 gap-1.5"
+                        className="w-full rounded-xl text-xs font-bold border-slate-200 text-slate-700 hover:bg-slate-50 gap-1"
                       >
                         <Eye className="h-3.5 w-3.5" />
-                        View Hub
+                        View
+                      </Button>
+                    </Link>
+
+                    <Link href={`/admin/hubs/${hub._id}/edit`} className="flex-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full rounded-xl text-xs font-bold border-slate-200 text-blue-700 hover:bg-blue-50 gap-1"
+                        title="Edit Corridor Hub"
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                        Edit
                       </Button>
                     </Link>
 

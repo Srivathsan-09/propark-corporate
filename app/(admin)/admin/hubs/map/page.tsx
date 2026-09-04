@@ -174,13 +174,13 @@ export default function AdminMultiHubMapPage() {
 
               {/* Search Box */}
               <div className="relative mt-2">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                 <Input
                   type="text"
                   placeholder="Filter corridors..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-7.5 h-8 rounded-xl text-xs border-slate-200"
+                  className="pl-9 h-8 rounded-xl text-xs border-slate-200"
                 />
               </div>
             </CardHeader>
