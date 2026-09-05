@@ -25,6 +25,8 @@ export async function GET(req: NextRequest) {
     const maxPrice = searchParams.get("maxPrice");
     const campusIdParam = searchParams.get("campusId");
 
+    const minSeatsParam = searchParams.get("minSeats");
+
     const query: Record<string, any> = {
       status: { $in: ["scheduled", "in_progress"] },
       availableSeats: { $gt: 0 },
@@ -34,14 +36,6 @@ export async function GET(req: NextRequest) {
     const effectiveCampusId = campusIdParam || session?.user?.campusId;
     if (effectiveCampusId && effectiveCampusId !== "all") {
       query.campusId = effectiveCampusId;
-    }
-
-    if (origin) {
-      query.startingLocation = { $regex: origin, $options: "i" };
-    }
-
-    if (destination) {
-      query.destination = { $regex: destination, $options: "i" };
     }
 
     if (date) {
@@ -56,14 +50,57 @@ export async function GET(req: NextRequest) {
       query.rideType = rideType;
     }
 
+    if (minSeatsParam) {
+      const numSeats = parseInt(minSeatsParam, 10);
+      if (!isNaN(numSeats) && numSeats > 0) {
+        query.availableSeats = { $gte: numSeats };
+      }
+    }
+
+    const andClauses: any[] = [];
+
+    // Match Origin on startingLocation OR intermediate stops
+    if (origin && origin.trim()) {
+      const safeOrigin = origin.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const originRegex = { $regex: safeOrigin, $options: "i" };
+      andClauses.push({
+        $or: [
+          { startingLocation: originRegex },
+          { "startLocation.address": originRegex },
+          { "stops.name": originRegex },
+          { "stops.address": originRegex },
+        ],
+      });
+    }
+
+    // Match Destination on destination OR intermediate stops
+    if (destination && destination.trim()) {
+      const safeDest = destination.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const destRegex = { $regex: safeDest, $options: "i" };
+      andClauses.push({
+        $or: [
+          { destination: destRegex },
+          { "endLocation.address": destRegex },
+          { "stops.name": destRegex },
+          { "stops.address": destRegex },
+        ],
+      });
+    }
+
     if (maxPrice) {
       const numPrice = Number(maxPrice);
       if (!isNaN(numPrice)) {
-        query.$or = [
-          { "stops.price": { $lte: numPrice } },
-          { basePrice: { $lte: numPrice } },
-        ];
+        andClauses.push({
+          $or: [
+            { "stops.price": { $lte: numPrice } },
+            { basePrice: { $lte: numPrice } },
+          ],
+        });
       }
+    }
+
+    if (andClauses.length > 0) {
+      query.$and = andClauses;
     }
 
     const rides = await Ride.find(query)

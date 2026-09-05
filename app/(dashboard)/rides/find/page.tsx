@@ -140,12 +140,101 @@ export default function FindRidePage() {
     }));
   };
 
-  // Search Filters
-  const [searchOrigin, setSearchOrigin] = useState("");
-  const [searchDestination, setSearchDestination] = useState("");
+  // Search Filters with Confirmed Coordinates
+  const [originLocation, setOriginLocation] = useState<{
+    name?: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    isConfirmed?: boolean;
+  }>({ address: "", latitude: 0, longitude: 0, isConfirmed: false });
+
+  const [destinationLocation, setDestinationLocation] = useState<{
+    name?: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    isConfirmed?: boolean;
+  }>({ address: "", latitude: 0, longitude: 0, isConfirmed: false });
+
   const [filterType, setFilterType] = useState<string>("all");
   const [filterRideType, setFilterRideType] = useState<string>("all");
   const [filterDate, setFilterDate] = useState<string>("");
+  const [filterTime, setFilterTime] = useState<string>("");
+  const [filterMinSeats, setFilterMinSeats] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"earliest" | "nearest_pickup" | "most_seats">("earliest");
+
+  // Geolocation for Nearest Pickup sorting
+  const [userGps, setUserGps] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [isLocatingUser, setIsLocatingUser] = useState(false);
+  const [showLocationPromptModal, setShowLocationPromptModal] = useState(false);
+
+  const requestUserGps = useCallback(async (): Promise<{ latitude: number; longitude: number } | null> => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setShowLocationPromptModal(true);
+      return null;
+    }
+
+    setIsLocatingUser(true);
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+          setUserGps(coords);
+          setShowLocationPromptModal(false);
+          setIsLocatingUser(false);
+          resolve(coords);
+        },
+        (err) => {
+          console.warn("Geolocation permission error:", err);
+          setShowLocationPromptModal(true);
+          setIsLocatingUser(false);
+          resolve(null);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    });
+  }, []);
+
+  const handleSortChange = async (newSort: "earliest" | "nearest_pickup" | "most_seats") => {
+    if (newSort === "nearest_pickup") {
+      if (!userGps) {
+        const coords = await requestUserGps();
+        if (!coords) {
+          setShowLocationPromptModal(true);
+          return;
+        }
+      }
+    }
+    setSortBy(newSort);
+  };
+
+  const calculateHaversineDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const getRidePickupDistanceKm = useCallback(
+    (ride: IRide, userCoord: { latitude: number; longitude: number }): number => {
+      const pickupLat =
+        ride.startLocation?.latitude ||
+        resolvePlaceCoordinates(ride.startingLocation, undefined, undefined, true).latitude;
+      const pickupLng =
+        ride.startLocation?.longitude ||
+        resolvePlaceCoordinates(ride.startingLocation, undefined, undefined, true).longitude;
+      return calculateHaversineDistanceKm(userCoord.latitude, userCoord.longitude, pickupLat, pickupLng);
+    },
+    []
+  );
 
   // Request Booking Modal State
   const [selectedRide, setSelectedRide] = useState<IRide | null>(null);
@@ -274,11 +363,15 @@ export default function FindRidePage() {
 
     try {
       const params = new URLSearchParams();
-      if (searchOrigin) params.set("origin", searchOrigin);
-      if (searchDestination) params.set("destination", searchDestination);
+      const originQuery = originLocation.name || originLocation.address;
+      const destQuery = destinationLocation.name || destinationLocation.address;
+
+      if (originQuery && originQuery.trim()) params.set("origin", originQuery.trim());
+      if (destQuery && destQuery.trim()) params.set("destination", destQuery.trim());
       if (filterType && filterType !== "all") params.set("vehicleType", filterType);
       if (filterRideType && filterRideType !== "all") params.set("rideType", filterRideType);
       if (filterDate) params.set("date", filterDate);
+      if (filterMinSeats && filterMinSeats !== "all") params.set("minSeats", filterMinSeats);
 
       const res = await fetch(`/api/rides?${params.toString()}`);
       if (res.ok) {
@@ -300,12 +393,12 @@ export default function FindRidePage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [searchOrigin, searchDestination, filterType, filterRideType, filterDate]);
+  }, [originLocation, destinationLocation, filterType, filterRideType, filterDate, filterMinSeats]);
 
   // Initial load on filter change
   useEffect(() => {
     fetchRides();
-  }, [filterType, filterRideType, filterDate]);
+  }, [filterType, filterRideType, filterDate, filterMinSeats]);
 
   // Real-time Continuous Polling (Every 5 seconds) + Focus Listener
   useEffect(() => {
@@ -359,6 +452,92 @@ export default function FindRidePage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchRides();
+  };
+
+  // Filter & Sort rides client-side after fetching
+  const sortedAndFilteredRides = React.useMemo(() => {
+    let list = [...rides];
+
+    // 1. Filter by minimum available seats
+    if (filterMinSeats !== "all") {
+      const minSeats = parseInt(filterMinSeats, 10);
+      if (!isNaN(minSeats)) {
+        list = list.filter((r) => r.availableSeats >= minSeats);
+      }
+    }
+
+    // 2. Filter by time window if filterTime is provided (+/- 120 mins)
+    if (filterTime) {
+      const [filterH, filterM] = filterTime.split(":").map((x) => parseInt(x, 10));
+      if (!isNaN(filterH) && !isNaN(filterM)) {
+        const filterMinutes = filterH * 60 + filterM;
+        list = list.filter((r) => {
+          if (!r.departureTime) return true;
+          const timeMatch = r.departureTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+          if (!timeMatch) return true;
+          let h = parseInt(timeMatch[1], 10);
+          const m = parseInt(timeMatch[2], 10);
+          const mer = timeMatch[3]?.toUpperCase();
+          if (mer === "PM" && h < 12) h += 12;
+          if (mer === "AM" && h === 12) h = 0;
+          const rideMinutes = h * 60 + m;
+          return Math.abs(rideMinutes - filterMinutes) <= 120;
+        });
+      }
+    }
+
+    // 3. Sort by requested ordering
+    if (sortBy === "most_seats") {
+      list.sort((a, b) => b.availableSeats - a.availableSeats);
+    } else if (sortBy === "nearest_pickup" && userGps) {
+      list.sort((a, b) => {
+        const distA = getRidePickupDistanceKm(a, userGps);
+        const distB = getRidePickupDistanceKm(b, userGps);
+        return distA - distB;
+      });
+    } else {
+      // Default: "earliest" (Earliest Departure)
+      list.sort((a, b) => {
+        if (a.departureDate !== b.departureDate) {
+          return a.departureDate.localeCompare(b.departureDate);
+        }
+        const parseMinutes = (tStr: string) => {
+          const match = (tStr || "").match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+          if (!match) return 0;
+          let h = parseInt(match[1], 10);
+          const m = parseInt(match[2], 10);
+          const mer = match[3]?.toUpperCase();
+          if (mer === "PM" && h < 12) h += 12;
+          if (mer === "AM" && h === 12) h = 0;
+          return h * 60 + m;
+        };
+        return parseMinutes(a.departureTime) - parseMinutes(b.departureTime);
+      });
+    }
+
+    return list;
+  }, [rides, filterMinSeats, filterTime, sortBy, userGps, getRidePickupDistanceKm]);
+
+  const hasActiveFilters = Boolean(
+    originLocation.address ||
+      destinationLocation.address ||
+      filterDate ||
+      filterTime ||
+      filterType !== "all" ||
+      filterRideType !== "all" ||
+      filterMinSeats !== "all" ||
+      sortBy !== "earliest"
+  );
+
+  const handleResetFilters = () => {
+    setOriginLocation({ address: "", latitude: 0, longitude: 0, isConfirmed: false });
+    setDestinationLocation({ address: "", latitude: 0, longitude: 0, isConfirmed: false });
+    setFilterDate("");
+    setFilterTime("");
+    setFilterType("all");
+    setFilterRideType("all");
+    setFilterMinSeats("all");
+    setSortBy("earliest");
   };
 
   const calculateFareForStops = (
@@ -580,111 +759,35 @@ export default function FindRidePage() {
 
       {/* Horizontal Search & Filter Bar */}
       <Card className="border-slate-200 shadow-sm bg-white rounded-2xl overflow-hidden">
-        <CardContent className="p-3 sm:p-4 space-y-2.5">
-          {/* Commute Direction Quick Horizontal Pills */}
-          <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1">
-            <div className="flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-xl">
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterRideType("all");
-                }}
-                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                  filterRideType === "all"
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                All Rides
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterRideType("pickup");
-                }}
-                className={`px-3 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-all ${
-                  filterRideType === "pickup"
-                    ? "bg-amber-400 text-slate-950 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Sun className="h-3 w-3" /> Pickup
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterRideType("drop");
-                }}
-                className={`px-3 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-all ${
-                  filterRideType === "drop"
-                    ? "bg-indigo-600 text-white shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <Moon className="h-3 w-3" /> Drop
-              </button>
-            </div>
-
-            {(searchOrigin || searchDestination || filterType !== "all" || filterRideType !== "all" || filterDate) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchOrigin("");
-                  setSearchDestination("");
-                  setFilterType("all");
-                  setFilterRideType("all");
-                  setFilterDate("");
-                }}
-                className="text-[11px] font-semibold text-rose-600 hover:underline shrink-0 px-2"
-              >
-                Reset Filters
-              </button>
-            )}
-          </div>
-
-          {/* Unified Horizontal Search Form */}
+        <CardContent className="p-3 sm:p-4 space-y-3">
+          {/* Row 1: Primary Search Form with Smart Typo-Tolerant Autocomplete */}
           <form onSubmit={handleSearchSubmit}>
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-12 gap-2 items-center">
-              {/* Origin (From) */}
-              <div className="col-span-1 lg:col-span-3 relative">
-                <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-emerald-600 shrink-0" />
-                <Input
-                  placeholder="From (e.g. Tambaram)"
-                  value={searchOrigin}
-                  onChange={(e) => setSearchOrigin(e.target.value)}
-                  className="pl-8 h-9 text-xs rounded-xl"
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-2.5 items-center">
+              {/* Origin (From) with Smart Autocomplete */}
+              <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4">
+                <LocationSearchInput
+                  placeholder="From (e.g. Porur, Poonamallee)"
+                  value={originLocation.address}
+                  onChange={(loc) => setOriginLocation(loc)}
+                  showCurrentLocation={false}
+                  className="h-9 text-xs rounded-xl"
                 />
               </div>
 
-              {/* Destination (To) */}
-              <div className="col-span-1 lg:col-span-3 relative">
-                <Building2 className="absolute left-2.5 top-2.5 h-4 w-4 text-blue-600 shrink-0" />
-                <Input
-                  placeholder="To (e.g. Campus)"
-                  value={searchDestination}
-                  onChange={(e) => setSearchDestination(e.target.value)}
-                  className="pl-8 h-9 text-xs rounded-xl"
+              {/* Destination (To) with Smart Autocomplete */}
+              <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-3">
+                <LocationSearchInput
+                  placeholder="To (e.g. Tech Park, Taramani)"
+                  value={destinationLocation.address}
+                  onChange={(loc) => setDestinationLocation(loc)}
+                  showCurrentLocation={false}
+                  className="h-9 text-xs rounded-xl"
                 />
-              </div>
-
-              {/* Vehicle Type */}
-              <div className="col-span-1 lg:col-span-2">
-                <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="h-9 text-xs rounded-xl">
-                    <SelectValue placeholder="All Vehicles" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Vehicles</SelectItem>
-                    <SelectItem value="Car">Car only</SelectItem>
-                    <SelectItem value="Bike">Bike only</SelectItem>
-                    <SelectItem value="SUV">SUV only</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
 
               {/* Date */}
-              <div className="col-span-1 lg:col-span-2 relative">
-                <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <div className="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-2 relative">
+                <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
                 <Input
                   type="date"
                   value={filterDate}
@@ -693,38 +796,176 @@ export default function FindRidePage() {
                 />
               </div>
 
+              {/* Time */}
+              <div className="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-2 relative">
+                <Clock className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                <Input
+                  type="time"
+                  value={filterTime}
+                  onChange={(e) => setFilterTime(e.target.value)}
+                  className="pl-8 h-9 text-xs rounded-xl"
+                />
+              </div>
+
               {/* Search Button */}
-              <div className="col-span-2 sm:col-span-2 md:col-span-4 lg:col-span-2">
+              <div className="col-span-1 sm:col-span-2 md:col-span-1 lg:col-span-1">
                 <Button
                   type="submit"
-                  className="w-full h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1.5 shadow-xs"
+                  className="w-full h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1 shadow-xs"
                 >
                   <Search className="h-3.5 w-3.5" /> Search
                 </Button>
               </div>
             </div>
           </form>
+
+          {/* Row 2: Secondary Filter & Sort Controls */}
+          <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Commute Direction Quick Horizontal Pills */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setFilterRideType("all")}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                    filterRideType === "all"
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  All Rides
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterRideType("pickup")}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-all ${
+                    filterRideType === "pickup"
+                      ? "bg-amber-400 text-slate-950 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Sun className="h-3 w-3" /> Pickup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterRideType("drop")}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-all ${
+                    filterRideType === "drop"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Moon className="h-3 w-3" /> Drop
+                </button>
+              </div>
+
+              {/* Vehicle Type Filter */}
+              <div className="w-32">
+                <Select value={filterType} onValueChange={setFilterType}>
+                  <SelectTrigger className="h-8 text-xs rounded-xl bg-slate-50 border-slate-200">
+                    <SelectValue placeholder="All Vehicles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Vehicles</SelectItem>
+                    <SelectItem value="Car">Car</SelectItem>
+                    <SelectItem value="Bike">Bike</SelectItem>
+                    <SelectItem value="SUV">SUV</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Available Seats Filter */}
+              <div className="w-32">
+                <Select value={filterMinSeats} onValueChange={setFilterMinSeats}>
+                  <SelectTrigger className="h-8 text-xs rounded-xl bg-slate-50 border-slate-200">
+                    <SelectValue placeholder="Seats: All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Seats: All</SelectItem>
+                    <SelectItem value="1">1+ Seats</SelectItem>
+                    <SelectItem value="2">2+ Seats</SelectItem>
+                    <SelectItem value="3">3+ Seats</SelectItem>
+                    <SelectItem value="4">4+ Seats</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Sort By Filter */}
+              <div className="w-44">
+                <Select
+                  value={sortBy}
+                  onValueChange={(val: any) => handleSortChange(val)}
+                >
+                  <SelectTrigger className="h-8 text-xs rounded-xl bg-slate-50 border-slate-200 font-medium">
+                    <SelectValue placeholder="Sort: Earliest Departure" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="earliest">Sort: Earliest Departure</SelectItem>
+                    <SelectItem value="nearest_pickup">
+                      Sort: Nearest Pickup
+                    </SelectItem>
+                    <SelectItem value="most_seats">Sort: Most Available Seats</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Reset Filters Action */}
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline shrink-0 px-2 flex items-center gap-1"
+              >
+                Reset Filters
+              </button>
+            )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* Result Count and Sort Feedback Bar */}
+      <div className="flex items-center justify-between gap-3 text-xs text-slate-500 font-medium px-1">
+        <div>
+          <span className="font-bold text-slate-900 text-sm">{sortedAndFilteredRides.length}</span>{" "}
+          {sortedAndFilteredRides.length === 1 ? "ride found" : "rides found"}
+          {hasActiveFilters && <span className="ml-1.5 text-slate-400 font-normal">(filtered)</span>}
+        </div>
+
+        {sortBy === "nearest_pickup" && userGps && (
+          <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 text-[11px] font-semibold">
+            <Navigation className="h-3 w-3 text-emerald-600" />
+            Sorted by closest pickup to your GPS location
+          </div>
+        )}
+      </div>
 
       {/* Available Rides Grid */}
       {isLoading ? (
         <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
           <CarLoader size="page" message="Finding available campus rides..." />
         </div>
-      ) : rides.length === 0 ? (
+      ) : sortedAndFilteredRides.length === 0 ? (
         <EmptyState
           icon={Car}
-          title="No available rides found"
-          description="No coworker has posted a ride matching your search criteria yet. You can post a ride or check back later."
-          actionLabel="Offer a Ride"
+          title="No rides found for your selected criteria"
+          description={
+            hasActiveFilters
+              ? "No rides match your specific origin, destination, time window, or seat filters. Try adjusting your departure time, choosing a broader pickup location, lowering the seat count, or resetting filters."
+              : "No coworker has posted a ride matching your campus yet. You can offer a ride or check back later."
+          }
+          actionLabel={hasActiveFilters ? "Reset Filters" : "Offer a Ride"}
           onAction={() => {
-            window.location.href = "/rides/offer";
+            if (hasActiveFilters) {
+              handleResetFilters();
+            } else {
+              window.location.href = "/rides/offer";
+            }
           }}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {rides.map((ride) => {
+          {sortedAndFilteredRides.map((ride) => {
             const isDriver = session?.user?.id === ride.driver._id;
             const isPickup = ride.rideType !== "drop";
             const isFull = ride.availableSeats === 0;
@@ -850,7 +1091,18 @@ export default function FindRidePage() {
                       <div className="flex items-start gap-2">
                         <div className="h-2 w-2 rounded-full bg-emerald-500 mt-1 shrink-0" />
                         <div className="flex-1">
-                          <span className="text-[10px] text-slate-400 uppercase font-semibold block">Origin</span>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Origin</span>
+                            {userGps && (
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
+                                <Navigation className="h-2.5 w-2.5 text-emerald-600" />
+                                {(() => {
+                                  const dist = getRidePickupDistanceKm(ride, userGps);
+                                  return dist < 1 ? `${Math.round(dist * 1000)}m away` : `${dist.toFixed(1)} km away`;
+                                })()}
+                              </span>
+                            )}
+                          </div>
                           <span className="font-bold text-slate-900 text-xs">{ride.startingLocation}</span>
                         </div>
                       </div>
@@ -1498,6 +1750,66 @@ export default function FindRidePage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Geolocation Permission Request Modal */}
+      <Dialog open={showLocationPromptModal} onOpenChange={setShowLocationPromptModal}>
+        <DialogContent className="max-w-md bg-white rounded-2xl p-6 border-slate-200">
+          <DialogHeader>
+            <div className="w-12 h-12 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+              <Navigation className="h-6 w-6" />
+            </div>
+            <DialogTitle className="text-center text-lg font-bold text-slate-900">
+              Enable Location Access
+            </DialogTitle>
+            <DialogDescription className="text-center text-xs text-slate-500 mt-2">
+              CommuteX requires your device GPS location to calculate distances and sort available rides by nearest pickup point.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-slate-50 rounded-xl p-3.5 text-xs text-slate-600 border border-slate-200 space-y-1 mt-2">
+            <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" /> Privacy Protected
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Your location is only used locally in your browser to order rides closest to you. We never share your live coordinates without your permission.
+            </p>
+          </div>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => {
+                setShowLocationPromptModal(false);
+                setSortBy("earliest");
+              }}
+              className="flex-1 rounded-xl text-xs font-semibold h-10 border-slate-200"
+            >
+              Use Earliest Departure
+            </Button>
+            <Button
+              type="button"
+              onClick={async () => {
+                const coords = await requestUserGps();
+                if (coords) {
+                  setSortBy("nearest_pickup");
+                  setShowLocationPromptModal(false);
+                }
+              }}
+              disabled={isLocatingUser}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold h-10 gap-1.5"
+            >
+              {isLocatingUser ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Locating...
+                </>
+              ) : (
+                <>
+                  <Navigation className="h-4 w-4" /> Enable Location
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

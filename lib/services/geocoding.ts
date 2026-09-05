@@ -393,6 +393,117 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * Generic Damerau-Levenshtein distance
+ * Measures edit operations: insertions, deletions, substitutions, and adjacent transpositions
+ */
+export function damerauLevenshtein(a: string, b: string): number {
+  const al = a.length;
+  const bl = b.length;
+  if (al === 0) return bl;
+  if (bl === 0) return al;
+
+  const matrix: number[][] = Array.from({ length: al + 1 }, () => new Array(bl + 1).fill(0));
+
+  for (let i = 0; i <= al; i++) matrix[i][0] = i;
+  for (let j = 0; j <= bl; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= al; i++) {
+    for (let j = 1; j <= bl; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1, // deletion
+        matrix[i][j - 1] + 1, // insertion
+        matrix[i - 1][j - 1] + cost // substitution
+      );
+
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        matrix[i][j] = Math.min(matrix[i][j], matrix[i - 2][j - 2] + 1); // transposition
+      }
+    }
+  }
+
+  return matrix[al][bl];
+}
+
+/**
+ * Generic Jaro-Winkler string similarity (returns score between 0.0 and 1.0)
+ */
+export function jaroWinkler(s1: string, s2: string): number {
+  if (s1.length === 0 || s2.length === 0) return 0;
+  if (s1 === s2) return 1;
+
+  const range = Math.floor(Math.max(s1.length, s2.length) / 2) - 1;
+  const s1Matches = new Array(s1.length).fill(false);
+  const s2Matches = new Array(s2.length).fill(false);
+  let m = 0;
+
+  for (let i = 0; i < s1.length; i++) {
+    const low = i >= range ? i - range : 0;
+    const high = i + range <= s2.length - 1 ? i + range : s2.length - 1;
+
+    for (let j = low; j <= high; j++) {
+      if (!s2Matches[j] && s1[i] === s2[j]) {
+        s1Matches[i] = true;
+        s2Matches[j] = true;
+        m++;
+        break;
+      }
+    }
+  }
+
+  if (m === 0) return 0;
+
+  let k = 0;
+  let numTrans = 0;
+  for (let i = 0; i < s1.length; i++) {
+    if (s1Matches[i]) {
+      while (!s2Matches[k]) k++;
+      if (s1[i] !== s2[k]) numTrans++;
+      k++;
+    }
+  }
+
+  const weight = (m / s1.length + m / s2.length + (m - numTrans / 2) / m) / 3;
+  let l = 0;
+  const maxL = 4;
+  while (s1[l] === s2[l] && l < maxL) l++;
+
+  return weight + l * 0.1 * (1 - weight);
+}
+
+/**
+ * Generates normalized query variations without hardcoding place names
+ * Handles multi-word spaces, common suffixes, and phonetic transliterations
+ */
+export function getQueryVariations(query: string): string[] {
+  const q = query.trim().toLowerCase();
+  const variations = new Set<string>([q]);
+
+  // 1. Remove space variations ("karayan chavadi" -> "karayanchavadi")
+  if (q.includes(" ")) {
+    variations.add(q.replace(/\s+/g, ""));
+  }
+
+  // 2. Strip common city/state suffixes ("guindy chennai" -> "guindy")
+  const stripped = q.replace(/\b(chennai|tamil\s*nadu|india|madras)\b/gi, "").trim();
+  if (stripped && stripped !== q) {
+    variations.add(stripped);
+    if (stripped.includes(" ")) {
+      variations.add(stripped.replace(/\s+/g, ""));
+    }
+  }
+
+  // 3. Common generic transliteration / vowel alternates
+  if (q.startsWith("th")) variations.add("t" + q.slice(2));
+  if (q.includes("oo")) variations.add(q.replace(/oo/g, "u"));
+  if (q.includes("u") && !q.includes("oo")) variations.add(q.replace(/u/g, "oo"));
+  if (q.includes("ee")) variations.add(q.replace(/ee/g, "i"));
+  if (q.endsWith("y")) variations.add(q.slice(0, -1) + "ee");
+
+  return Array.from(variations).filter((v) => v.length >= 2);
+}
+
 export function calculateRelevanceScore(query: string, item: LocationResult): number {
   const q = query.toLowerCase().trim();
   const name = (item.shortName || "").toLowerCase().trim();
@@ -422,6 +533,35 @@ export function calculateRelevanceScore(query: string, item: LocationResult): nu
     const diff = name.length - q.length;
     if (diff <= 3) textScore += 20;
     else if (diff <= 8) textScore += 10;
+  }
+
+  // Typo & Fuzzy Similarity Check (Damerau-Levenshtein & Jaro-Winkler)
+  const jaroName = jaroWinkler(q, name);
+  const distName = damerauLevenshtein(q, name);
+
+  const variations = getQueryVariations(q);
+  let bestVariationJaro = jaroName;
+  let bestVariationDist = distName;
+
+  for (const v of variations) {
+    if (v === q) continue;
+    const vJaro = jaroWinkler(v, name);
+    const vDist = damerauLevenshtein(v, name);
+    if (vJaro > bestVariationJaro) bestVariationJaro = vJaro;
+    if (vDist < bestVariationDist) bestVariationDist = vDist;
+  }
+
+  // Boost textScore if a strong fuzzy match or typo similarity is detected
+  if (textScore < 85) {
+    if (bestVariationJaro >= 0.92 || (name.length >= 4 && bestVariationDist <= 1)) {
+      textScore = Math.max(textScore, 85);
+    } else if (bestVariationJaro >= 0.85 || (name.length >= 5 && bestVariationDist <= 2)) {
+      textScore = Math.max(textScore, 70);
+    } else if (bestVariationJaro >= 0.80) {
+      textScore = Math.max(textScore, 55);
+    } else if (bestVariationJaro >= 0.74) {
+      textScore = Math.max(textScore, 35);
+    }
   }
 
   // Geographic Relevance Bias
@@ -469,14 +609,27 @@ class GeocodingService {
     const q = query.toLowerCase().trim();
     if (q.length < 2) return [];
 
+    const variations = getQueryVariations(q);
     const matches: LocationResult[] = [];
 
     for (const place of CORRIDOR_DIRECTORY) {
+      const placeName = place.shortName.toLowerCase();
       const exactMatch = place.keywords.some((k) => k === q);
       const prefixMatch = place.keywords.some((k) => k.startsWith(q));
       const containsMatch = place.keywords.some((k) => k.includes(q));
 
-      if (exactMatch || prefixMatch || containsMatch) {
+      // Typo & variation match
+      const typoMatch =
+        jaroWinkler(q, placeName) >= 0.85 ||
+        (q.length >= 4 && damerauLevenshtein(q, placeName) <= 2) ||
+        variations.some(
+          (v) =>
+            place.keywords.some((k) => k === v || k.startsWith(v) || k.includes(v)) ||
+            jaroWinkler(v, placeName) >= 0.85 ||
+            (v.length >= 4 && damerauLevenshtein(v, placeName) <= 2)
+        );
+
+      if (exactMatch || prefixMatch || containsMatch || typoMatch) {
         matches.push({
           shortName: place.shortName,
           displayName: place.displayName,
@@ -495,7 +648,7 @@ class GeocodingService {
 
   /**
    * Autocomplete & Search for locations matching a query string
-   * Employs multi-factor scoring (text match + regional geographic bias + landmark quality)
+   * Employs multi-factor scoring (text match + regional geographic bias + landmark quality + typo similarity)
    * Targets 5–8 useful suggestions.
    */
   async search(query: string, limit: number = 8): Promise<LocationResult[]> {
@@ -510,56 +663,69 @@ class GeocodingService {
 
     const candidatePool: LocationResult[] = [];
 
-    // 1. Gather local corridor directory matches
+    // 1. Gather local corridor directory matches (instant <1ms)
     const localMatches = this.searchLocalDirectory(cleanQuery, limit);
     candidatePool.push(...localMatches);
 
-    // 2. Query Photon Forward Geocoding API (OSM with geospatial bias to Chennai corridor)
-    try {
-      const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
-        cleanQuery
-      )}&lat=13.04&lon=80.17&limit=${Math.max(limit * 2, 16)}`;
-
-      const res = await fetch(photonUrl, {
-        headers: { "User-Agent": "CommuteX-Corporate-App/1.0 (contact@commutex.com)" },
-        signal: AbortSignal.timeout(2000),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.features)) {
-          for (const f of data.features) {
-            const p = f.properties || {};
-            const coords = f.geometry?.coordinates;
-            if (!coords || coords.length < 2) continue;
-            const lat = coords[1];
-            const lon = coords[0];
-            const rawName = p.name || p.street || p.city || p.district || "";
-            if (!rawName) continue;
-
-            // Filter out pure ward boundaries
-            if (/^(ward|zone)\s*\d+$/i.test(rawName)) continue;
-
-            const shortName = cleanLocalityText(rawName);
-            const parts = [
-              shortName,
-              p.street && p.street !== rawName ? cleanLocalityText(p.street) : null,
-              p.district && p.district !== rawName ? cleanLocalityText(p.district) : null,
-              p.city && p.city !== rawName ? cleanLocalityText(p.city) : null,
-              p.state,
-            ].filter(Boolean);
-
-            candidatePool.push({
-              shortName,
-              displayName: parts.join(", "),
-              latitude: lat,
-              longitude: lon,
-              city: cleanLocalityText(p.city || p.district),
-              state: p.state,
-            });
-          }
-        }
+    // 2. Query Photon Forward Geocoding API with primary query and normalized variations
+    const queriesToFetch = [cleanQuery];
+    const variations = getQueryVariations(cleanQuery);
+    for (const v of variations) {
+      if (v !== cleanQuery && !queriesToFetch.includes(v)) {
+        queriesToFetch.push(v);
+        if (queriesToFetch.length >= 2) break;
       }
+    }
+
+    try {
+      await Promise.allSettled(
+        queriesToFetch.map(async (qStr) => {
+          const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
+            qStr
+          )}&lat=13.04&lon=80.17&limit=${Math.max(limit * 2, 16)}`;
+
+          const res = await fetch(photonUrl, {
+            headers: { "User-Agent": "CommuteX-Corporate-App/1.0 (contact@commutex.com)" },
+            signal: AbortSignal.timeout(2000),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data && Array.isArray(data.features)) {
+              for (const f of data.features) {
+                const p = f.properties || {};
+                const coords = f.geometry?.coordinates;
+                if (!coords || coords.length < 2) continue;
+                const lat = coords[1];
+                const lon = coords[0];
+                const rawName = p.name || p.street || p.city || p.district || "";
+                if (!rawName) continue;
+
+                // Filter out pure ward boundaries
+                if (/^(ward|zone)\s*\d+$/i.test(rawName)) continue;
+
+                const shortName = cleanLocalityText(rawName);
+                const parts = [
+                  shortName,
+                  p.street && p.street !== rawName ? cleanLocalityText(p.street) : null,
+                  p.district && p.district !== rawName ? cleanLocalityText(p.district) : null,
+                  p.city && p.city !== rawName ? cleanLocalityText(p.city) : null,
+                  p.state,
+                ].filter(Boolean);
+
+                candidatePool.push({
+                  shortName,
+                  displayName: parts.join(", "),
+                  latitude: lat,
+                  longitude: lon,
+                  city: cleanLocalityText(p.city || p.district),
+                  state: p.state,
+                });
+              }
+            }
+          }
+        })
+      );
     } catch (e) {
       console.warn("Photon autocomplete warning:", e);
     }
