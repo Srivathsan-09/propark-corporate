@@ -163,10 +163,10 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error(" Vehicle POST API Error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to register vehicle. Please try again." },
+      { success: false, error: error?.message || "Failed to register vehicle. Please try again." },
       { status: 500 }
     );
   }

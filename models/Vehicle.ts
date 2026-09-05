@@ -101,7 +101,7 @@ const VehicleSchema = new Schema<IVehicle>(
       uppercase: true,
       trim: true,
       match: [
-        /^[A-Z]{2}\s?[0-9]{1,2}\s?[A-Z]{1,3}\s?[0-9]{1,4}$/,
+        /^[A-Z]{2}[ -]?[0-9]{1,2}[ -]?[A-Z]{1,3}[ -]?[0-9]{1,4}$/,
         "Registration plate number must be in standard Indian format (e.g. TN 07 AB 1234)",
       ],
       index: true,
@@ -123,8 +123,16 @@ const VehicleSchema = new Schema<IVehicle>(
       required: [true, "Available seats are required"],
       min: [1, "Available seats must be at least 1"],
       validate: {
-        validator: function (this: IVehicle, val: number) {
-          return val <= this.seatingCapacity;
+        validator: function (this: any, val: number) {
+          if (this && typeof this.seatingCapacity === "number") {
+            return val <= this.seatingCapacity;
+          }
+          const update = this?.getUpdate?.();
+          const cap = update?.seatingCapacity ?? update?.$set?.seatingCapacity;
+          if (typeof cap === "number") {
+            return val <= cap;
+          }
+          return true;
         },
         message: "Available seats cannot exceed total seating capacity",
       },

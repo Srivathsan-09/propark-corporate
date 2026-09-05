@@ -221,7 +221,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
           ...verificationUpdate,
         },
       },
-      { new: true, runValidators: true }
+      { new: true }
     );
 
     let message = "Vehicle updated successfully.";
@@ -236,10 +236,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       message,
       vehicle: updatedVehicle,
     });
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error(" Vehicle PATCH API Error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to update vehicle details." },
+      { success: false, error: error?.message || "Failed to update vehicle details." },
       { status: 500 }
     );
   }
