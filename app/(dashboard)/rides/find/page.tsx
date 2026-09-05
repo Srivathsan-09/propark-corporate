@@ -596,13 +596,62 @@ export default function FindRidePage() {
     setIsBookingModalOpen(true);
   };
 
+  // Available Drop-off stops: only subsequent stops after the selected pickup stop, plus destination
+  const availableDropStops = React.useMemo(() => {
+    if (!selectedRide) return [];
+    const stops = selectedRide.stops || [];
+
+    if (!selectedPickupStop || selectedPickupStop === selectedRide.startingLocation || isCustomStopMode) {
+      return [
+        ...stops.map((s, idx) => ({
+          name: s.name,
+          price: s.price,
+          label: `${s.name.split(",")[0].trim()} (Stop ${idx + 1}) — ₹${s.price}`,
+        })),
+        {
+          name: selectedRide.destination,
+          price: selectedRide.basePrice || 100,
+          label: `${selectedRide.destination.split(",")[0].trim()} (Destination) — ₹${selectedRide.basePrice || 100}`,
+        },
+      ];
+    }
+
+    const pickupIdx = stops.findIndex((s) => s.name === selectedPickupStop);
+    const subsequentStops = pickupIdx === -1 ? stops : stops.slice(pickupIdx + 1);
+
+    return [
+      ...subsequentStops.map((s, idx) => ({
+        name: s.name,
+        price: s.price,
+        label: `${s.name.split(",")[0].trim()} (Stop ${pickupIdx + 2 + idx}) — ₹${s.price}`,
+      })),
+      {
+        name: selectedRide.destination,
+        price: selectedRide.basePrice || 100,
+        label: `${selectedRide.destination.split(",")[0].trim()} (Destination) — ₹${selectedRide.basePrice || 100}`,
+      },
+    ];
+  }, [selectedRide, selectedPickupStop, isCustomStopMode]);
+
   const handlePickupSelect = (stopName: string) => {
     setSelectedPickupStop(stopName);
     if (selectedRide) {
+      const stops = selectedRide.stops || [];
+      const pickupIdx = stops.findIndex((s) => s.name === stopName);
+      let dropToUse = selectedDropStop;
+
+      if (pickupIdx !== -1) {
+        const dropIdx = stops.findIndex((s) => s.name === selectedDropStop);
+        if (selectedDropStop === selectedRide.startingLocation || (dropIdx !== -1 && dropIdx <= pickupIdx)) {
+          dropToUse = selectedRide.destination;
+          setSelectedDropStop(selectedRide.destination);
+        }
+      }
+
       const fare = calculateFareForStops(
         selectedRide,
         stopName,
-        selectedDropStop || selectedRide.destination,
+        dropToUse || selectedRide.destination,
         false
       );
       setSelectedFare(fare);
@@ -1417,9 +1466,6 @@ export default function FindRidePage() {
                               {stop.name.split(",")[0].trim()} (Stop {idx + 1}) — ₹{stop.price}
                             </SelectItem>
                           ))}
-                          <SelectItem value={selectedRide.destination}>
-                            {selectedRide.destination.split(",")[0].trim()} (Destination) — ₹{selectedRide.basePrice || 100}
-                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1473,17 +1519,11 @@ export default function FindRidePage() {
                         <SelectValue placeholder="Choose drop-off stop" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={selectedRide.startingLocation}>
-                          {selectedRide.startingLocation.split(",")[0].trim()} (Origin) — ₹{selectedRide.basePrice || 100}
-                        </SelectItem>
-                        {selectedRide.stops?.map((stop, idx) => (
+                        {availableDropStops.map((stop, idx) => (
                           <SelectItem key={idx} value={stop.name}>
-                            {stop.name.split(",")[0].trim()} (Stop {idx + 1}) — ₹{stop.price}
+                            {stop.label}
                           </SelectItem>
                         ))}
-                        <SelectItem value={selectedRide.destination}>
-                          {selectedRide.destination.split(",")[0].trim()} (Destination) — ₹{selectedRide.basePrice || 100}
-                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
