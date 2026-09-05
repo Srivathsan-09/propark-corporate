@@ -25,6 +25,15 @@ import {
   Camera,
   Upload,
   Image as ImageIcon,
+  Eye,
+  Crop,
+  RotateCw,
+  RotateCcw,
+  ZoomIn,
+  ZoomOut,
+  Trash2,
+  Sliders,
+  Move,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +41,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CarLoader } from "@/components/common/CarLoader";
 import { updateProfileSchema } from "@/validations/profile.schema";
 import { compressImage } from "@/lib/utils/imageCompressor";
@@ -71,6 +88,17 @@ export default function ProfilePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Photo View & Adjustment Modal States
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [adjustImageSrc, setAdjustImageSrc] = useState<string>("");
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [rotation, setRotation] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isSavingAdjust, setIsSavingAdjust] = useState(false);
 
   const isAdmin = profile?.role === "admin";
   const isCampusAdmin = profile?.role === "campus_admin";
@@ -146,6 +174,7 @@ export default function ProfilePage() {
     if (errorMessage) setErrorMessage(null);
   };
 
+  // Open adjustment modal for new file upload
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -156,16 +185,154 @@ export default function ProfilePage() {
     }
 
     try {
-      setIsUploadingPhoto(true);
       setErrorMessage(null);
       setSuccessMessage(null);
 
-      // Client-side image compression to max 600px square/portrait at 0.8 quality (~50-80KB)
-      const compressedDataUrl = await compressImage(file, 600, 0.8);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const rawUrl = event.target?.result as string;
+        setAdjustImageSrc(rawUrl);
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+        setRotation(0);
+        setIsAdjustModalOpen(true);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Profile photo load error:", err);
+      setErrorMessage("Failed to read image file. Please try another photo.");
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  // Open adjustment modal for existing uploaded photo
+  const openAdjustExistingPhoto = () => {
+    if (!formData.profileImage) return;
+    setAdjustImageSrc(formData.profileImage);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    setRotation(0);
+    setIsAdjustModalOpen(true);
+  };
+
+  // Drag-to-pan handlers for interactive photo adjust
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setPan({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.touches[0].clientX - pan.x,
+        y: e.touches[0].clientY - pan.y,
+      });
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    setPan({
+      x: e.touches[0].clientX - dragStart.x,
+      y: e.touches[0].clientY - dragStart.y,
+    });
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.002;
+    setZoom((prev) => Math.min(Math.max(1, Math.round((prev + delta) * 100) / 100), 3));
+  };
+
+  // Save adjusted photo from Canvas
+  const handleSaveAdjustedPhoto = async () => {
+    if (!adjustImageSrc) return;
+
+    try {
+      setIsSavingAdjust(true);
+      setErrorMessage(null);
+
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = adjustImageSrc;
+
+      await new Promise((resolve, reject) => {
+        if (img.complete) {
+          resolve(true);
+        } else {
+          img.onload = () => resolve(true);
+          img.onerror = reject;
+        }
+      });
+
+      const canvasSize = 600;
+      const previewSize = 280; // Size of circular preview in modal
+      const scaleFactor = canvasSize / previewSize;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = canvasSize;
+      canvas.height = canvasSize;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context unavailable");
+
+      // White background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+      ctx.save();
+      // Move to center of canvas
+      ctx.translate(canvasSize / 2, canvasSize / 2);
+      // Rotate
+      ctx.rotate((rotation * Math.PI) / 180);
+      // Zoom
+      ctx.scale(zoom, zoom);
+      // Pan translation adjusted for rotation angle
+      const rad = (-rotation * Math.PI) / 180;
+      const rotatedPanX = pan.x * Math.cos(rad) - pan.y * Math.sin(rad);
+      const rotatedPanY = pan.x * Math.sin(rad) + pan.y * Math.cos(rad);
+      ctx.translate(rotatedPanX * scaleFactor, rotatedPanY * scaleFactor);
+
+      // Draw aspect-covered image centered
+      const aspect = img.width / img.height;
+      let drawW = canvasSize;
+      let drawH = canvasSize;
+      if (aspect > 1) {
+        drawW = canvasSize * aspect;
+        drawH = canvasSize;
+      } else {
+        drawW = canvasSize;
+        drawH = canvasSize / aspect;
+      }
+
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+
+      const adjustedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
       setFormData((prev) => ({
         ...prev,
-        profileImage: compressedDataUrl,
+        profileImage: adjustedDataUrl,
       }));
 
       setFieldErrors((prev) => {
@@ -174,7 +341,7 @@ export default function ProfilePage() {
         return updated;
       });
 
-      // Auto-save photo directly to MongoDB so employee identity updates instantly
+      // Save directly to MongoDB
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -183,7 +350,7 @@ export default function ProfilePage() {
           phone: formData.phone.trim() || profile?.phone || "",
           department: formData.department.trim() || profile?.department || "General",
           companyName: formData.companyName.trim() || profile?.companyName || "Tech Mahindra",
-          profileImage: compressedDataUrl,
+          profileImage: adjustedDataUrl,
           homeLocation: formData.homeLocation.trim() || profile?.homeLocation || "",
           commutePreferences: {
             departureTimePreference: formData.departureTimePreference.trim(),
@@ -197,21 +364,17 @@ export default function ProfilePage() {
       const data = await res.json();
       if (res.ok) {
         setProfile(data.profile);
-        setSuccessMessage("Profile photo uploaded and saved successfully!");
-        await updateSession({
-          image: compressedDataUrl,
-        });
+        setSuccessMessage("Profile photo saved successfully!");
+        await updateSession({ image: adjustedDataUrl });
+        setIsAdjustModalOpen(false);
       } else {
         setErrorMessage(data.error || "Failed to save profile photo.");
       }
     } catch (err) {
-      console.error("Profile photo upload error:", err);
-      setErrorMessage("Failed to process profile photo. Please try another image.");
+      console.error("Save adjusted photo error:", err);
+      setErrorMessage("Failed to process and save adjusted photo.");
     } finally {
-      setIsUploadingPhoto(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      setIsSavingAdjust(false);
     }
   };
 
@@ -427,9 +590,15 @@ export default function ProfilePage() {
               {/* Avatar Container with Upload Interaction */}
               <div className="relative mx-auto mb-2 w-fit">
                 <div
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    if (formData.profileImage) {
+                      setIsViewModalOpen(true);
+                    } else {
+                      fileInputRef.current?.click();
+                    }
+                  }}
                   className="group relative flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-emerald-500 bg-emerald-100 text-lg font-bold text-emerald-800 shadow-sm transition-all hover:ring-4 hover:ring-emerald-100"
-                  title="Click to upload or change profile photo"
+                  title={formData.profileImage ? "Click to view full size photo" : "Click to upload photo"}
                 >
                   {formData.profileImage ? (
                     <img
@@ -443,46 +612,72 @@ export default function ProfilePage() {
 
                   {/* Hover Overlay */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white opacity-0 backdrop-blur-xs transition-opacity group-hover:opacity-100">
-                    <Camera className="h-5 w-5" />
-                    <span className="mt-0.5 text-[9px] font-semibold">
-                      {formData.profileImage ? "Change" : "Upload"}
-                    </span>
+                    {formData.profileImage ? (
+                      <>
+                        <Eye className="h-4 w-4" />
+                        <span className="mt-0.5 text-[9px] font-semibold">View</span>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-4 w-4" />
+                        <span className="mt-0.5 text-[9px] font-semibold">Upload</span>
+                      </>
+                    )}
                   </div>
 
                   {/* Uploading Spinner Overlay */}
                   {isUploadingPhoto && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
                       <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
-                      <span className="mt-0.5 text-[8px] font-medium">Saving...</span>
+                      <span className="mt-0.5 text-[8px] font-medium">Loading...</span>
                     </div>
                   )}
                 </div>
 
-                {/* Floating Camera Button Badge */}
+                {/* Floating Camera Button Badge for upload/change */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploadingPhoto || isSaving}
                   className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-white shadow-sm transition-transform hover:scale-110 hover:bg-emerald-700"
-                  title="Upload profile photo"
+                  title="Upload or change profile photo"
                 >
                   <Camera className="h-3 w-3" />
                 </button>
               </div>
 
-              {/* Photo Status / Action */}
-              <div className="mb-2 flex items-center justify-center gap-2">
+              {/* Photo Actions: View, Adjust, Remove */}
+              <div className="mb-2 flex items-center justify-center gap-1.5">
                 {formData.profileImage ? (
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Photo Uploaded
-                    </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsViewModalOpen(true)}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 hover:text-emerald-700 hover:bg-emerald-50 px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs transition-colors"
+                      title="View full size profile photo"
+                    >
+                      <Eye className="h-3.5 w-3.5 text-slate-500" />
+                      View
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={openAdjustExistingPhoto}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 hover:text-emerald-700 hover:bg-emerald-50 px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs transition-colors"
+                      title="Adjust photo zoom, pan, and rotation"
+                    >
+                      <Crop className="h-3.5 w-3.5 text-emerald-600" />
+                      Adjust
+                    </button>
+
                     <button
                       type="button"
                       onClick={handleRemovePhoto}
                       disabled={isUploadingPhoto || isSaving}
-                      className="text-[10px] font-medium text-slate-400 hover:text-rose-600 transition-colors"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-rose-600 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors"
+                      title="Remove profile photo"
                     >
+                      <Trash2 className="h-3.5 w-3.5" />
                       Remove
                     </button>
                   </div>
@@ -491,9 +686,9 @@ export default function ProfilePage() {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploadingPhoto || isSaving}
-                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1 rounded-full transition-colors cursor-pointer"
                   >
-                    <Upload className="h-3 w-3 text-amber-600" /> Upload Photo (Required)
+                    <Upload className="h-3.5 w-3.5 text-amber-600" /> Upload Photo (Required)
                   </button>
                 )}
               </div>
@@ -846,6 +1041,221 @@ export default function ProfilePage() {
           </form>
         </div>
       </div>
+      {/* View Profile Photo Dialog */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="max-w-sm p-6 text-center">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900">
+              Profile Photo
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              {profile?.name} • {profile?.employeeId}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-3 flex justify-center">
+            <div className="relative h-64 w-64 rounded-full overflow-hidden border-4 border-emerald-500 shadow-md bg-slate-900">
+              {formData.profileImage ? (
+                <img
+                  src={formData.profileImage}
+                  alt={profile?.name || "Employee"}
+                  className="h-full w-full object-cover"
+                />
+              ) : null}
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-between items-center pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsViewModalOpen(false);
+                openAdjustExistingPhoto();
+              }}
+              className="gap-1.5 text-xs font-semibold text-slate-700 rounded-xl"
+            >
+              <Crop className="h-3.5 w-3.5 text-emerald-600" />
+              Adjust Photo
+            </Button>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  fileInputRef.current?.click();
+                }}
+                className="gap-1.5 text-xs font-semibold text-slate-700 rounded-xl"
+              >
+                <Camera className="h-3.5 w-3.5" />
+                Change
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setIsViewModalOpen(false)}
+                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-4 rounded-xl"
+              >
+                Close
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjust Profile Photo Dialog */}
+      <Dialog open={isAdjustModalOpen} onOpenChange={setIsAdjustModalOpen}>
+        <DialogContent className="max-w-md p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Crop className="h-4 w-4 text-emerald-600" />
+              Adjust Profile Photo
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Drag to reposition, zoom, or rotate your photo inside the circular frame.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-4">
+            {/* Interactive Circular Preview Area */}
+            <div
+              className="relative mx-auto w-[280px] h-[280px] overflow-hidden rounded-full border-4 border-emerald-500 shadow-lg bg-slate-950 cursor-grab active:cursor-grabbing select-none"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onWheel={handleWheel}
+            >
+              <div
+                className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                style={{
+                  transform: `translate(${pan.x}px, ${pan.y}px) rotate(${rotation}deg) scale(${zoom})`,
+                  transition: isDragging ? "none" : "transform 0.05s ease-out",
+                }}
+              >
+                {adjustImageSrc && (
+                  <img
+                    src={adjustImageSrc}
+                    alt="Adjust preview"
+                    className="max-w-none w-full h-full object-cover select-none pointer-events-none"
+                    draggable={false}
+                  />
+                )}
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-400 text-center font-medium">
+              Drag image to reposition • Scroll or use slider to zoom
+            </p>
+
+            {/* Adjustment Controls */}
+            <div className="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+              {/* Zoom Slider */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
+                  <span className="flex items-center gap-1.5">
+                    <Sliders className="h-3.5 w-3.5 text-emerald-600" />
+                    Zoom
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-mono">
+                    {Math.round(zoom * 100)}%
+                  </span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setZoom((z) => Math.max(1, Math.round((z - 0.1) * 10) / 10))}
+                    className="p-1 rounded-md hover:bg-slate-200 text-slate-500"
+                  >
+                    <ZoomOut className="h-4 w-4" />
+                  </button>
+                  <input
+                    type="range"
+                    min="1"
+                    max="3"
+                    step="0.05"
+                    value={zoom}
+                    onChange={(e) => setZoom(parseFloat(e.target.value))}
+                    className="w-full accent-emerald-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.1) * 10) / 10))}
+                    className="p-1 rounded-md hover:bg-slate-200 text-slate-500"
+                  >
+                    <ZoomIn className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Rotate and Reset Buttons */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRotation((r) => (r + 90) % 360)}
+                  className="h-8 gap-1.5 text-xs text-slate-700 rounded-lg"
+                >
+                  <RotateCw className="h-3.5 w-3.5 text-emerald-600" />
+                  Rotate 90°
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setZoom(1);
+                    setPan({ x: 0, y: 0 });
+                    setRotation(0);
+                  }}
+                  className="h-8 gap-1.5 text-xs text-slate-500 hover:text-slate-700 rounded-lg"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAdjustModalOpen(false)}
+              disabled={isSavingAdjust}
+              className="text-xs rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSaveAdjustedPhoto}
+              disabled={isSavingAdjust}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs gap-1.5"
+            >
+              {isSavingAdjust ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Adjusted Photo"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
