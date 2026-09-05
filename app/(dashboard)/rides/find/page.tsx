@@ -1033,8 +1033,16 @@ export default function FindRidePage() {
                   <div className="p-4 bg-slate-50/80 border-b border-slate-100 space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs shadow-xs">
-                          {getInitials(ride.driver.name)}
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs shadow-xs overflow-hidden">
+                          {ride.driver.profileImage ? (
+                            <img
+                              src={ride.driver.profileImage}
+                              alt={ride.driver.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            getInitials(ride.driver.name)
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="font-bold text-slate-900 text-sm flex items-center gap-1.5 truncate">

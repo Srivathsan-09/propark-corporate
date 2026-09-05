@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import {
   User as UserIcon,
@@ -16,11 +16,15 @@ import {
   FileText,
   Loader2,
   CheckCircle,
+  CheckCircle2,
   AlertCircle,
   Shield,
   ShieldCheck,
   Lock,
   Briefcase,
+  Camera,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CarLoader } from "@/components/common/CarLoader";
 import { updateProfileSchema } from "@/validations/profile.schema";
+import { compressImage } from "@/lib/utils/imageCompressor";
 import { getInitials } from "@/lib/utils";
 
 interface UserProfileData {
@@ -61,9 +66,15 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isAdmin = profile?.role === "admin";
+  const isCampusAdmin = profile?.role === "campus_admin";
+  const isAdminOrCampusAdmin = isAdmin || isCampusAdmin;
 
   const [formData, setFormData] = useState({
     name: "",
@@ -135,11 +146,138 @@ export default function ProfilePage() {
     if (errorMessage) setErrorMessage(null);
   };
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setErrorMessage("Please select a valid image file (PNG, JPG, or WEBP).");
+      return;
+    }
+
+    try {
+      setIsUploadingPhoto(true);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
+      // Client-side image compression to max 600px square/portrait at 0.8 quality (~50-80KB)
+      const compressedDataUrl = await compressImage(file, 600, 0.8);
+
+      setFormData((prev) => ({
+        ...prev,
+        profileImage: compressedDataUrl,
+      }));
+
+      setFieldErrors((prev) => {
+        const updated = { ...prev };
+        delete updated.profileImage;
+        return updated;
+      });
+
+      // Auto-save photo directly to MongoDB so employee identity updates instantly
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name.trim() || profile?.name || "",
+          phone: formData.phone.trim() || profile?.phone || "",
+          department: formData.department.trim() || profile?.department || "General",
+          companyName: formData.companyName.trim() || profile?.companyName || "Tech Mahindra",
+          profileImage: compressedDataUrl,
+          homeLocation: formData.homeLocation.trim() || profile?.homeLocation || "",
+          commutePreferences: {
+            departureTimePreference: formData.departureTimePreference.trim(),
+            notes: formData.notes.trim(),
+            smokingPreference: formData.smokingPreference,
+            musicPreference: formData.musicPreference,
+          },
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setProfile(data.profile);
+        setSuccessMessage("Profile photo uploaded and saved successfully!");
+        await updateSession({
+          image: compressedDataUrl,
+        });
+      } else {
+        setErrorMessage(data.error || "Failed to save profile photo.");
+      }
+    } catch (err) {
+      console.error("Profile photo upload error:", err);
+      setErrorMessage("Failed to process profile photo. Please try another image.");
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    try {
+      setIsUploadingPhoto(true);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
+      setFormData((prev) => ({
+        ...prev,
+        profileImage: "",
+      }));
+
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name.trim() || profile?.name || "",
+          phone: formData.phone.trim() || profile?.phone || "",
+          department: formData.department.trim() || profile?.department || "General",
+          companyName: formData.companyName.trim() || profile?.companyName || "Tech Mahindra",
+          profileImage: "",
+          homeLocation: formData.homeLocation.trim() || profile?.homeLocation || "",
+          commutePreferences: {
+            departureTimePreference: formData.departureTimePreference.trim(),
+            notes: formData.notes.trim(),
+            smokingPreference: formData.smokingPreference,
+            musicPreference: formData.musicPreference,
+          },
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setProfile(data.profile);
+        setSuccessMessage("Profile photo removed.");
+        await updateSession({
+          image: "",
+        });
+      } else {
+        setErrorMessage(data.error || "Failed to remove profile photo.");
+      }
+    } catch (err) {
+      console.error("Remove profile photo error:", err);
+      setErrorMessage("Failed to remove profile photo.");
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessMessage(null);
     setErrorMessage(null);
     setFieldErrors({});
+
+    // Enforce official profile photo for corporate employees
+    if (!isAdminOrCampusAdmin && !formData.profileImage.trim()) {
+      setErrorMessage("Please upload your official profile photo before saving. All employees are required to have a profile photo.");
+      setFieldErrors((prev) => ({
+        ...prev,
+        profileImage: "Profile photo is required for all employees.",
+      }));
+      return;
+    }
 
     const payload = {
       name: formData.name.trim(),
@@ -188,11 +326,12 @@ export default function ProfilePage() {
       setProfile(data.profile);
       setSuccessMessage("Profile updated successfully!");
 
-      // Refresh client session with new name/dept
+      // Refresh client session with new name/dept/image
       await updateSession({
         name: data.profile.name,
         department: data.profile.department,
         phone: data.profile.phone,
+        image: data.profile.profileImage || "",
       });
     } catch (err) {
       console.error("Profile save error:", err);
@@ -209,10 +348,6 @@ export default function ProfilePage() {
       </div>
     );
   }
-
-  const isAdmin = profile?.role === "admin";
-  const isCampusAdmin = profile?.role === "campus_admin";
-  const isAdminOrCampusAdmin = isAdmin || isCampusAdmin;
 
   return (
     <div className="space-y-4 animate-in fade-in-50 duration-300">
@@ -242,15 +377,130 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Corporate Policy Photo Alert for Employees */}
+      {!isAdminOrCampusAdmin && !formData.profileImage && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-amber-50 via-amber-50/80 to-orange-50 p-3.5 border border-amber-200 text-amber-900 shadow-2xs animate-in fade-in-50">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 border border-amber-300 text-amber-700 shrink-0">
+              <Camera className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                <span>Employee Profile Photo Required</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-200/80 text-amber-800">
+                  Campus Policy
+                </span>
+              </div>
+              <div className="text-[11px] text-amber-700 mt-0.5">
+                All employees must upload an official profile photo for corporate commute verification, ride boarding clearance, and campus security.
+              </div>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            className="h-8 px-4 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shrink-0 gap-1.5 shadow-xs"
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Upload Photo Now
+          </Button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         {/* Left: Identity & Security Credentials (4 cols on lg) */}
         <div className="lg:col-span-4 space-y-3.5 flex flex-col justify-between">
           {/* Identity Card */}
           <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl overflow-hidden flex-1">
             <CardHeader className="text-center py-4 px-4 bg-slate-50/70 border-b border-slate-100">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 border-2 border-emerald-500 text-base font-bold text-emerald-800 shadow-2xs mb-2">
-                {getInitials(profile?.name || "PP")}
+              {/* Hidden File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                className="hidden"
+                onChange={handlePhotoChange}
+                disabled={isUploadingPhoto || isSaving}
+              />
+
+              {/* Avatar Container with Upload Interaction */}
+              <div className="relative mx-auto mb-2 w-fit">
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="group relative flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-emerald-500 bg-emerald-100 text-lg font-bold text-emerald-800 shadow-sm transition-all hover:ring-4 hover:ring-emerald-100"
+                  title="Click to upload or change profile photo"
+                >
+                  {formData.profileImage ? (
+                    <img
+                      src={formData.profileImage}
+                      alt={profile?.name || "Employee"}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span>{getInitials(profile?.name || "PP")}</span>
+                  )}
+
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white opacity-0 backdrop-blur-xs transition-opacity group-hover:opacity-100">
+                    <Camera className="h-5 w-5" />
+                    <span className="mt-0.5 text-[9px] font-semibold">
+                      {formData.profileImage ? "Change" : "Upload"}
+                    </span>
+                  </div>
+
+                  {/* Uploading Spinner Overlay */}
+                  {isUploadingPhoto && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
+                      <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
+                      <span className="mt-0.5 text-[8px] font-medium">Saving...</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Floating Camera Button Badge */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingPhoto || isSaving}
+                  className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-white shadow-sm transition-transform hover:scale-110 hover:bg-emerald-700"
+                  title="Upload profile photo"
+                >
+                  <Camera className="h-3 w-3" />
+                </button>
               </div>
+
+              {/* Photo Status / Action */}
+              <div className="mb-2 flex items-center justify-center gap-2">
+                {formData.profileImage ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Photo Uploaded
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      disabled={isUploadingPhoto || isSaving}
+                      className="text-[10px] font-medium text-slate-400 hover:text-rose-600 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingPhoto || isSaving}
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
+                  >
+                    <Upload className="h-3 w-3 text-amber-600" /> Upload Photo (Required)
+                  </button>
+                )}
+              </div>
+              {fieldErrors.profileImage && (
+                <p className="text-[10px] text-rose-600 mb-2 font-medium">{fieldErrors.profileImage}</p>
+              )}
+
               <CardTitle className="text-base font-bold text-slate-900 leading-tight">
                 {profile?.name}
               </CardTitle>

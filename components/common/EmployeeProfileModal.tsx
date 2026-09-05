@@ -155,8 +155,16 @@ export function EmployeeProfileModal({
             <>
               {/* Profile Card Header */}
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl bg-gradient-to-br from-purple-50/50 via-slate-50 to-indigo-50/40 border border-slate-200/80">
-                <div className="h-16 w-16 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xl shadow-md border-2 border-white shrink-0">
-                  {getInitials(profile.name || "Employee")}
+                <div className="h-16 w-16 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xl shadow-md border-2 border-white shrink-0 overflow-hidden">
+                  {profile.profileImage ? (
+                    <img
+                      src={profile.profileImage}
+                      alt={profile.name || "Employee"}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    getInitials(profile.name || "Employee")
+                  )}
                 </div>
 
                 <div className="flex-1 text-center sm:text-left space-y-1">

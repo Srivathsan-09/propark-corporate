@@ -181,6 +181,7 @@ export const authOptions: NextAuthOptions = {
             token.campusName = dbUser.campusName;
             token.verificationStatus = dbUser.verificationStatus || (dbUser.role === "admin" ? "approved" : "pending");
             token.isApproved = dbUser.isApproved ?? (dbUser.role === "admin");
+            if (dbUser.profileImage) token.picture = dbUser.profileImage;
           }
         } catch (e) {
           console.error("JWT sync error:", e);
@@ -220,7 +221,7 @@ export const authOptions: NextAuthOptions = {
           try {
             await connectToDatabase();
             const liveUser = await User.findOne({ email: session.user.email.toLowerCase().trim() })
-              .select("isApproved verificationStatus role name employeeId companyName campusId campusName");
+              .select("isApproved verificationStatus role name employeeId companyName campusId campusName profileImage");
             if (liveUser) {
               const isSuper = session.user.email.toLowerCase().trim() === "srimana2006@gmail.com" || liveUser.role === "admin";
               const isCampusAdm = liveUser.role === "campus_admin";
@@ -232,6 +233,7 @@ export const authOptions: NextAuthOptions = {
               if (liveUser.companyName) session.user.companyName = liveUser.companyName;
               if (liveUser.campusId) session.user.campusId = liveUser.campusId;
               if (liveUser.campusName) session.user.campusName = liveUser.campusName;
+              if (liveUser.profileImage) session.user.image = liveUser.profileImage;
             }
           } catch (e) {
             console.error("Session dynamic sync error:", e);

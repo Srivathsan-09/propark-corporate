@@ -123,10 +123,18 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
             {/* User Avatar */}
             <Link
               href="/profile"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 hover:border-emerald-500 hover:bg-emerald-50 transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 hover:border-emerald-500 hover:bg-emerald-50 transition-colors overflow-hidden shrink-0"
               title="View Profile"
             >
-              {getInitials(session.user.name || "PP")}
+              {session.user.image ? (
+                <img
+                  src={session.user.image}
+                  alt={session.user.name || "User"}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                getInitials(session.user.name || "PP")
+              )}
             </Link>
 
             {/* Logout CTA */}

@@ -34,6 +34,7 @@ interface IEmployee {
   role: "employee" | "admin" | "campus_admin";
   verificationStatus: "pending" | "approved" | "rejected";
   isApproved: boolean;
+  profileImage?: string;
   homeLocation?: string;
   vehicleCount: number;
   createdAt: string;
@@ -354,8 +355,16 @@ export default function AdminEmployeesPage() {
                     {/* Employee Info - Name + Email, constrained */}
                     <td className="py-3 pl-6 pr-4 max-w-[220px]">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-purple-800 font-bold text-[10px] shrink-0">
-                          {getInitials(emp.name)}
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-purple-800 font-bold text-[10px] shrink-0 overflow-hidden">
+                          {emp.profileImage ? (
+                            <img
+                              src={emp.profileImage}
+                              alt={emp.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            getInitials(emp.name)
+                          )}
                         </div>
                         <div className="min-w-0">
                           <div className="font-semibold text-slate-900 truncate text-xs">
