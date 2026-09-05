@@ -405,9 +405,23 @@ function handleMockWay2ApiCall(
       rc_number: idStr,
       rc_status: isSuspendedMock ? "SUSPENDED" : "ACTIVE",
       vehicle_category: isBikePlateMock ? "2W" : "LMV",
-      maker_description: isMismatchMock ? "MARUTI SUZUKI INDIA LTD" : "HYUNDAI MOTOR INDIA LTD",
-      maker_model: isMismatchMock ? "SWIFT VXI" : "I20 SPORTZ 1.2",
-      body_type: isBikePlateMock ? "MOTORCYCLE" : "SEDAN / HATCHBACK",
+      vehicle_category_description: isBikePlateMock
+        ? "Two Wheeler (Non Transport)"
+        : "Motor Car (LMV)",
+      vehicle_class: isBikePlateMock ? "M-CYCLE/SCOOTER(2WN)" : "MOTOR CAR",
+      body_type: isBikePlateMock ? "SOLO" : "SALOON",
+      maker_description: isBikePlateMock
+        ? "HERO MOTOCORP LTD"
+        : isMismatchMock
+        ? "MARUTI SUZUKI INDIA LTD"
+        : "HYUNDAI MOTOR INDIA LTD",
+      maker_model: isBikePlateMock
+        ? "SPLENDOR PLUS"
+        : isMismatchMock
+        ? "SWIFT VXI"
+        : "I20 SPORTZ 1.2",
+      seating_capacity: isBikePlateMock ? 2 : 5,
+      unladen_weight: isBikePlateMock ? 112 : 1010,
       fuel_type: "PETROL",
       color: "WHITE",
       fit_up_to: "2038-03-20",

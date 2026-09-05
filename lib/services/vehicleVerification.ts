@@ -113,65 +113,430 @@ function cleanModelString(str: string): string {
   return str.toUpperCase().replace(/[^A-Z0-9]/gi, "");
 }
 
+export type RegisteredVehicleCategory =
+  | "TWO_WHEELER"
+  | "FOUR_WHEELER_PASSENGER"
+  | "VAN"
+  | "THREE_WHEELER"
+  | "COMMERCIAL_HEAVY"
+  | "UNKNOWN";
+
+export interface RegisteredVehicleInference {
+  category: RegisteredVehicleCategory;
+  description: string;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  details: string;
+}
+
+/**
+ * Normalizes and infers the registered vehicle category by synthesizing ALL available RC fields:
+ * - vehicle_category (e.g. 2W, 2WN, L1, L2, LMV, M1, 3W, N1)
+ * - vehicle_category_description (e.g. Two Wheeler (Non Transport), Motor Car (LMV))
+ * - vehicle_class (e.g. M-CYCLE/SCOOTER(2WN), MOTOR CAR(LMV), OMNI BUS, LIGHT MOTOR VEHICLE)
+ * - body_type (e.g. SOLO, SALOON, SEDAN, HATCHBACK, STATION WAGON, SUV, MUV, JEEP, OMNI)
+ * - maker_description & maker_model (e.g. HERO MOTOCORP, HYUNDAI MOTOR, SPLENDOR, I20, CRETA)
+ * - seating_capacity (1-2 for bike, 4-8 for car/SUV, 6-10 for van)
+ * - unladen_weight & gross_vehicle_weight
+ * 
+ * Never blindly trusts a single field; uses the complete RC verification result.
+ */
+export function inferRegisteredVehicleCategory(rcResult: Record<string, any>): RegisteredVehicleInference {
+  if (!rcResult || typeof rcResult !== "object") {
+    return {
+      category: "UNKNOWN",
+      description: "Unspecified Registry Category",
+      confidence: "LOW",
+      details: "No RC data available",
+    };
+  }
+
+  const catRaw = String(rcResult.vehicle_category || "").toUpperCase().trim();
+  const catDesc = String(rcResult.vehicle_category_description || "").toUpperCase().trim();
+  const vClass = String(rcResult.vehicle_class || "").toUpperCase().trim();
+  const bodyType = String(rcResult.body_type || "").toUpperCase().trim();
+  const maker = String(rcResult.maker_description || rcResult.maker || "").toUpperCase().trim();
+  const model = String(rcResult.maker_model || rcResult.model || "").toUpperCase().trim();
+
+  const seating = Number(rcResult.seating_capacity);
+  const weight = Number(rcResult.unladen_weight);
+
+  const allText = `${catRaw} ${catDesc} ${vClass} ${bodyType} ${maker} ${model}`;
+
+  let twoWheelerScore = 0;
+  let fourWheelerScore = 0;
+  let vanScore = 0;
+  let threeWheelerScore = 0;
+  let heavyScore = 0;
+
+  // 1. Two-Wheeler Signals
+  if (/\b(2W|2WN|2WT|L1|L2|MCWG|MCWOG)\b/.test(catRaw)) twoWheelerScore += 4;
+  if (catRaw.includes("TWO WHEELER")) twoWheelerScore += 4;
+
+  if (
+    vClass.includes("M-CYCLE") ||
+    vClass.includes("MOTOR CYCLE") ||
+    vClass.includes("MOTORCYCLE") ||
+    vClass.includes("SCOOTER") ||
+    vClass.includes("MOPED") ||
+    vClass.includes("TWO WHEELER")
+  ) {
+    twoWheelerScore += 5;
+  }
+  if (catDesc.includes("TWO WHEELER") || catDesc.includes("MOTORCYCLE") || catDesc.includes("SCOOTER")) {
+    twoWheelerScore += 4;
+  }
+  if (
+    bodyType.includes("SOLO") ||
+    bodyType.includes("PILLION") ||
+    bodyType.includes("SCOOTER") ||
+    bodyType.includes("MOTOR CYCLE") ||
+    bodyType.includes("MOTORCYCLE") ||
+    bodyType.includes("2 WHEELER")
+  ) {
+    twoWheelerScore += 4;
+  }
+
+  // Major 2W Manufacturers & Popular Models
+  if (
+    maker.includes("HERO") ||
+    maker.includes("BAJAJ") ||
+    maker.includes("TVS") ||
+    maker.includes("ROYAL ENFIELD") ||
+    maker.includes("YAMAHA") ||
+    maker.includes("KTM") ||
+    maker.includes("ATHER") ||
+    maker.includes("OLA ELECTRIC") ||
+    maker.includes("HONDA MOTORCYCLE") ||
+    maker.includes("SUZUKI MOTORCYCLE") ||
+    maker.includes("PIAGGIO") ||
+    maker.includes("JAWA")
+  ) {
+    twoWheelerScore += 2;
+  }
+  if (
+    /\b(SPLENDOR|PASSION|ACTIVA|DIO|SHINE|PULSAR|PLATINA|JUPITER|APACHE|CLASSIC 350|BULLET|ACCESS|BURGMEN|CHETAK|S1|450X|DOMINAR|RAIDER|AVENGER)\b/.test(
+      model
+    )
+  ) {
+    twoWheelerScore += 3;
+  }
+
+  if (seating === 1 || seating === 2) {
+    twoWheelerScore += 2;
+  }
+  if (!isNaN(weight) && weight > 0 && weight < 350) {
+    twoWheelerScore += 2;
+  }
+
+  // 2. Four-Wheeler Passenger (Car / SUV / Sedan / Hatchback) Signals
+  if (/\b(LMV|LMV-NT|LMV-TR|M1|4W)\b/.test(catRaw)) fourWheelerScore += 4;
+  if (catRaw.includes("CAR") || catRaw.includes("MOTOR CAR")) fourWheelerScore += 4;
+
+  if (
+    vClass.includes("MOTOR CAR") ||
+    vClass.includes("LIGHT MOTOR") ||
+    vClass.includes("LMV") ||
+    vClass.includes("STATION WAGON") ||
+    vClass.includes("MOTOR CAB") ||
+    vClass.includes("ADAPTED VEHICLE")
+  ) {
+    fourWheelerScore += 5;
+  }
+  if (catDesc.includes("MOTOR CAR") || catDesc.includes("LIGHT MOTOR") || catDesc.includes("PASSENGER CAR")) {
+    fourWheelerScore += 4;
+  }
+  if (
+    bodyType.includes("SALOON") ||
+    bodyType.includes("SEDAN") ||
+    bodyType.includes("HATCHBACK") ||
+    bodyType.includes("STATION WAGON") ||
+    bodyType.includes("SUV") ||
+    bodyType.includes("MUV") ||
+    bodyType.includes("ESTATE") ||
+    bodyType.includes("JEEP") ||
+    bodyType.includes("HARD TOP") ||
+    bodyType.includes("SOFT TOP") ||
+    bodyType.includes("COUPE") ||
+    bodyType.includes("CROSSOVER")
+  ) {
+    fourWheelerScore += 4;
+  }
+
+  // Major Car & SUV Manufacturers & Popular Models
+  if (
+    maker.includes("HYUNDAI") ||
+    maker.includes("MARUTI") ||
+    maker.includes("TATA MOTORS") ||
+    maker.includes("MAHINDRA") ||
+    maker.includes("TOYOTA") ||
+    maker.includes("KIA") ||
+    maker.includes("HONDA CARS") ||
+    maker.includes("VOLKSWAGEN") ||
+    maker.includes("SKODA") ||
+    maker.includes("RENAULT") ||
+    maker.includes("NISSAN") ||
+    maker.includes("MG MOTOR") ||
+    maker.includes("FORD")
+  ) {
+    fourWheelerScore += 2;
+  }
+  if (
+    /\b(SWIFT|DZIRE|BALENO|WAGON R|ALTO|BREZZA|ERTIGA|I10|I20|VERNA|VENUE|CRETA|NEXON|PUNCH|TIAGO|HARRIER|SCORPIO|THAR|BOLERO|XUV|CITY|AMAZE|INNOVA|FORTUNER|SELTOS|SONET|POLO|KIGER|TRIBER)\b/.test(
+      model
+    )
+  ) {
+    fourWheelerScore += 3;
+  }
+
+  if (seating >= 4 && seating <= 8) {
+    fourWheelerScore += 2;
+  }
+  if (!isNaN(weight) && weight >= 600) {
+    fourWheelerScore += 2;
+  }
+
+  // 3. Van / Minivan Signals
+  if (
+    vClass.includes("OMNI BUS") ||
+    vClass.includes("MAXI CAB") ||
+    bodyType.includes("OMNI") ||
+    bodyType.includes("VAN") ||
+    bodyType.includes("MINIVAN") ||
+    bodyType.includes("MICROBUS") ||
+    /\b(EECO|OMNI|WINGER|MAGIC|CARNIVAL|TOUR V)\b/.test(model)
+  ) {
+    vanScore += 5;
+    fourWheelerScore += 2; // In India vans are also light motor passenger vehicles
+  }
+
+  // 4. Three-Wheeler Signals
+  if (
+    /\b(3W|3WT|3WN|L5)\b/.test(catRaw) ||
+    vClass.includes("AUTO RICKSHAW") ||
+    vClass.includes("THREE WHEELER") ||
+    bodyType.includes("AUTO RICKSHAW") ||
+    allText.includes("E-RICKSHAW")
+  ) {
+    threeWheelerScore += 6;
+  }
+
+  // 5. Heavy / Commercial Signals
+  if (
+    /\b(HGV|HMV|MGV|N2|N3)\b/.test(catRaw) ||
+    vClass.includes("GOODS CARRIER") ||
+    vClass.includes("HEAVY GOODS") ||
+    vClass.includes("STAGE CARRIAGE") ||
+    vClass.includes("TRUCK") ||
+    (vClass.includes("BUS") && !vClass.includes("OMNI BUS"))
+  ) {
+    heavyScore += 6;
+  }
+
+  // Score Decision
+  const detailsParts: string[] = [];
+  if (catRaw) detailsParts.push(`Category: ${catRaw}`);
+  if (vClass) detailsParts.push(`Class: ${vClass}`);
+  if (bodyType) detailsParts.push(`Body: ${bodyType}`);
+  if (maker) detailsParts.push(`Maker: ${maker}`);
+  if (!isNaN(seating) && seating > 0) detailsParts.push(`Seats: ${seating}`);
+  const detailsStr = detailsParts.join(", ") || "No category fields";
+
+  const maxScore = Math.max(twoWheelerScore, fourWheelerScore, vanScore, threeWheelerScore, heavyScore);
+
+  if (maxScore < 2) {
+    return {
+      category: "UNKNOWN",
+      description: "Unspecified Registry Category",
+      confidence: "LOW",
+      details: detailsStr,
+    };
+  }
+
+  if (heavyScore >= 5 && heavyScore >= fourWheelerScore) {
+    return {
+      category: "COMMERCIAL_HEAVY",
+      description: "Commercial / Heavy Vehicle",
+      confidence: "HIGH",
+      details: detailsStr,
+    };
+  }
+
+  if (threeWheelerScore >= 5 && threeWheelerScore >= twoWheelerScore) {
+    return {
+      category: "THREE_WHEELER",
+      description: "Three-Wheeler / Auto Rickshaw",
+      confidence: "HIGH",
+      details: detailsStr,
+    };
+  }
+
+  if (twoWheelerScore > fourWheelerScore && twoWheelerScore >= 3) {
+    return {
+      category: "TWO_WHEELER",
+      description: "Two-Wheeler (Motorcycle / Scooter)",
+      confidence: twoWheelerScore >= 5 ? "HIGH" : "MEDIUM",
+      details: detailsStr,
+    };
+  }
+
+  if (vanScore >= 5 && vanScore >= fourWheelerScore) {
+    return {
+      category: "VAN",
+      description: "Van / Minivan / Omni",
+      confidence: "HIGH",
+      details: detailsStr,
+    };
+  }
+
+  if (fourWheelerScore >= 3) {
+    return {
+      category: "FOUR_WHEELER_PASSENGER",
+      description: "Light Motor Vehicle (Car / SUV / Passenger Vehicle)",
+      confidence: fourWheelerScore >= 5 ? "HIGH" : "MEDIUM",
+      details: detailsStr,
+    };
+  }
+
+  return {
+    category: "UNKNOWN",
+    description: "Unspecified Registry Category",
+    confidence: "LOW",
+    details: detailsStr,
+  };
+}
+
+/**
+ * Evaluates compatibility between CommuteX dropdown vehicle type and the official RC classification.
+ * 
+ * Rules:
+ * 1. CommuteX "Bike" (Bike / Two-Wheeler) -> Compatible with TWO_WHEELER.
+ *    Do NOT flag mismatch merely because terminology differs (e.g. M-CYCLE/SCOOTER, 2W, SOLO, MCWG).
+ * 2. CommuteX "Car" (Car: Sedan / Hatchback) -> Compatible with FOUR_WHEELER_PASSENGER and VAN.
+ *    Do NOT flag mismatch for LMV, MOTOR CAR, SALOON, STATION WAGON, M1, etc.
+ * 3. CommuteX "SUV" (SUV / Compact SUV) -> Compatible with FOUR_WHEELER_PASSENGER and VAN.
+ *    In India, SUVs are registered as LMV, MOTOR CAR(LMV), or STATION WAGON. Do NOT flag mismatch!
+ * 4. CommuteX "Van" (Van / Minivan) -> Compatible with VAN and FOUR_WHEELER_PASSENGER (LMV/Omni).
+ * 5. CommuteX "Other" -> Flexible compatibility.
+ * 
+ * Genuine Conflict:
+ * - Driver submitted "Bike" but RC is conclusively a Four-Wheeler (Car/SUV/Van) or 3W or Heavy vehicle.
+ * - Driver submitted "Car" / "SUV" / "Van", but RC is conclusively a Two-Wheeler.
+ * - RC is a Commercial Heavy vehicle or 3W auto while driver submitted a private Car/Bike.
+ * In these cases: Flag for MANUAL_REVIEW with clear explanation.
+ */
+export function evaluateCategoryCompatibility(
+  submittedType: string,
+  inference: RegisteredVehicleInference
+): { isCompatible: boolean; isGenuineConflict: boolean; reason?: string } {
+  const normType = (submittedType || "").toLowerCase().trim();
+
+  // If RC category is unknown/unspecified, never blindly reject; allow through without false conflict
+  if (inference.category === "UNKNOWN") {
+    return { isCompatible: true, isGenuineConflict: false };
+  }
+
+  // 1. Submitted: Bike / Two-Wheeler
+  if (normType === "bike") {
+    if (inference.category === "TWO_WHEELER") {
+      return { isCompatible: true, isGenuineConflict: false };
+    }
+
+    return {
+      isCompatible: false,
+      isGenuineConflict: true,
+      reason: `Vehicle Category Conflict: Submitted as 'Bike / Two-Wheeler', but official government registry records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
+    };
+  }
+
+  // 2. Submitted: Car (Sedan / Hatchback)
+  if (normType === "car") {
+    if (inference.category === "FOUR_WHEELER_PASSENGER" || inference.category === "VAN") {
+      return { isCompatible: true, isGenuineConflict: false };
+    }
+
+    return {
+      isCompatible: false,
+      isGenuineConflict: true,
+      reason: `Vehicle Category Conflict: Submitted as 'Car (Sedan / Hatchback)', but official government registry records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
+    };
+  }
+
+  // 3. Submitted: SUV / Compact SUV
+  if (normType === "suv") {
+    if (inference.category === "FOUR_WHEELER_PASSENGER" || inference.category === "VAN") {
+      return { isCompatible: true, isGenuineConflict: false };
+    }
+
+    return {
+      isCompatible: false,
+      isGenuineConflict: true,
+      reason: `Vehicle Category Conflict: Submitted as 'SUV / Compact SUV', but official government registry records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
+    };
+  }
+
+  // 4. Submitted: Van / Minivan
+  if (normType === "van") {
+    if (inference.category === "VAN" || inference.category === "FOUR_WHEELER_PASSENGER") {
+      return { isCompatible: true, isGenuineConflict: false };
+    }
+
+    return {
+      isCompatible: false,
+      isGenuineConflict: true,
+      reason: `Vehicle Category Conflict: Submitted as 'Van / Minivan', but official government registry records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
+    };
+  }
+
+  // 5. Submitted: Other
+  if (inference.category === "COMMERCIAL_HEAVY" || inference.category === "THREE_WHEELER") {
+    return {
+      isCompatible: false,
+      isGenuineConflict: true,
+      reason: `Vehicle Category Conflict: Vehicle registered as ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
+    };
+  }
+
+  return { isCompatible: true, isGenuineConflict: false };
+}
+
 /**
  * Performs comparison between driver submitted vehicle details
  * and Way2API returned official RC details.
  * 
- * Strict check for:
- * 1. RC status (must be ACTIVE)
- * 2. Vehicle category (Car vs Bike mismatch detection)
- * 3. Fuzzy Make and Model matching
+ * Rules:
+ * 1. Checks RC active status
+ * 2. Normalizes vehicle category and checks genuine conflict vs terminology differences
+ * 3. Performs fuzzy Make and Model matching
+ * 4. Flags genuine discrepancies for MANUAL_REVIEW rather than auto-rejecting
  */
 export function compareVehicleDetails(
   input: VerificationInput,
   rcResult: Record<string, any>
-): { isMatch: boolean; mismatches: string[]; isCategoryMismatch: boolean } {
+): {
+  isMatch: boolean;
+  mismatches: string[];
+  isCategoryMismatch: boolean;
+  categoryInference: RegisteredVehicleInference;
+} {
   const mismatches: string[] = [];
   let isCategoryMismatch = false;
 
-  // 1. Check RC Status
+  // 1. Check RC Status (Must be ACTIVE)
   const rcStatus = String(rcResult.rc_status || rcResult.status || "ACTIVE").toUpperCase();
   if (rcStatus !== "ACTIVE") {
     mismatches.push(`RC Status is '${rcStatus}' in national registry (Vehicle must be ACTIVE).`);
   }
 
-  // 2. Compare Vehicle Category / Type (Bike vs Car mismatch detection)
-  const rawCategory = String(
-    rcResult.vehicle_category || rcResult.vehicle_class || rcResult.body_type || ""
-  ).toUpperCase();
+  // 2. Multi-field Category Normalization & Comparison
+  const inference = inferRegisteredVehicleCategory(rcResult);
+  const catCheck = evaluateCategoryCompatibility(input.vehicleType, inference);
 
-  const submittedType = (input.vehicleType || "").toLowerCase().trim();
-  const isSubmittedBike = submittedType === "bike";
-
-  const isApiTwoWheeler =
-    rawCategory.includes("2W") ||
-    rawCategory.includes("TWO WHEELER") ||
-    rawCategory.includes("MCWG") ||
-    rawCategory.includes("M-CYCLE") ||
-    rawCategory.includes("MOTORCYCLE") ||
-    rawCategory.includes("SCOOTER");
-
-  const isApiFourWheeler =
-    rawCategory.includes("LMV") ||
-    rawCategory.includes("CAR") ||
-    rawCategory.includes("MOTOR CAB") ||
-    rawCategory.includes("SEDAN") ||
-    rawCategory.includes("HATCHBACK") ||
-    rawCategory.includes("4W");
-
-  if (isSubmittedBike && !isApiTwoWheeler && isApiFourWheeler) {
+  if (!catCheck.isCompatible && catCheck.isGenuineConflict) {
     isCategoryMismatch = true;
-    mismatches.push(
-      `Vehicle Type Mismatch: Submitted as 'Bike', but government registry records a Light Motor Vehicle (${rawCategory || "LMV"}).`
-    );
-  } else if (!isSubmittedBike && isApiTwoWheeler) {
-    isCategoryMismatch = true;
-    mismatches.push(
-      `Vehicle Type Mismatch: Submitted as '${input.vehicleType}', but government registry records a Two-Wheeler (${rawCategory || "2W"}).`
-    );
+    mismatches.push(catCheck.reason || "Vehicle category conflict detected.");
   }
 
-  // 3. Compare Make
+  // 3. Compare Make (Fuzzy manufacturer check)
   const submittedMake = (input.make || "").trim();
   const apiMaker = String(rcResult.maker_description || rcResult.maker || "").trim();
 
@@ -191,7 +556,7 @@ export function compareVehicleDetails(
     }
   }
 
-  // 4. Compare Model
+  // 4. Compare Model (Fuzzy model check)
   const submittedModel = (input.vehicleModel || "").trim();
   const apiModel = String(rcResult.maker_model || rcResult.model || "").trim();
 
@@ -218,6 +583,7 @@ export function compareVehicleDetails(
     isMatch: mismatches.length === 0,
     mismatches,
     isCategoryMismatch,
+    categoryInference: inference,
   };
 }
 
@@ -303,7 +669,11 @@ export async function verifyVehicleWithWay2API(
     rcStatus: rcResult.rc_status || "ACTIVE",
     makerDescription: rcResult.maker_description || "",
     makerModel: rcResult.maker_model || "",
-    vehicleCategory: rcResult.vehicle_category || "",
+    vehicleCategory:
+      rcResult.vehicle_category_description ||
+      rcResult.vehicle_category ||
+      comparison.categoryInference?.description ||
+      "",
     bodyType: rcResult.body_type || "",
     fuelType: rcResult.fuel_type || "",
     color: rcResult.color || "",
@@ -321,9 +691,9 @@ export async function verifyVehicleWithWay2API(
   let rejectionReason: string | undefined;
 
   if (!comparison.isMatch) {
-    vehicleMatchStatus = comparison.isCategoryMismatch ? "MISMATCH" : "MANUAL_REVIEW";
-    status = comparison.isCategoryMismatch ? "REJECTED" : "MANUAL_REVIEW";
-    notes = `Vehicle details flagged: ${comparison.mismatches.join("; ")}`;
+    vehicleMatchStatus = "MANUAL_REVIEW";
+    status = "MANUAL_REVIEW";
+    notes = `Vehicle details flagged for administrator review: ${comparison.mismatches.join("; ")}`;
     rejectionReason = comparison.mismatches[0];
   }
 

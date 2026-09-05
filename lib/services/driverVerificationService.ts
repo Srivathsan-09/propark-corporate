@@ -120,6 +120,17 @@ export async function verifyDriverAndVehicle(
     finalDriverStatus = "PENDING_ADMIN_REVIEW";
     summaryNotes = "Driving licence and vehicle RC verified successfully. Awaiting administrator review.";
   } else if (
+    vehicleMatchStatus === "MANUAL_REVIEW" ||
+    rcResult.status === "MANUAL_REVIEW" ||
+    dlStatus === "PENDING" ||
+    rcStatus === "PENDING" ||
+    dlStatus === "ERROR" ||
+    rcStatus === "ERROR"
+  ) {
+    finalDriverStatus = "PENDING_ADMIN_REVIEW";
+    summaryNotes = rcResult.rejectionReason || dlResult.notes || "Verification flagged for administrator manual review.";
+    rejectionReason = rcResult.rejectionReason || dlResult.rejectionReason;
+  } else if (
     vehicleMatchStatus === "MISMATCH" ||
     !dlResult.isVehicleClassEligible ||
     rcResult.status === "REJECTED" ||
@@ -133,16 +144,6 @@ export async function verifyDriverAndVehicle(
       dlResult.rejectionReason ||
       "Verification failed due to mismatched vehicle or licence details.";
     summaryNotes = rejectionReason;
-  } else if (
-    dlStatus === "PENDING" ||
-    rcStatus === "PENDING" ||
-    dlStatus === "ERROR" ||
-    rcStatus === "ERROR" ||
-    vehicleMatchStatus === "MANUAL_REVIEW"
-  ) {
-    finalDriverStatus = "PENDING_ADMIN_REVIEW";
-    summaryNotes = "Verification queued for administrator manual review.";
-    rejectionReason = rcResult.rejectionReason || dlResult.notes;
   } else {
     finalDriverStatus = "PENDING_VERIFICATION";
     summaryNotes = "Verification in progress.";
