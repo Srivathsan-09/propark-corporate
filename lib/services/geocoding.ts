@@ -417,30 +417,35 @@ export function calculateRelevanceScore(query: string, item: LocationResult): nu
     textScore += 10;
   }
 
+  // Length difference bonus for tighter matches
   if (name.startsWith(q)) {
     const diff = name.length - q.length;
     if (diff <= 3) textScore += 20;
-    else if (diff <= 10) textScore += 10;
+    else if (diff <= 8) textScore += 10;
   }
 
+  // Geographic Relevance Bias
   let geoScore = 0;
-  const isChennaiCore = lat >= 12.75 && lat <= 13.35 && lon >= 79.80 && lon <= 80.40;
-  const isGreaterChennai = lat >= 12.45 && lat <= 13.60 && lon >= 79.40 && lon <= 80.50;
+  const isChennaiCore = lat >= 12.80 && lat <= 13.35 && lon >= 79.80 && lon <= 80.40;
+  const isGreaterChennai = lat >= 12.50 && lat <= 13.55 && lon >= 79.50 && lon <= 80.45;
   const isTamilNadu = lat >= 8.0 && lat <= 13.6 && lon >= 76.2 && lon <= 80.5;
 
   if (isChennaiCore) {
-    geoScore += 60;
+    geoScore += 50;
   } else if (isGreaterChennai) {
-    geoScore += 40;
+    geoScore += 35;
   } else if (isTamilNadu) {
     geoScore += 20;
   } else {
-    geoScore -= 70; // Heavy penalty for distant states
+    // Non-Tamil Nadu: soft bias (-25 penalty) so local results rank first,
+    // but users can still search for other cities
+    geoScore -= 25;
   }
 
   let qualityScore = 0;
-  if (/junction|metro|bus terminus|depot|station|park|bypass|roundana/i.test(name)) qualityScore += 15;
-  if (/shop|briyani|biriyani|hotel|mess|store|tiffin|bakery/i.test(name)) qualityScore -= 30;
+  if (/junction|metro|bus terminus|depot|station|park|bypass|roundana/i.test(name)) qualityScore += 12;
+  if (/shop|briyani|biriyani|hotel|mess|store|tiffin|bakery/i.test(name)) qualityScore -= 20;
+  if (/^(ward|zone)\s*\d+/i.test(name)) qualityScore -= 40;
 
   return textScore + geoScore + qualityScore;
 }
@@ -468,8 +473,8 @@ class GeocodingService {
 
     for (const place of CORRIDOR_DIRECTORY) {
       const exactMatch = place.keywords.some((k) => k === q);
-      const prefixMatch = place.keywords.some((k) => k.startsWith(q) || q.startsWith(k));
-      const containsMatch = place.keywords.some((k) => k.includes(q) || q.includes(k));
+      const prefixMatch = place.keywords.some((k) => k.startsWith(q));
+      const containsMatch = place.keywords.some((k) => k.includes(q));
 
       if (exactMatch || prefixMatch || containsMatch) {
         matches.push({
@@ -491,8 +496,9 @@ class GeocodingService {
   /**
    * Autocomplete & Search for locations matching a query string
    * Employs multi-factor scoring (text match + regional geographic bias + landmark quality)
+   * Targets 5–8 useful suggestions.
    */
-  async search(query: string, limit: number = 6): Promise<LocationResult[]> {
+  async search(query: string, limit: number = 8): Promise<LocationResult[]> {
     if (!query || query.trim().length < 1) return [];
 
     const cleanQuery = query.trim().toLowerCase();
@@ -508,108 +514,138 @@ class GeocodingService {
     const localMatches = this.searchLocalDirectory(cleanQuery, limit);
     candidatePool.push(...localMatches);
 
-    // 2. Query Nominatim Search API (with regional viewbox bias and 2000ms timeout)
+    // 2. Query Photon Forward Geocoding API (OSM with geospatial bias to Chennai corridor)
     try {
-      const url = `${this.nominatimUrl}/search?format=json&q=${encodeURIComponent(
+      const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
         cleanQuery
-      )}&limit=${Math.max(limit * 2, 10)}&addressdetails=1&countrycodes=in&viewbox=79.6,13.4,80.4,12.7`;
+      )}&lat=13.04&lon=80.17&limit=${Math.max(limit * 2, 16)}`;
 
-      const headers: Record<string, string> = { "Accept-Language": "en" };
-      if (typeof window === "undefined") {
-        headers["User-Agent"] = "CommuteX-Corporate-App/1.0 (contact@commutex.com)";
-      }
-
-      const res = await fetch(url, {
-        headers,
+      const res = await fetch(photonUrl, {
+        headers: { "User-Agent": "CommuteX-Corporate-App/1.0 (contact@commutex.com)" },
         signal: AbortSignal.timeout(2000),
       });
 
       if (res.ok) {
-        const text = await res.text();
-        let data: any = [];
-        try {
-          data = JSON.parse(text);
-        } catch {}
+        const data = await res.json();
+        if (data && Array.isArray(data.features)) {
+          for (const f of data.features) {
+            const p = f.properties || {};
+            const coords = f.geometry?.coordinates;
+            if (!coords || coords.length < 2) continue;
+            const lat = coords[1];
+            const lon = coords[0];
+            const rawName = p.name || p.street || p.city || p.district || "";
+            if (!rawName) continue;
 
-        if (Array.isArray(data)) {
-          const apiResults: LocationResult[] = data
-            // Filter out pure municipal ward / zone administrative boundaries
-            .filter((item: any) => {
-              const name = (item.name || "").trim();
-              const displayName = (item.display_name || "").trim();
-              const isPureWard = /^(ward|zone)\s*\d+$/i.test(name) || /^(ward|zone)\s*\d+,/i.test(displayName);
-              return !isPureWard;
-            })
-            .map((item: any) => {
-              const address = item.address || {};
-              const shortName = extractLocalityName(address, item.name || item.display_name);
-              const cleanedDisplay = cleanLocalityText(item.display_name);
+            // Filter out pure ward boundaries
+            if (/^(ward|zone)\s*\d+$/i.test(rawName)) continue;
 
-              return {
-                displayName: cleanedDisplay || item.display_name,
-                shortName,
-                latitude: parseFloat(item.lat),
-                longitude: parseFloat(item.lon),
-                city: cleanLocalityText(address.city || address.town || address.state_district),
-                state: address.state,
-              };
-            })
-            .filter(
-              (r: LocationResult) =>
-                !isNaN(r.latitude) &&
-                !isNaN(r.longitude) &&
-                Math.abs(r.latitude) > 0.01 &&
-                Math.abs(r.longitude) > 0.01 &&
-                !/^(ward|zone)\s*\d+/i.test(r.shortName)
-            );
+            const shortName = cleanLocalityText(rawName);
+            const parts = [
+              shortName,
+              p.street && p.street !== rawName ? cleanLocalityText(p.street) : null,
+              p.district && p.district !== rawName ? cleanLocalityText(p.district) : null,
+              p.city && p.city !== rawName ? cleanLocalityText(p.city) : null,
+              p.state,
+            ].filter(Boolean);
 
-          candidatePool.push(...apiResults);
+            candidatePool.push({
+              shortName,
+              displayName: parts.join(", "),
+              latitude: lat,
+              longitude: lon,
+              city: cleanLocalityText(p.city || p.district),
+              state: p.state,
+            });
+          }
         }
       }
-    } catch (error) {
-      console.warn("Nominatim search warning:", error);
+    } catch (e) {
+      console.warn("Photon autocomplete warning:", e);
+    }
+
+    // 3. Fallback / supplement: Query Nominatim Search API if candidatePool has fewer than 5 items
+    if (candidatePool.length < 5) {
+      try {
+        const url = `${this.nominatimUrl}/search?format=json&q=${encodeURIComponent(
+          cleanQuery
+        )}&limit=${Math.max(limit * 2, 12)}&addressdetails=1&countrycodes=in&viewbox=79.6,13.4,80.4,12.7`;
+
+        const headers: Record<string, string> = { "Accept-Language": "en" };
+        if (typeof window === "undefined") {
+          headers["User-Agent"] = "CommuteX-Corporate-App/1.0 (contact@commutex.com)";
+        }
+
+        const res = await fetch(url, {
+          headers,
+          signal: AbortSignal.timeout(2000),
+        });
+
+        if (res.ok) {
+          const text = await res.text();
+          let data: any = [];
+          try {
+            data = JSON.parse(text);
+          } catch {}
+
+          if (Array.isArray(data)) {
+            const apiResults: LocationResult[] = data
+              .filter((item: any) => {
+                const name = (item.name || "").trim();
+                const displayName = (item.display_name || "").trim();
+                const isPureWard = /^(ward|zone)\s*\d+$/i.test(name) || /^(ward|zone)\s*\d+,/i.test(displayName);
+                return !isPureWard;
+              })
+              .map((item: any) => {
+                const address = item.address || {};
+                const shortName = extractLocalityName(address, item.name || item.display_name);
+                const cleanedDisplay = cleanLocalityText(item.display_name);
+
+                return {
+                  displayName: cleanedDisplay || item.display_name,
+                  shortName,
+                  latitude: parseFloat(item.lat),
+                  longitude: parseFloat(item.lon),
+                  city: cleanLocalityText(address.city || address.town || address.state_district),
+                  state: address.state,
+                };
+              })
+              .filter(
+                (r: LocationResult) =>
+                  !isNaN(r.latitude) &&
+                  !isNaN(r.longitude) &&
+                  Math.abs(r.latitude) > 0.01 &&
+                  Math.abs(r.longitude) > 0.01 &&
+                  !/^(ward|zone)\s*\d+/i.test(r.shortName)
+              );
+
+            candidatePool.push(...apiResults);
+          }
+        }
+      } catch (error) {
+        console.warn("Nominatim search warning:", error);
+      }
     }
 
     if (candidatePool.length === 0) {
       return [];
     }
 
-    // 3. Multi-Factor Relevance Scoring
-    const scoredCandidates = candidatePool.map((item) => ({
-      item,
-      score: calculateRelevanceScore(cleanQuery, item),
-    }));
-
-    // Find the highest score in the pool
-    const maxScore = scoredCandidates.reduce((max, c) => Math.max(max, c.score), 0);
-
-    // 4. Intelligent Relevance Filtering
-    const filteredCandidates = scoredCandidates
-      .filter(({ item, score }) => {
-        // Discard low-relevance results
-        if (score < 30) return false;
-
-        // If strong local matches exist (score >= 110), discard distant/out-of-region results
-        if (maxScore >= 110) {
-          const isTamilNadu =
-            item.latitude >= 8.0 &&
-            item.latitude <= 13.6 &&
-            item.longitude >= 76.2 &&
-            item.longitude <= 80.5;
-          if (!isTamilNadu) return false;
-          if (score < maxScore * 0.45) return false;
-        }
-
-        return true;
-      })
+    // 4. Multi-Factor Relevance Scoring & Ranking
+    const scoredCandidates = candidatePool
+      .map((item) => ({
+        item,
+        score: calculateRelevanceScore(cleanQuery, item),
+      }))
+      .filter(({ score }) => score > 0) // Keep positive relevance items
       .sort((a, b) => b.score - a.score);
 
-    // 5. Deduplicate by geographic proximity (within 300 meters) and matching clean short names
+    // 5. Deduplicate by geographic proximity (within 350 meters) and matching clean short names
     const deduplicated: LocationResult[] = [];
-    for (const { item } of filteredCandidates) {
+    for (const { item } of scoredCandidates) {
       const isDuplicate = deduplicated.some(
         (existing) =>
-          (Math.hypot(existing.latitude - item.latitude, existing.longitude - item.longitude) < 0.003 &&
+          (Math.hypot(existing.latitude - item.latitude, existing.longitude - item.longitude) < 0.0035 &&
             existing.shortName.toLowerCase() === item.shortName.toLowerCase()) ||
           existing.displayName.toLowerCase() === item.displayName.toLowerCase()
       );

@@ -1204,12 +1204,12 @@ function OfferRideForm() {
                         }
 
                         // Explicit selection from suggestions or map click
-                        const resolvedCoords = resolvePlaceCoordinates(name, lat, lng, true);
+                        const short = loc.name || name.split(",")[0].trim();
                         setStartPoint({
-                          name: name.split(",")[0].trim(),
+                          name: short,
                           address: loc.address,
-                          latitude: resolvedCoords.latitude,
-                          longitude: resolvedCoords.longitude,
+                          latitude: lat,
+                          longitude: lng,
                         });
                       }}
                       hasError={Boolean(fieldErrors.startingLocation)}
@@ -1264,12 +1264,12 @@ function OfferRideForm() {
                         }
 
                         // Explicit selection from suggestions or map click
-                        const resolvedCoords = resolvePlaceCoordinates(name, lat, lng, false);
+                        const short = loc.name || name.split(",")[0].trim();
                         setEndPoint({
-                          name: name.split(",")[0].trim(),
+                          name: short,
                           address: loc.address,
-                          latitude: resolvedCoords.latitude,
-                          longitude: resolvedCoords.longitude,
+                          latitude: lat,
+                          longitude: lng,
                         });
                       }}
                       hasError={Boolean(fieldErrors.destination)}

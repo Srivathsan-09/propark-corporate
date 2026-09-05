@@ -27,7 +27,7 @@ export function useLocationSearch(initialQuery: string = "", debounceMs: number 
     setError(null);
 
     try {
-      const results = await geocodingService.search(searchQuery);
+      const results = await geocodingService.search(searchQuery, 8);
       if (currentRequestId !== searchRequestIdRef.current) {
         return;
       }
