@@ -62,12 +62,16 @@ export const authOptions: NextAuthOptions = {
           phone: user.phone,
           companyName: user.companyName || "ABC Technologies",
           campusId: user.campusId || "CAMP001",
-          campusName: user.campusName || "Tech Park Chennai",
-          role: user.role,
-          verificationStatus: user.verificationStatus || (user.role === "admin" ? "approved" : "pending"),
-          isApproved: user.isApproved ?? (user.role === "admin"),
-          image: user.profileImage || "",
-        };
+            campusName: user.campusName || "Tech Park Chennai",
+            role: user.role,
+            verificationStatus: user.verificationStatus || (user.role === "admin" ? "approved" : "pending"),
+            isApproved: user.isApproved ?? (user.role === "admin"),
+            image: user.profileImage?.startsWith("http")
+              ? user.profileImage
+              : user.profileImage
+              ? `/api/profile/${user._id}/avatar`
+              : "",
+          };
       },
     }),
   ],
@@ -181,7 +185,13 @@ export const authOptions: NextAuthOptions = {
             token.campusName = dbUser.campusName;
             token.verificationStatus = dbUser.verificationStatus || (dbUser.role === "admin" ? "approved" : "pending");
             token.isApproved = dbUser.isApproved ?? (dbUser.role === "admin");
-            if (dbUser.profileImage) token.picture = dbUser.profileImage;
+            if (dbUser.profileImage) {
+              token.picture = dbUser.profileImage.startsWith("http")
+                ? dbUser.profileImage
+                : `/api/profile/${dbUser._id}/avatar`;
+            } else {
+              token.picture = "";
+            }
           }
         } catch (e) {
           console.error("JWT sync error:", e);
@@ -195,7 +205,9 @@ export const authOptions: NextAuthOptions = {
         if (session.phone) token.phone = session.phone;
         if (session.companyName) token.companyName = session.companyName;
         if (session.campusId) token.campusId = session.campusId;
-        if (session.image) token.picture = session.image;
+        if (session.image !== undefined) {
+          token.picture = session.image.startsWith("data:") ? "" : session.image;
+        }
         if (session.verificationStatus) token.verificationStatus = session.verificationStatus;
         if (session.isApproved !== undefined) token.isApproved = session.isApproved;
       }
@@ -215,6 +227,7 @@ export const authOptions: NextAuthOptions = {
         session.user.campusName = token.campusName as string | undefined;
         session.user.verificationStatus = (token.verificationStatus as "pending" | "approved" | "rejected") || "pending";
         session.user.isApproved = Boolean(token.isApproved);
+        session.user.image = (token.picture as string) || "";
 
         // Dynamically verify approval status in MongoDB Atlas on every session check
         if (session.user.email) {
@@ -233,7 +246,13 @@ export const authOptions: NextAuthOptions = {
               if (liveUser.companyName) session.user.companyName = liveUser.companyName;
               if (liveUser.campusId) session.user.campusId = liveUser.campusId;
               if (liveUser.campusName) session.user.campusName = liveUser.campusName;
-              if (liveUser.profileImage) session.user.image = liveUser.profileImage;
+              if (liveUser.profileImage) {
+                session.user.image = liveUser.profileImage.startsWith("http")
+                  ? liveUser.profileImage
+                  : `/api/profile/${liveUser._id}/avatar`;
+              } else {
+                session.user.image = "";
+              }
             }
           } catch (e) {
             console.error("Session dynamic sync error:", e);

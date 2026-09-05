@@ -365,7 +365,9 @@ export default function ProfilePage() {
       if (res.ok) {
         setProfile(data.profile);
         setSuccessMessage("Profile photo saved successfully!");
-        await updateSession({ image: adjustedDataUrl });
+        await updateSession({
+          image: `/api/profile/${data.profile._id}/avatar?t=${Date.now()}`,
+        });
         setIsAdjustModalOpen(false);
       } else {
         setErrorMessage(data.error || "Failed to save profile photo.");
@@ -494,7 +496,9 @@ export default function ProfilePage() {
         name: data.profile.name,
         department: data.profile.department,
         phone: data.profile.phone,
-        image: data.profile.profileImage || "",
+        image: data.profile.profileImage
+          ? `/api/profile/${data.profile._id}/avatar?t=${Date.now()}`
+          : "",
       });
     } catch (err) {
       console.error("Profile save error:", err);
