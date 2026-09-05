@@ -7,8 +7,6 @@ export const vehicleSchema = z
     }),
     fuelType: z.enum(["Petrol", "Diesel", "CNG", "Electric", "Hybrid"]).default("Petrol").optional(),
     engineCapacity: z.string().trim().max(50).optional().default(""),
-    make: z.string().trim().max(50).optional().default(""),
-    color: z.string().trim().max(30).optional().default(""),
     vehicleModel: z
       .string({ required_error: "Vehicle model is required" })
       .trim()
@@ -19,7 +17,7 @@ export const vehicleSchema = z
       .trim()
       .toUpperCase()
       .regex(
-        /^[A-Z]{2}[ -]?[0-9]{1,2}[ -]?[A-Z]{1,3}[ -]?[0-9]{1,4}$/,
+        /^[A-Z]{2}\s?[0-9]{1,2}\s?[A-Z]{1,3}\s?[0-9]{1,4}$/,
         "Registration plate number must be in standard Indian format (e.g. TN 07 AB 1234, TN 38 BK 5678, KA 01 MN 2468)"
       ),
     seatingCapacity: z.coerce
@@ -35,10 +33,6 @@ export const vehicleSchema = z
     vehiclePhoto: z.string().optional().or(z.literal("")),
     numberPlatePhoto: z.string().optional().or(z.literal("")),
     drivingLicensePhoto: z.string().optional().or(z.literal("")),
-    drivingLicenseNumber: z.string().trim().toUpperCase().max(30).optional().default(""),
-    drivingLicenseDob: z.string().trim().max(20).optional().default(""),
-    chassisNumber: z.string().trim().toUpperCase().max(50).optional().default(""),
-    engineNumber: z.string().trim().toUpperCase().max(50).optional().default(""),
     status: z.enum(["active", "inactive"]).default("active"),
   })
   .refine((data) => data.availableSeats <= data.seatingCapacity, {

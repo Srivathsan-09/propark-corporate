@@ -24,15 +24,6 @@ export interface IUser extends Document {
   rejectionReason?: string;
   profileImage?: string;
   drivingLicensePhoto?: string;
-  drivingLicenseNumber?: string;
-  drivingLicenseDob?: string;
-  driverVerificationStatus?:
-    | "NOT_SUBMITTED"
-    | "PENDING_VERIFICATION"
-    | "PENDING_ADMIN_REVIEW"
-    | "VERIFIED"
-    | "REJECTED";
-  isDriverApproved?: boolean;
   homeLocation?: string;
   commutePreferences?: ICommutePreferences;
   otpCode?: string;
@@ -128,32 +119,6 @@ const UserSchema = new Schema<IUser>(
     drivingLicensePhoto: {
       type: String,
       default: "",
-    },
-    drivingLicenseNumber: {
-      type: String,
-      default: "",
-      trim: true,
-      uppercase: true,
-    },
-    drivingLicenseDob: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    driverVerificationStatus: {
-      type: String,
-      enum: [
-        "NOT_SUBMITTED",
-        "PENDING_VERIFICATION",
-        "PENDING_ADMIN_REVIEW",
-        "VERIFIED",
-        "REJECTED",
-      ],
-      default: "NOT_SUBMITTED",
-    },
-    isDriverApproved: {
-      type: Boolean,
-      default: false,
     },
     homeLocation: {
       type: String,

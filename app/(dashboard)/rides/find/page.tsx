@@ -92,8 +92,6 @@ interface IRide {
     profileImage?: string;
     verificationStatus?: string;
     isApproved?: boolean;
-    driverVerificationStatus?: string;
-    isDriverApproved?: boolean;
   };
   vehicle: {
     _id: string;
@@ -103,9 +101,6 @@ interface IRide {
     vehiclePhoto?: string;
     seatingCapacity: number;
     availableSeats: number;
-    verificationStatus?: string;
-    isApproved?: boolean;
-    finalDriverStatus?: string;
   };
   vehicleType: "Car" | "SUV" | "Van" | "Bike" | "Other";
   rideType?: "pickup" | "drop";
@@ -1044,14 +1039,7 @@ export default function FindRidePage() {
                         <div className="min-w-0 flex-1">
                           <div className="font-bold text-slate-900 text-sm flex items-center gap-1.5 truncate">
                             <span className="truncate">{ride.driver.name}</span>
-                            {(ride.driver.isDriverApproved || ride.driver.isApproved || ride.driver.driverVerificationStatus === "VERIFIED" || ride.vehicle?.finalDriverStatus === "VERIFIED" || ride.driver.verificationStatus === "approved") ? (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0" title="Verified Driver (DL & Vehicle Authenticated)">
-                                <ShieldCheck className="h-3 w-3 text-emerald-600 shrink-0" />
-                                <span>Verified Driver</span>
-                              </span>
-                            ) : (
-                              <ShieldCheck className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                            )}
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                           </div>
                           <div className="text-[11px] text-slate-500 flex items-center gap-1 truncate">
                             <Building2 className="h-3 w-3 text-slate-400 shrink-0" />

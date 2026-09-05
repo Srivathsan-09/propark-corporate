@@ -3,15 +3,9 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Vehicle from "@/models/Vehicle";
-import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
 import { vehicleSchema } from "@/validations/vehicle.schema";
-import {
-  normalizeRegistrationNumber,
-  formatIndianPlateNumber,
-} from "@/lib/services/vehicleVerification";
-import { verifyDriverAndVehicle } from "@/lib/services/driverVerificationService";
 
 export async function GET() {
   try {
@@ -71,8 +65,6 @@ export async function POST(req: NextRequest) {
 
     const {
       vehicleType,
-      make,
-      color,
       fuelType,
       engineCapacity,
       vehicleModel,
@@ -82,163 +74,55 @@ export async function POST(req: NextRequest) {
       vehiclePhoto,
       numberPlatePhoto,
       drivingLicensePhoto,
-      drivingLicenseNumber,
-      drivingLicenseDob,
-      chassisNumber,
-      engineNumber,
       status,
     } = validationResult.data;
 
     await connectToDatabase();
 
-    const normalizedPlate = normalizeRegistrationNumber(registrationNumber);
-    const displayPlate = formatIndianPlateNumber(registrationNumber);
+    const normalizedPlate = registrationNumber.toUpperCase().trim();
 
-    // Check if plate already registered in platform (by normalized or raw number)
-    const existingVehicle = await Vehicle.findOne({
-      $or: [
-        { normalizedRegistrationNumber: normalizedPlate },
-        { registrationNumber: displayPlate },
-        { registrationNumber: normalizedPlate },
-      ],
-    });
-
+    // Check if plate already registered in platform
+    const existingVehicle = await Vehicle.findOne({ registrationNumber: normalizedPlate });
     if (existingVehicle) {
       return NextResponse.json(
         {
           success: false,
-          error: `Vehicle plate ${displayPlate} is already registered on the platform.`,
+          error: "A vehicle with this registration plate number is already registered.",
         },
         { status: 409 }
       );
     }
 
-    // Retrieve user for fallback DL details if not entered in vehicle form
-    const userDoc = await User.findById(session.user.id);
-    const effectiveDlNumber = (drivingLicenseNumber || userDoc?.drivingLicenseNumber || "").trim().toUpperCase();
-    const effectiveDob = drivingLicenseDob || userDoc?.drivingLicenseDob || "";
-
-    // Call Driver & Vehicle Dual Verification service
-    const verificationResult = await verifyDriverAndVehicle({
-      registrationNumber: normalizedPlate,
-      vehicleType,
-      make: make || "",
-      vehicleModel,
-      color: color || "",
-      fuelType: fuelType || "Petrol",
-      seatingCapacity,
-      chassisNumber: chassisNumber || "",
-      engineNumber: engineNumber || "",
-      drivingLicenseNumber: effectiveDlNumber,
-      drivingLicenseDob: effectiveDob,
-    });
-
     // Create vehicle strictly owned by the authenticated session user
     const newVehicle = await Vehicle.create({
       owner: session.user.id,
       vehicleType,
-      make: make || "",
       fuelType: fuelType || "Petrol",
       engineCapacity: engineCapacity || "",
       vehicleModel,
-      color: color || "",
-      registrationNumber: displayPlate,
-      normalizedRegistrationNumber: normalizedPlate,
+      registrationNumber: normalizedPlate,
       seatingCapacity,
       availableSeats,
       vehiclePhoto: vehiclePhoto || "",
       numberPlatePhoto: numberPlatePhoto || "",
       drivingLicensePhoto: drivingLicensePhoto || "",
-      drivingLicenseNumber: effectiveDlNumber,
-      drivingLicenseDob: effectiveDob,
-      chassisNumber: chassisNumber || "",
-      engineNumber: engineNumber || "",
-      drivingLicenseStatus: verificationResult.drivingLicenseStatus,
-      drivingLicenseVerifiedAt: verificationResult.dlResult.verifiedAt,
-      drivingLicenseMessageCode: verificationResult.dlResult.messageCode,
-      drivingLicenseOrderId: verificationResult.dlResult.orderId,
-      drivingLicenseClasses: verificationResult.dlResult.vehicleClasses,
-      drivingLicenseData: verificationResult.dlData || {},
-      rcProviderStatus: verificationResult.rcProviderStatus,
-      rcStatus: verificationResult.rcStatus,
-      rcVerifiedAt: verificationResult.rcResult.verifiedAt,
-      rcMessageCode: verificationResult.rcResult.messageCode,
-      rcOrderId: verificationResult.rcResult.orderId,
-      vehicleMatchStatus: verificationResult.vehicleMatchStatus,
-      licenseVehicleClassStatus: verificationResult.licenseVehicleClassStatus,
-      commutexVehicleVerificationStatus: verificationResult.commutexVehicleVerificationStatus,
-      adminApprovalStatus: "PENDING",
-      finalDriverStatus: verificationResult.finalDriverStatus,
-      verificationStatus: verificationResult.commutexVehicleVerificationStatus === "VERIFIED" ? "VERIFIED" : verificationResult.commutexVehicleVerificationStatus === "MANUAL_REVIEW" ? "MANUAL_REVIEW" : "REJECTED",
-      isApproved: false, // Per CommuteX rules: Requires Super Admin / Campus Admin approval
-      verificationProvider: "way2api",
-      verificationReference: verificationResult.rcResult.orderId || verificationResult.dlResult.orderId || "",
-      verificationCheckedAt: verificationResult.checkedAt,
-      verificationNotes: verificationResult.summaryNotes,
-      rejectionReason: verificationResult.rejectionReason || "",
-      verifiedMaker: verificationResult.rcResult.verifiedMaker || "",
-      verifiedModel: verificationResult.rcResult.verifiedModel || "",
-      verifiedCategory: verificationResult.rcResult.verifiedCategory || "",
-      verifiedBodyType: verificationResult.rcResult.verifiedBodyType || "",
-      verifiedRCStatus: verificationResult.rcResult.verifiedRCStatus || "",
-      verifiedCapacity: verificationResult.rcResult.verifiedCapacity || "",
-      verifiedRegistrationNumber: verificationResult.rcResult.verifiedRegistrationNumber || normalizedPlate,
-      rcData: verificationResult.rcData || {},
+      verificationStatus: "pending",
+      isApproved: false,
       status: status || "active",
     });
-
-    // Update user profile with DL details if successfully verified
-    if (userDoc && effectiveDlNumber) {
-      userDoc.drivingLicenseNumber = effectiveDlNumber;
-      if (effectiveDob) userDoc.drivingLicenseDob = effectiveDob;
-      if (userDoc.driverVerificationStatus !== "VERIFIED") {
-        userDoc.driverVerificationStatus = verificationResult.finalDriverStatus;
-      }
-      await userDoc.save();
-    }
-
-    // Audit Log for Verification
-    try {
-      const { logAdminActivity } = await import("@/lib/auditLogger");
-      await logAdminActivity(req, session, {
-        action: "DRIVER_AND_VEHICLE_SUBMITTED",
-        targetEntity: "Vehicle",
-        targetId: String(newVehicle._id),
-        targetName: `${displayPlate} (${vehicleModel})`,
-        details: `Driver & Vehicle verification submitted: DL=${verificationResult.drivingLicenseStatus}, RC=${verificationResult.rcStatus}, VehicleMatch=${verificationResult.vehicleMatchStatus}, CommuteXStatus=${verificationResult.commutexVehicleVerificationStatus}, FinalStatus=${verificationResult.finalDriverStatus}.`,
-      });
-    } catch (auditErr) {
-      console.warn("Audit logging warning:", auditErr);
-    }
-
-    let responseMessage = "Vehicle registered! Verification evidence collected and submitted for admin review.";
-    if (verificationResult.finalDriverStatus === "REJECTED") {
-      responseMessage = verificationResult.rejectionReason || "Vehicle or licence details failed validation.";
-    } else if (verificationResult.finalDriverStatus === "PENDING_ADMIN_REVIEW") {
-      responseMessage = "Vehicle and licence verified with Way2API registry and submitted for administrator approval.";
-    }
 
     return NextResponse.json(
       {
         success: true,
-        message: responseMessage,
-        verificationStatus: verificationResult.finalDriverStatus,
-        drivingLicenseStatus: verificationResult.drivingLicenseStatus,
-        licenseVehicleClassStatus: verificationResult.licenseVehicleClassStatus,
-        rcProviderStatus: verificationResult.rcProviderStatus,
-        rcStatus: verificationResult.rcStatus,
-        vehicleMatchStatus: verificationResult.vehicleMatchStatus,
-        commutexVehicleVerificationStatus: verificationResult.commutexVehicleVerificationStatus,
-        adminApprovalStatus: "PENDING",
-        finalDriverStatus: verificationResult.finalDriverStatus,
+        message: "Vehicle registered successfully! It has been submitted for campus admin verification.",
         vehicle: newVehicle,
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(" Vehicle POST API Error:", error);
     return NextResponse.json(
-      { success: false, error: error?.message || "Failed to register vehicle. Please try again." },
+      { success: false, error: "Failed to register vehicle. Please try again." },
       { status: 500 }
     );
   }

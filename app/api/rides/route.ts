@@ -104,8 +104,8 @@ export async function GET(req: NextRequest) {
     }
 
     const rides = await Ride.find(query)
-      .populate("driver", "name email employeeId companyName department phone verificationStatus isApproved driverVerificationStatus isDriverApproved")
-      .populate("vehicle", "vehicleModel vehicleType registrationNumber seatingCapacity availableSeats verificationStatus isApproved finalDriverStatus rcStatus drivingLicenseStatus vehicleMatchStatus")
+      .populate("driver", "name email employeeId companyName department phone verificationStatus isApproved")
+      .populate("vehicle", "vehicleModel vehicleType registrationNumber seatingCapacity availableSeats verificationStatus isApproved")
       .sort({ departureDate: 1, departureTime: 1 })
       .lean();
 
@@ -225,37 +225,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const status = vehicle.verificationStatus;
-    const finalStatus = vehicle.finalDriverStatus || status;
-    const commutexStatus = vehicle.commutexVehicleVerificationStatus;
-    const matchStatus = vehicle.vehicleMatchStatus;
-    const isVerified =
-      (vehicle.isApproved === true || vehicle.adminApprovalStatus === "APPROVED" || dbUser.role === "admin") &&
-      commutexStatus !== "MANUAL_REVIEW" &&
-      commutexStatus !== "REJECTED" &&
-      commutexStatus !== "FAILED" &&
-      matchStatus !== "MISMATCH" &&
-      matchStatus !== "MANUAL_REVIEW" &&
-      status !== "MANUAL_REVIEW" &&
-      status !== "REJECTED" &&
-      status !== "rejected" &&
-      status !== "VERIFICATION_FAILED";
+    const isVehicleApproved =
+      dbUser.role === "admin" ||
+      vehicle.isApproved === true ||
+      vehicle.verificationStatus === "approved" ||
+      (isEmployeeApproved && vehicle.verificationStatus !== "rejected");
 
-    if (!isVerified) {
-      let errorMessage =
-        "Vehicle verification is pending administrator review. You cannot post a ride using this vehicle until verification is completed.";
-
-      if (commutexStatus === "REJECTED" || finalStatus === "REJECTED" || status === "REJECTED" || status === "rejected") {
-        errorMessage = vehicle.rejectionReason
-          ? `Verification rejected: ${vehicle.rejectionReason}`
-          : "Vehicle verification was rejected. You cannot post a ride using this vehicle.";
-      }
-
+    if (!isVehicleApproved) {
       return NextResponse.json(
         {
           success: false,
-          error: errorMessage,
-          verificationStatus: status,
+          error: "This vehicle is awaiting campus security/admin verification before it can offer rides.",
         },
         { status: 403 }
       );

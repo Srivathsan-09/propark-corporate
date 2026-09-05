@@ -1,82 +1,21 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-export type VehicleVerificationStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "PENDING"
-  | "VERIFICATION_IN_PROGRESS"
-  | "VERIFIED"
-  | "MANUAL_REVIEW"
-  | "REJECTED"
-  | "VERIFICATION_FAILED";
-
 export interface IVehicle extends Document {
   _id: mongoose.Types.ObjectId;
   owner: mongoose.Types.ObjectId;
   vehicleType: "Car" | "SUV" | "Van" | "Bike" | "Other";
-  make?: string;
   vehicleModel: string;
-  color?: string;
   registrationNumber: string;
-  normalizedRegistrationNumber?: string;
   seatingCapacity: number;
   availableSeats: number;
   vehiclePhoto?: string;
   numberPlatePhoto?: string;
   drivingLicensePhoto?: string;
-  drivingLicenseNumber?: string;
-  drivingLicenseDob?: string;
-  chassisNumber?: string;
-  engineNumber?: string;
-  drivingLicenseStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
-  drivingLicenseVerifiedAt?: Date;
-  drivingLicenseMessageCode?: string;
-  drivingLicenseOrderId?: string;
-  drivingLicenseClasses?: string[];
-  drivingLicenseData?: Record<string, any>;
-  rcProviderStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
-  rcStatus?: string;
-  rcVerifiedAt?: Date;
-  rcMessageCode?: string;
-  rcOrderId?: string;
-  vehicleMatchStatus?: "NOT_CHECKED" | "MATCHED" | "MISMATCH" | "MANUAL_REVIEW";
-  licenseVehicleClassStatus?: "NOT_CHECKED" | "COMPATIBLE" | "INCOMPATIBLE";
-  commutexVehicleVerificationStatus?: "PENDING" | "MANUAL_REVIEW" | "VERIFIED" | "REJECTED" | "FAILED";
-  adminApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED";
-  finalDriverStatus?: "NOT_SUBMITTED" | "PENDING_VERIFICATION" | "PENDING_ADMIN_REVIEW" | "VERIFIED" | "REJECTED";
   fuelType?: "Petrol" | "Diesel" | "CNG" | "Electric" | "Hybrid";
   engineCapacity?: string;
-  verificationStatus: VehicleVerificationStatus;
+  verificationStatus: "pending" | "approved" | "rejected";
   isApproved: boolean;
-  verificationProvider?: string;
-  verificationReference?: string;
-  verificationCheckedAt?: Date;
-  verifiedAt?: Date;
-  verificationNotes?: string;
   rejectionReason?: string;
-  verifiedMaker?: string;
-  verifiedModel?: string;
-  verifiedCategory?: string;
-  verifiedBodyType?: string;
-  verifiedRCStatus?: string;
-  verifiedCapacity?: number | string;
-  verifiedRegistrationNumber?: string;
-  rcData?: {
-    rcNumber?: string;
-    rcStatus?: string;
-    makerDescription?: string;
-    makerModel?: string;
-    vehicleCategory?: string;
-    bodyType?: string;
-    fuelType?: string;
-    color?: string;
-    registrationDate?: string;
-    fitnessUpto?: string;
-    insuranceUpto?: string;
-    insuranceCompany?: string;
-    mismatchDetails?: string[];
-  };
   status: "active" | "inactive";
   createdAt: Date;
   updatedAt: Date;
@@ -96,11 +35,6 @@ const VehicleSchema = new Schema<IVehicle>(
       default: "Car",
       required: [true, "Vehicle type is required"],
     },
-    make: {
-      type: String,
-      default: "",
-      trim: true,
-    },
     fuelType: {
       type: String,
       enum: ["Petrol", "Diesel", "CNG", "Electric", "Hybrid"],
@@ -117,26 +51,16 @@ const VehicleSchema = new Schema<IVehicle>(
       trim: true,
       maxlength: [100, "Vehicle model cannot exceed 100 characters"],
     },
-    color: {
-      type: String,
-      default: "",
-      trim: true,
-    },
     registrationNumber: {
       type: String,
       required: [true, "Registration number is required"],
+      unique: true,
       uppercase: true,
       trim: true,
       match: [
-        /^[A-Z]{2}[ -]?[0-9]{1,2}[ -]?[A-Z]{1,3}[ -]?[0-9]{1,4}$/,
+        /^[A-Z]{2}\s?[0-9]{1,2}\s?[A-Z]{1,3}\s?[0-9]{1,4}$/,
         "Registration plate number must be in standard Indian format (e.g. TN 07 AB 1234)",
       ],
-      index: true,
-    },
-    normalizedRegistrationNumber: {
-      type: String,
-      uppercase: true,
-      trim: true,
       index: true,
     },
     seatingCapacity: {
@@ -176,126 +100,10 @@ const VehicleSchema = new Schema<IVehicle>(
       type: String,
       default: "",
     },
-    drivingLicenseNumber: {
-      type: String,
-      default: "",
-      trim: true,
-      uppercase: true,
-    },
-    drivingLicenseDob: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    chassisNumber: {
-      type: String,
-      default: "",
-      trim: true,
-      uppercase: true,
-    },
-    engineNumber: {
-      type: String,
-      default: "",
-      trim: true,
-      uppercase: true,
-    },
-    drivingLicenseStatus: {
-      type: String,
-      enum: ["NOT_STARTED", "PENDING", "VERIFIED", "FAILED", "ERROR"],
-      default: "NOT_STARTED",
-      index: true,
-    },
-    drivingLicenseVerifiedAt: {
-      type: Date,
-    },
-    drivingLicenseMessageCode: {
-      type: String,
-      default: "",
-    },
-    drivingLicenseOrderId: {
-      type: String,
-      default: "",
-    },
-    drivingLicenseClasses: {
-      type: [String],
-      default: [],
-    },
-    drivingLicenseData: {
-      type: Schema.Types.Mixed,
-      default: {},
-    },
-    rcProviderStatus: {
-      type: String,
-      enum: ["NOT_STARTED", "PENDING", "VERIFIED", "FAILED", "ERROR"],
-      default: "NOT_STARTED",
-      index: true,
-    },
-    rcStatus: {
-      type: String,
-      default: "NOT_STARTED",
-      index: true,
-    },
-    rcVerifiedAt: {
-      type: Date,
-    },
-    rcMessageCode: {
-      type: String,
-      default: "",
-    },
-    rcOrderId: {
-      type: String,
-      default: "",
-    },
-    vehicleMatchStatus: {
-      type: String,
-      enum: ["NOT_CHECKED", "MATCHED", "MISMATCH", "MANUAL_REVIEW"],
-      default: "NOT_CHECKED",
-      index: true,
-    },
-    licenseVehicleClassStatus: {
-      type: String,
-      enum: ["NOT_CHECKED", "COMPATIBLE", "INCOMPATIBLE"],
-      default: "NOT_CHECKED",
-      index: true,
-    },
-    commutexVehicleVerificationStatus: {
-      type: String,
-      enum: ["PENDING", "MANUAL_REVIEW", "VERIFIED", "REJECTED", "FAILED"],
-      default: "PENDING",
-      index: true,
-    },
-    adminApprovalStatus: {
-      type: String,
-      enum: ["PENDING", "APPROVED", "REJECTED"],
-      default: "PENDING",
-      index: true,
-    },
-    finalDriverStatus: {
-      type: String,
-      enum: [
-        "NOT_SUBMITTED",
-        "PENDING_VERIFICATION",
-        "PENDING_ADMIN_REVIEW",
-        "VERIFIED",
-        "REJECTED",
-      ],
-      default: "NOT_SUBMITTED",
-      index: true,
-    },
     verificationStatus: {
       type: String,
-      enum: [
-        "pending",
-        "approved",
-        "rejected",
-        "PENDING",
-        "VERIFICATION_IN_PROGRESS",
-        "VERIFIED",
-        "MANUAL_REVIEW",
-        "REJECTED",
-        "VERIFICATION_FAILED",
-      ],
-      default: "PENDING",
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
       index: true,
     },
     isApproved: {
@@ -303,59 +111,9 @@ const VehicleSchema = new Schema<IVehicle>(
       default: false,
       index: true,
     },
-    verificationProvider: {
-      type: String,
-      default: "way2api",
-    },
-    verificationReference: {
-      type: String,
-      default: "",
-    },
-    verificationCheckedAt: {
-      type: Date,
-    },
-    verifiedAt: {
-      type: Date,
-    },
-    verificationNotes: {
-      type: String,
-      default: "",
-    },
     rejectionReason: {
       type: String,
       default: "",
-    },
-    verifiedMaker: {
-      type: String,
-      default: "",
-    },
-    verifiedModel: {
-      type: String,
-      default: "",
-    },
-    verifiedCategory: {
-      type: String,
-      default: "",
-    },
-    verifiedBodyType: {
-      type: String,
-      default: "",
-    },
-    verifiedRCStatus: {
-      type: String,
-      default: "",
-    },
-    verifiedCapacity: {
-      type: Schema.Types.Mixed,
-      default: "",
-    },
-    verifiedRegistrationNumber: {
-      type: String,
-      default: "",
-    },
-    rcData: {
-      type: Schema.Types.Mixed,
-      default: {},
     },
     status: {
       type: String,
