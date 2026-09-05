@@ -51,13 +51,16 @@ import { cn } from "@/lib/utils";
 interface IVehicle {
   _id: string;
   vehicleType: "Car" | "SUV" | "Van" | "Bike" | "Other";
+  make?: string;
   vehicleModel: string;
+  color?: string;
   registrationNumber: string;
   seatingCapacity: number;
   availableSeats: number;
   vehiclePhoto?: string;
-  verificationStatus?: "pending" | "approved" | "rejected";
+  verificationStatus?: string;
   isApproved?: boolean;
+  rejectionReason?: string;
 }
 
 interface IStopItem {
@@ -286,8 +289,16 @@ function OfferRideForm() {
           const list: IVehicle[] = data.vehicles || [];
           setVehicles(list);
 
-          if (list.length > 0) {
-            const first = list[0];
+          const verifiedList = list.filter(
+            (v) =>
+              v.isApproved === true ||
+              v.verificationStatus === "VERIFIED" ||
+              v.verificationStatus === "approved" ||
+              session?.user?.role === "admin"
+          );
+
+          if (verifiedList.length > 0) {
+            const first = verifiedList[0];
             setFormData((prev) => ({
               ...prev,
               vehicleId: prev.vehicleId || first._id,
@@ -413,7 +424,19 @@ function OfferRideForm() {
     fetchRideToEdit();
   }, [editRideId, calculateRoute]);
 
-  const selectedVehicle = vehicles.find((v) => v._id === formData.vehicleId);
+  const verifiedVehicles = useMemo(
+    () =>
+      vehicles.filter(
+        (v) =>
+          v.isApproved === true ||
+          v.verificationStatus === "VERIFIED" ||
+          v.verificationStatus === "approved" ||
+          session?.user?.role === "admin"
+      ),
+    [vehicles, session]
+  );
+
+  const selectedVehicle = verifiedVehicles.find((v) => v._id === formData.vehicleId) || vehicles.find((v) => v._id === formData.vehicleId);
 
   // Recalculate OSRM Route whenever start or destination change
   // Main highway/corridor route directly between Origin & Destination (stops do NOT detour into side streets)
@@ -955,7 +978,7 @@ function OfferRideForm() {
           <CarLoader size="page" message={isLoadingRideForEdit ? "Loading ride details for editing..." : "Loading your vehicles & route setup..."} />
         </div>
       ) : vehicles.length === 0 ? (
-        <Card className="border-amber-200 bg-amber-50/60 p-6 text-center space-y-3 rounded-2xl">
+        <Card className="border-amber-200 bg-amber-50/60 p-6 text-center space-y-3 rounded-2xl max-w-xl mx-auto">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700">
             <Car className="h-6 w-6" />
           </div>
@@ -968,6 +991,58 @@ function OfferRideForm() {
               Register Vehicle Now
             </Button>
           </Link>
+        </Card>
+      ) : verifiedVehicles.length === 0 ? (
+        <Card className="border-amber-200 bg-amber-50/70 p-8 text-center space-y-4 rounded-2xl max-w-xl mx-auto shadow-sm">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+            <Car className="h-7 w-7" />
+          </div>
+          {(() => {
+            const first = vehicles[0];
+            const status = first?.verificationStatus;
+            let title = "Vehicle Verification Required";
+            let mainMessage =
+              "Your vehicle has not been verified yet. Please complete vehicle verification before posting a ride.";
+            let detail = "";
+
+            if (status === "PENDING" || status === "pending") {
+              title = "Vehicle Verification Pending";
+              mainMessage = "Vehicle verification is pending.";
+              detail =
+                "Your vehicle registration details are currently being verified with the official RC registry.";
+            } else if (status === "MANUAL_REVIEW") {
+              title = "Awaiting Admin Review";
+              mainMessage = "Your vehicle is awaiting admin review.";
+              detail =
+                first.rejectionReason ||
+                "A detail mismatch was flagged during verification and is being reviewed by the administrator.";
+            } else if (status === "REJECTED" || status === "rejected") {
+              title = "Vehicle Verification Rejected";
+              mainMessage = "Your vehicle verification was rejected.";
+              detail = first.rejectionReason
+                ? `Reason: ${first.rejectionReason}`
+                : "Please review your registration details and resubmit.";
+            } else if (status === "VERIFICATION_FAILED") {
+              title = "Verification Temporarily Unavailable";
+              mainMessage =
+                "Vehicle verification is temporarily unavailable. Please try again later.";
+            }
+
+            return (
+              <div className="space-y-2">
+                <h2 className="text-base font-bold text-slate-900">{title}</h2>
+                <p className="text-sm font-semibold text-amber-900">{mainMessage}</p>
+                {detail && <p className="text-xs text-amber-800/90">{detail}</p>}
+              </div>
+            );
+          })()}
+          <div>
+            <Link href="/vehicles">
+              <Button className="bg-emerald-600 hover:bg-emerald-700 font-bold rounded-xl text-xs px-5">
+                Complete Vehicle Verification
+              </Button>
+            </Link>
+          </div>
         </Card>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col lg:grid lg:grid-cols-12 gap-6">
@@ -1157,14 +1232,11 @@ function OfferRideForm() {
                           <SelectValue placeholder="Select vehicle" />
                         </SelectTrigger>
                         <SelectContent>
-                          {vehicles.map((v) => {
-                            const isApproved = v.isApproved || v.verificationStatus === "approved" || session?.user?.role === "admin";
-                            return (
-                              <SelectItem key={v._id} value={v._id}>
-                                {v.vehicleModel} ({v.registrationNumber}) — {v.vehicleType} {!isApproved ? "(Pending Approval)" : "(Verified)"}
-                              </SelectItem>
-                            );
-                          })}
+                          {verifiedVehicles.map((v) => (
+                            <SelectItem key={v._id} value={v._id}>
+                              {v.make ? `${v.make} ` : ""}{v.vehicleModel} ({v.registrationNumber}) — {v.vehicleType} (Verified)
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

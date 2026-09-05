@@ -1,11 +1,25 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
+export type VehicleVerificationStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "PENDING"
+  | "VERIFICATION_IN_PROGRESS"
+  | "VERIFIED"
+  | "MANUAL_REVIEW"
+  | "REJECTED"
+  | "VERIFICATION_FAILED";
+
 export interface IVehicle extends Document {
   _id: mongoose.Types.ObjectId;
   owner: mongoose.Types.ObjectId;
   vehicleType: "Car" | "SUV" | "Van" | "Bike" | "Other";
+  make?: string;
   vehicleModel: string;
+  color?: string;
   registrationNumber: string;
+  normalizedRegistrationNumber?: string;
   seatingCapacity: number;
   availableSeats: number;
   vehiclePhoto?: string;
@@ -13,9 +27,29 @@ export interface IVehicle extends Document {
   drivingLicensePhoto?: string;
   fuelType?: "Petrol" | "Diesel" | "CNG" | "Electric" | "Hybrid";
   engineCapacity?: string;
-  verificationStatus: "pending" | "approved" | "rejected";
+  verificationStatus: VehicleVerificationStatus;
   isApproved: boolean;
+  verificationProvider?: string;
+  verificationReference?: string;
+  verificationCheckedAt?: Date;
+  verifiedAt?: Date;
+  verificationNotes?: string;
   rejectionReason?: string;
+  rcData?: {
+    rcNumber?: string;
+    rcStatus?: string;
+    makerDescription?: string;
+    makerModel?: string;
+    vehicleCategory?: string;
+    bodyType?: string;
+    fuelType?: string;
+    color?: string;
+    registrationDate?: string;
+    fitnessUpto?: string;
+    insuranceUpto?: string;
+    insuranceCompany?: string;
+    mismatchDetails?: string[];
+  };
   status: "active" | "inactive";
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +69,11 @@ const VehicleSchema = new Schema<IVehicle>(
       default: "Car",
       required: [true, "Vehicle type is required"],
     },
+    make: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     fuelType: {
       type: String,
       enum: ["Petrol", "Diesel", "CNG", "Electric", "Hybrid"],
@@ -51,16 +90,26 @@ const VehicleSchema = new Schema<IVehicle>(
       trim: true,
       maxlength: [100, "Vehicle model cannot exceed 100 characters"],
     },
+    color: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     registrationNumber: {
       type: String,
       required: [true, "Registration number is required"],
-      unique: true,
       uppercase: true,
       trim: true,
       match: [
         /^[A-Z]{2}\s?[0-9]{1,2}\s?[A-Z]{1,3}\s?[0-9]{1,4}$/,
         "Registration plate number must be in standard Indian format (e.g. TN 07 AB 1234)",
       ],
+      index: true,
+    },
+    normalizedRegistrationNumber: {
+      type: String,
+      uppercase: true,
+      trim: true,
       index: true,
     },
     seatingCapacity: {
@@ -94,8 +143,18 @@ const VehicleSchema = new Schema<IVehicle>(
     },
     verificationStatus: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending",
+      enum: [
+        "pending",
+        "approved",
+        "rejected",
+        "PENDING",
+        "VERIFICATION_IN_PROGRESS",
+        "VERIFIED",
+        "MANUAL_REVIEW",
+        "REJECTED",
+        "VERIFICATION_FAILED",
+      ],
+      default: "PENDING",
       index: true,
     },
     isApproved: {
@@ -103,9 +162,31 @@ const VehicleSchema = new Schema<IVehicle>(
       default: false,
       index: true,
     },
+    verificationProvider: {
+      type: String,
+      default: "way2api",
+    },
+    verificationReference: {
+      type: String,
+      default: "",
+    },
+    verificationCheckedAt: {
+      type: Date,
+    },
+    verifiedAt: {
+      type: Date,
+    },
+    verificationNotes: {
+      type: String,
+      default: "",
+    },
     rejectionReason: {
       type: String,
       default: "",
+    },
+    rcData: {
+      type: Schema.Types.Mixed,
+      default: {},
     },
     status: {
       type: String,

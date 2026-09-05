@@ -5,6 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Vehicle from "@/models/Vehicle";
 import { vehicleSchema } from "@/validations/vehicle.schema";
+import {
+  normalizeRegistrationNumber,
+  formatIndianPlateNumber,
+  verifyVehicleWithWay2API,
+} from "@/lib/services/vehicleVerification";
 
 interface RouteParams {
   params: {
@@ -96,6 +101,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const {
       vehicleType,
+      make,
+      color,
       fuelType,
       engineCapacity,
       vehicleModel,
@@ -110,49 +117,12 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     await connectToDatabase();
 
-    const normalizedPlate = registrationNumber.toUpperCase().trim();
-
-    // Check if another vehicle has the same registration plate
-    const duplicateVehicle = await Vehicle.findOne({
-      registrationNumber: normalizedPlate,
-      _id: { $ne: id },
+    const existingVehicle = await Vehicle.findOne({
+      _id: id,
+      owner: session.user.id,
     });
 
-    if (duplicateVehicle) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Another vehicle with this registration plate number already exists.",
-        },
-        { status: 409 }
-      );
-    }
-
-    // Update ONLY if owned by the current session user
-    const updatedVehicle = await Vehicle.findOneAndUpdate(
-      {
-        _id: id,
-        owner: session.user.id,
-      },
-      {
-        $set: {
-          vehicleType,
-          fuelType: fuelType || "Petrol",
-          engineCapacity: engineCapacity || "",
-          vehicleModel,
-          registrationNumber: normalizedPlate,
-          seatingCapacity,
-          availableSeats,
-          vehiclePhoto: vehiclePhoto || "",
-          numberPlatePhoto: numberPlatePhoto || "",
-          drivingLicensePhoto: drivingLicensePhoto || "",
-          status: status || "active",
-        },
-      },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedVehicle) {
+    if (!existingVehicle) {
       return NextResponse.json(
         {
           success: false,
@@ -162,9 +132,108 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       );
     }
 
+    const normalizedPlate = normalizeRegistrationNumber(registrationNumber);
+    const displayPlate = formatIndianPlateNumber(registrationNumber);
+
+    // Check if another vehicle has the same registration plate
+    const duplicateVehicle = await Vehicle.findOne({
+      $or: [
+        { normalizedRegistrationNumber: normalizedPlate },
+        { registrationNumber: displayPlate },
+        { registrationNumber: normalizedPlate },
+      ],
+      _id: { $ne: id },
+    });
+
+    if (duplicateVehicle) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Another vehicle with registration plate ${displayPlate} already exists.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    // Check if critical vehicle details changed
+    const detailsChanged =
+      existingVehicle.normalizedRegistrationNumber !== normalizedPlate ||
+      existingVehicle.vehicleModel !== vehicleModel ||
+      (existingVehicle.make || "") !== (make || "") ||
+      existingVehicle.vehicleType !== vehicleType ||
+      (existingVehicle.color || "") !== (color || "");
+
+    const wasUnverified =
+      existingVehicle.verificationStatus === "REJECTED" ||
+      existingVehicle.verificationStatus === "rejected" ||
+      existingVehicle.verificationStatus === "MANUAL_REVIEW" ||
+      existingVehicle.verificationStatus === "VERIFICATION_FAILED";
+
+    let verificationUpdate: Record<string, any> = {};
+
+    // Re-verify if critical details changed or if correcting a previously unverified vehicle
+    if (detailsChanged || wasUnverified) {
+      const verificationResult = await verifyVehicleWithWay2API(
+        {
+          registrationNumber: normalizedPlate,
+          vehicleType,
+          make: make || "",
+          vehicleModel,
+          color: color || "",
+          fuelType: fuelType || "Petrol",
+          seatingCapacity,
+        },
+        { bypassCache: true }
+      );
+
+      verificationUpdate = {
+        verificationStatus: verificationResult.status,
+        isApproved: verificationResult.status === "VERIFIED",
+        verificationProvider: verificationResult.provider,
+        verificationReference: verificationResult.referenceId,
+        verificationCheckedAt: verificationResult.checkedAt,
+        verifiedAt: verificationResult.verifiedAt,
+        verificationNotes: verificationResult.notes,
+        rejectionReason: verificationResult.rejectionReason || "",
+        rcData: verificationResult.rcData || {},
+      };
+    }
+
+    // Update vehicle
+    const updatedVehicle = await Vehicle.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          vehicleType,
+          make: make || "",
+          color: color || "",
+          fuelType: fuelType || "Petrol",
+          engineCapacity: engineCapacity || "",
+          vehicleModel,
+          registrationNumber: displayPlate,
+          normalizedRegistrationNumber: normalizedPlate,
+          seatingCapacity,
+          availableSeats,
+          vehiclePhoto: vehiclePhoto || "",
+          numberPlatePhoto: numberPlatePhoto || "",
+          drivingLicensePhoto: drivingLicensePhoto || "",
+          status: status || "active",
+          ...verificationUpdate,
+        },
+      },
+      { new: true, runValidators: true }
+    );
+
+    let message = "Vehicle updated successfully.";
+    if (verificationUpdate.verificationStatus === "VERIFIED") {
+      message = "Vehicle details updated and verified successfully!";
+    } else if (verificationUpdate.verificationStatus === "MANUAL_REVIEW") {
+      message = "Vehicle updated and submitted for admin review due to detail mismatch.";
+    }
+
     return NextResponse.json({
       success: true,
-      message: "Vehicle updated successfully.",
+      message,
       vehicle: updatedVehicle,
     });
   } catch (error: unknown) {

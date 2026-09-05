@@ -225,17 +225,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isVehicleApproved =
-      dbUser.role === "admin" ||
+    const status = vehicle.verificationStatus;
+    const isVerified =
+      status === "VERIFIED" ||
+      status === "approved" ||
       vehicle.isApproved === true ||
-      vehicle.verificationStatus === "approved" ||
-      (isEmployeeApproved && vehicle.verificationStatus !== "rejected");
+      dbUser.role === "admin";
 
-    if (!isVehicleApproved) {
+    if (!isVerified) {
+      let errorMessage =
+        "Your vehicle has not been verified yet. Please complete vehicle verification before posting a ride.";
+
+      if (status === "PENDING" || status === "pending") {
+        errorMessage = "Vehicle verification is pending.";
+      } else if (status === "MANUAL_REVIEW") {
+        errorMessage = "Your vehicle is awaiting admin review.";
+      } else if (status === "REJECTED" || status === "rejected") {
+        errorMessage = vehicle.rejectionReason
+          ? `Your vehicle verification was rejected: ${vehicle.rejectionReason}`
+          : "Your vehicle verification was rejected.";
+      } else if (status === "VERIFICATION_FAILED") {
+        errorMessage = "Vehicle verification is temporarily unavailable. Please try again later.";
+      }
+
       return NextResponse.json(
         {
           success: false,
-          error: "This vehicle is awaiting campus security/admin verification before it can offer rides.",
+          error: errorMessage,
+          verificationStatus: status,
         },
         { status: 403 }
       );

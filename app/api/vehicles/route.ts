@@ -6,6 +6,11 @@ import Vehicle from "@/models/Vehicle";
 
 export const dynamic = "force-dynamic";
 import { vehicleSchema } from "@/validations/vehicle.schema";
+import {
+  normalizeRegistrationNumber,
+  formatIndianPlateNumber,
+  verifyVehicleWithWay2API,
+} from "@/lib/services/vehicleVerification";
 
 export async function GET() {
   try {
@@ -65,6 +70,8 @@ export async function POST(req: NextRequest) {
 
     const {
       vehicleType,
+      make,
+      color,
       fuelType,
       engineCapacity,
       vehicleModel,
@@ -79,42 +86,79 @@ export async function POST(req: NextRequest) {
 
     await connectToDatabase();
 
-    const normalizedPlate = registrationNumber.toUpperCase().trim();
+    const normalizedPlate = normalizeRegistrationNumber(registrationNumber);
+    const displayPlate = formatIndianPlateNumber(registrationNumber);
 
-    // Check if plate already registered in platform
-    const existingVehicle = await Vehicle.findOne({ registrationNumber: normalizedPlate });
+    // Check if plate already registered in platform (by normalized or raw number)
+    const existingVehicle = await Vehicle.findOne({
+      $or: [
+        { normalizedRegistrationNumber: normalizedPlate },
+        { registrationNumber: displayPlate },
+        { registrationNumber: normalizedPlate },
+      ],
+    });
+
     if (existingVehicle) {
       return NextResponse.json(
         {
           success: false,
-          error: "A vehicle with this registration plate number is already registered.",
+          error: `Vehicle plate ${displayPlate} is already registered on the platform.`,
         },
         { status: 409 }
       );
     }
 
+    // Call Way2API Vehicle RC Verification service
+    const verificationResult = await verifyVehicleWithWay2API({
+      registrationNumber: normalizedPlate,
+      vehicleType,
+      make: make || "",
+      vehicleModel,
+      color: color || "",
+      fuelType: fuelType || "Petrol",
+      seatingCapacity,
+    });
+
     // Create vehicle strictly owned by the authenticated session user
     const newVehicle = await Vehicle.create({
       owner: session.user.id,
       vehicleType,
+      make: make || "",
       fuelType: fuelType || "Petrol",
       engineCapacity: engineCapacity || "",
       vehicleModel,
-      registrationNumber: normalizedPlate,
+      color: color || "",
+      registrationNumber: displayPlate,
+      normalizedRegistrationNumber: normalizedPlate,
       seatingCapacity,
       availableSeats,
       vehiclePhoto: vehiclePhoto || "",
       numberPlatePhoto: numberPlatePhoto || "",
       drivingLicensePhoto: drivingLicensePhoto || "",
-      verificationStatus: "pending",
-      isApproved: false,
+      verificationStatus: verificationResult.status,
+      isApproved: verificationResult.status === "VERIFIED",
+      verificationProvider: verificationResult.provider,
+      verificationReference: verificationResult.referenceId,
+      verificationCheckedAt: verificationResult.checkedAt,
+      verifiedAt: verificationResult.verifiedAt,
+      verificationNotes: verificationResult.notes,
+      rejectionReason: verificationResult.rejectionReason || "",
+      rcData: verificationResult.rcData || {},
       status: status || "active",
     });
+
+    let responseMessage = "Vehicle registered and verified successfully!";
+    if (verificationResult.status === "MANUAL_REVIEW") {
+      responseMessage = "Vehicle registered and submitted for administrator review.";
+    } else if (verificationResult.status === "VERIFICATION_FAILED") {
+      responseMessage = "Vehicle registered. RC verification is temporarily unavailable and will be re-attempted shortly.";
+    }
 
     return NextResponse.json(
       {
         success: true,
-        message: "Vehicle registered successfully! It has been submitted for campus admin verification.",
+        message: responseMessage,
+        verificationStatus: verificationResult.status,
         vehicle: newVehicle,
       },
       { status: 201 }

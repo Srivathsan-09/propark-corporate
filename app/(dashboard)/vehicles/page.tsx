@@ -50,18 +50,50 @@ import { compressImage } from "@/lib/utils/imageCompressor";
 interface IVehicle {
   _id: string;
   vehicleType: "Car" | "SUV" | "Van" | "Bike" | "Other";
+  make?: string;
+  vehicleModel: string;
+  color?: string;
   fuelType?: "Petrol" | "Diesel" | "CNG" | "Electric" | "Hybrid";
   engineCapacity?: string;
-  vehicleModel: string;
   registrationNumber: string;
+  normalizedRegistrationNumber?: string;
   seatingCapacity: number;
   availableSeats: number;
   vehiclePhoto?: string;
   numberPlatePhoto?: string;
   drivingLicensePhoto?: string;
-  verificationStatus?: "pending" | "approved" | "rejected";
+  verificationStatus?:
+    | "pending"
+    | "approved"
+    | "rejected"
+    | "PENDING"
+    | "VERIFICATION_IN_PROGRESS"
+    | "VERIFIED"
+    | "MANUAL_REVIEW"
+    | "REJECTED"
+    | "VERIFICATION_FAILED";
   isApproved?: boolean;
+  verificationProvider?: string;
+  verificationReference?: string;
+  verificationCheckedAt?: string;
+  verifiedAt?: string;
+  verificationNotes?: string;
   rejectionReason?: string;
+  rcData?: {
+    rcNumber?: string;
+    rcStatus?: string;
+    makerDescription?: string;
+    makerModel?: string;
+    vehicleCategory?: string;
+    bodyType?: string;
+    fuelType?: string;
+    color?: string;
+    registrationDate?: string;
+    fitnessUpto?: string;
+    insuranceUpto?: string;
+    insuranceCompany?: string;
+    mismatchDetails?: string[];
+  };
   status: "active" | "inactive";
   createdAt: string;
 }
@@ -72,6 +104,7 @@ export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
@@ -88,9 +121,11 @@ export default function VehiclesPage() {
   // Form State
   const [formData, setFormData] = useState({
     vehicleType: "Car" as "Car" | "SUV" | "Van" | "Bike" | "Other",
+    make: "",
+    vehicleModel: "",
+    color: "",
     fuelType: "Petrol" as "Petrol" | "Diesel" | "CNG" | "Electric" | "Hybrid",
     engineCapacity: "",
-    vehicleModel: "",
     registrationNumber: "",
     seatingCapacity: 4,
     availableSeats: 3,
@@ -131,9 +166,11 @@ export default function VehiclesPage() {
   const resetForm = () => {
     setFormData({
       vehicleType: "Car",
+      make: "",
+      vehicleModel: "",
+      color: "",
       fuelType: "Petrol",
       engineCapacity: "",
-      vehicleModel: "",
       registrationNumber: "",
       seatingCapacity: 4,
       availableSeats: 3,
@@ -157,9 +194,11 @@ export default function VehiclesPage() {
     setSelectedVehicle(vehicle);
     setFormData({
       vehicleType: vehicle.vehicleType,
+      make: vehicle.make || "",
+      vehicleModel: vehicle.vehicleModel,
+      color: vehicle.color || "",
       fuelType: vehicle.fuelType || "Petrol",
       engineCapacity: vehicle.engineCapacity || "",
-      vehicleModel: vehicle.vehicleModel,
       registrationNumber: vehicle.registrationNumber,
       seatingCapacity: vehicle.seatingCapacity,
       availableSeats: vehicle.availableSeats,
@@ -172,6 +211,31 @@ export default function VehiclesPage() {
     setIsEditOpen(true);
     setSuccessMessage(null);
     setErrorMessage(null);
+  };
+
+  const handleTriggerVerify = async (vehicleId: string) => {
+    try {
+      setVerifyingId(vehicleId);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+      const res = await fetch(`/api/vehicles/${vehicleId}/verify`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccessMessage(data.message || "Vehicle verified successfully!");
+        setVehicles((prev) =>
+          prev.map((v) => (v._id === vehicleId ? { ...v, ...data.vehicle } : v))
+        );
+      } else {
+        setErrorMessage(data.error || "Verification failed. Please try again.");
+      }
+    } catch (err) {
+      console.error("Verification trigger failed:", err);
+      setErrorMessage("Network error while contacting verification service.");
+    } finally {
+      setVerifyingId(null);
+    }
   };
 
   const handleOpenDelete = (vehicle: IVehicle) => {
@@ -414,8 +478,18 @@ export default function VehiclesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {vehicles.map((vehicle) => {
-            const isApproved = vehicle.isApproved || vehicle.verificationStatus === "approved";
-            const isPending = !isApproved && vehicle.verificationStatus !== "rejected";
+            const isApproved =
+              vehicle.isApproved ||
+              vehicle.verificationStatus === "approved" ||
+              vehicle.verificationStatus === "VERIFIED";
+
+            const status = vehicle.verificationStatus || (isApproved ? "VERIFIED" : "PENDING");
+            const isVerified = status === "VERIFIED" || status === "approved" || isApproved;
+            const isPending =
+              status === "PENDING" || status === "pending" || status === "VERIFICATION_IN_PROGRESS";
+            const isManualReview = status === "MANUAL_REVIEW";
+            const isRejected = status === "REJECTED" || status === "rejected";
+            const isFailed = status === "VERIFICATION_FAILED";
 
             return (
               <Card
@@ -446,17 +520,25 @@ export default function VehiclesPage() {
 
                     {/* Verification Status Overlay */}
                     <div className="absolute top-2 right-2">
-                      {isApproved ? (
-                        <Badge className="bg-emerald-600 text-white border-0 text-[10px] font-bold shadow-sm">
-                          Verified
+                      {isVerified ? (
+                        <Badge className="bg-emerald-600 text-white border-0 text-[10px] font-bold shadow-sm flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" /> Verified Vehicle
                         </Badge>
-                      ) : vehicle.verificationStatus === "rejected" ? (
-                        <Badge variant="destructive" className="text-[10px] font-bold shadow-sm">
-                          Rejected
+                      ) : isManualReview ? (
+                        <Badge className="bg-amber-600 text-white border-0 text-[10px] font-bold shadow-sm flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> Manual Review
+                        </Badge>
+                      ) : isRejected ? (
+                        <Badge variant="destructive" className="text-[10px] font-bold shadow-sm flex items-center gap-1">
+                          <X className="h-3 w-3" /> Vehicle Rejected
+                        </Badge>
+                      ) : isFailed ? (
+                        <Badge className="bg-slate-700 text-white border-0 text-[10px] font-bold shadow-sm flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" /> Verification Failed
                         </Badge>
                       ) : (
-                        <Badge className="bg-amber-500 text-white border-0 text-[10px] font-bold shadow-sm">
-                          Pending Approval
+                        <Badge className="bg-amber-500 text-white border-0 text-[10px] font-bold shadow-sm flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> Verification Pending
                         </Badge>
                       )}
                     </div>
@@ -471,6 +553,11 @@ export default function VehiclesPage() {
                         <Badge variant="outline" className="text-[11px] font-medium border-emerald-200 text-emerald-800 bg-emerald-50">
                           {vehicle.fuelType || "Petrol"}
                         </Badge>
+                        {vehicle.color && (
+                          <Badge variant="outline" className="text-[11px] font-normal text-slate-600 bg-slate-50">
+                            {vehicle.color}
+                          </Badge>
+                        )}
                         {vehicle.engineCapacity && (
                           <Badge variant="outline" className="text-[11px] font-normal text-slate-500">
                             {vehicle.engineCapacity}
@@ -485,7 +572,7 @@ export default function VehiclesPage() {
                       </Badge>
                     </div>
                     <CardTitle className="text-lg font-bold text-slate-900 mt-2">
-                      {vehicle.vehicleModel}
+                      {vehicle.make ? `${vehicle.make} ${vehicle.vehicleModel}` : vehicle.vehicleModel}
                     </CardTitle>
                   </CardHeader>
 
@@ -526,31 +613,90 @@ export default function VehiclesPage() {
                       )}
                     </div>
 
-                    {isPending && (
+                    {/* Status Alert Box */}
+                    {isVerified ? (
+                      <div className="text-[11px] text-emerald-800 bg-emerald-50/80 p-2 rounded-lg border border-emerald-200/60 space-y-0.5">
+                        <div className="font-semibold flex items-center gap-1">
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>RC Verified via Way2API</span>
+                        </div>
+                        {vehicle.rcData?.fitnessUpto && (
+                          <div className="text-[10px] text-emerald-700">
+                            Fitness Valid Upto: {vehicle.rcData.fitnessUpto}
+                          </div>
+                        )}
+                      </div>
+                    ) : isManualReview ? (
+                      <div className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200/70 space-y-1">
+                        <p className="font-semibold flex items-center gap-1 text-amber-900">
+                          <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                          <span>Your vehicle is awaiting admin review.</span>
+                        </p>
+                        {vehicle.rejectionReason && (
+                          <p className="text-[10px] text-amber-700 leading-tight">
+                            Note: {vehicle.rejectionReason}
+                          </p>
+                        )}
+                      </div>
+                    ) : isRejected ? (
+                      <div className="text-[11px] text-rose-800 bg-rose-50 p-2.5 rounded-lg border border-rose-200 space-y-1">
+                        <p className="font-semibold flex items-center gap-1 text-rose-900">
+                          <X className="h-3.5 w-3.5 text-rose-600 shrink-0" />
+                          <span>Your vehicle verification was rejected.</span>
+                        </p>
+                        <p className="text-[10px] text-rose-700 leading-tight">
+                          Reason: {vehicle.rejectionReason || "Details did not match official RC information. Please correct details and resubmit."}
+                        </p>
+                      </div>
+                    ) : isFailed ? (
+                      <div className="text-[11px] text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-200 leading-tight flex items-center gap-1.5">
+                        <AlertCircle className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                        <span>Vehicle verification is temporarily unavailable. Please try again later.</span>
+                      </div>
+                    ) : (
                       <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200/60 leading-tight">
-                        Awaiting campus admin review. You can offer rides once verified.
+                        Vehicle verification is pending.
                       </p>
                     )}
                   </CardContent>
                 </div>
 
-                <CardFooter className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3 pb-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleOpenEdit(vehicle)}
-                    className="h-8 gap-1 text-xs"
-                  >
-                    <Edit2 className="h-3.5 w-3.5" /> Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleOpenDelete(vehicle)}
-                    className="h-8 gap-1 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
-                  </Button>
+                <CardFooter className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 pb-3">
+                  <div>
+                    {!isVerified && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleTriggerVerify(vehicle._id)}
+                        disabled={verifyingId === vehicle._id}
+                        className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold"
+                      >
+                        {verifyingId === vehicle._id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Shield className="h-3.5 w-3.5" />
+                        )}
+                        {isRejected ? "Resubmit Verification" : "Verify Vehicle"}
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleOpenEdit(vehicle)}
+                      className="h-8 gap-1 text-xs rounded-xl"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" /> Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenDelete(vehicle)}
+                      className="h-8 gap-1 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                    </Button>
+                  </div>
                 </CardFooter>
               </Card>
             );
@@ -649,31 +795,77 @@ export default function VehiclesPage() {
                 </div>
               </div>
 
-              {/* Vehicle Model */}
-              <div className="space-y-1.5">
-                <Label htmlFor="vehicleModel" className="text-xs font-semibold text-slate-700">
-                  Vehicle Make & Model
-                </Label>
-                <Input
-                  id="vehicleModel"
-                  placeholder="e.g. Honda City, Hyundai Creta, Royal Enfield Classic"
-                  value={formData.vehicleModel}
-                  onChange={(e) => {
-                    setFormData((prev) => ({ ...prev, vehicleModel: e.target.value }));
-                    if (fieldErrors.vehicleModel) {
-                      setFieldErrors((prev) => {
-                        const upd = { ...prev };
-                        delete upd.vehicleModel;
-                        return upd;
-                      });
-                    }
-                  }}
-                  className={`rounded-xl ${fieldErrors.vehicleModel ? "border-rose-500" : ""}`}
-                  required
-                />
-                {fieldErrors.vehicleModel && (
-                  <p className="text-xs text-rose-600">{fieldErrors.vehicleModel}</p>
-                )}
+              {/* Vehicle Make, Model & Color */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="make" className="text-xs font-semibold text-slate-700">
+                    Make / Manufacturer
+                  </Label>
+                  <Input
+                    id="make"
+                    placeholder="e.g. Hyundai, Honda, Tata"
+                    value={formData.make}
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, make: e.target.value }));
+                      if (fieldErrors.make) {
+                        setFieldErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.make;
+                          return upd;
+                        });
+                      }
+                    }}
+                    className="rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="vehicleModel" className="text-xs font-semibold text-slate-700">
+                    Model <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    id="vehicleModel"
+                    placeholder="e.g. i20, City, Swift"
+                    value={formData.vehicleModel}
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, vehicleModel: e.target.value }));
+                      if (fieldErrors.vehicleModel) {
+                        setFieldErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.vehicleModel;
+                          return upd;
+                        });
+                      }
+                    }}
+                    className={`rounded-xl ${fieldErrors.vehicleModel ? "border-rose-500" : ""}`}
+                    required
+                  />
+                  {fieldErrors.vehicleModel && (
+                    <p className="text-xs text-rose-600">{fieldErrors.vehicleModel}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="color" className="text-xs font-semibold text-slate-700">
+                    Color
+                  </Label>
+                  <Input
+                    id="color"
+                    placeholder="e.g. White, Silver, Grey"
+                    value={formData.color}
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, color: e.target.value }));
+                      if (fieldErrors.color) {
+                        setFieldErrors((prev) => {
+                          const upd = { ...prev };
+                          delete upd.color;
+                          return upd;
+                        });
+                      }
+                    }}
+                    className="rounded-xl"
+                  />
+                </div>
               </div>
 
               {/* Registration Number */}
@@ -943,6 +1135,14 @@ export default function VehiclesPage() {
                 <span className="font-semibold">{dialogError}</span>
               </div>
             )}
+
+            {/* Consent Notice */}
+            <div className="rounded-xl bg-slate-50 p-2.5 text-[11px] text-slate-600 border border-slate-200/80 flex items-start gap-2 mb-3">
+              <Shield className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+              <span>
+                Your vehicle registration number will be securely submitted to our vehicle verification service to verify your vehicle details.
+              </span>
+            </div>
 
             <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-slate-100">
               <Button
