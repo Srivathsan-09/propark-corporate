@@ -227,27 +227,28 @@ export async function POST(req: NextRequest) {
 
     const status = vehicle.verificationStatus;
     const finalStatus = vehicle.finalDriverStatus || status;
+    const commutexStatus = vehicle.commutexVehicleVerificationStatus;
+    const matchStatus = vehicle.vehicleMatchStatus;
     const isVerified =
-      vehicle.isApproved === true ||
-      finalStatus === "VERIFIED" ||
-      status === "VERIFIED" ||
-      status === "approved" ||
-      dbUser.role === "admin";
+      (vehicle.isApproved === true || vehicle.adminApprovalStatus === "APPROVED" || dbUser.role === "admin") &&
+      commutexStatus !== "MANUAL_REVIEW" &&
+      commutexStatus !== "REJECTED" &&
+      commutexStatus !== "FAILED" &&
+      matchStatus !== "MISMATCH" &&
+      matchStatus !== "MANUAL_REVIEW" &&
+      status !== "MANUAL_REVIEW" &&
+      status !== "REJECTED" &&
+      status !== "rejected" &&
+      status !== "VERIFICATION_FAILED";
 
     if (!isVerified) {
       let errorMessage =
-        "Your driver and vehicle profile has not been approved yet. Please complete verification and wait for administrator approval before posting a ride.";
+        "Vehicle verification is pending administrator review. You cannot post a ride using this vehicle until verification is completed.";
 
-      if (finalStatus === "PENDING_ADMIN_REVIEW" || status === "MANUAL_REVIEW") {
-        errorMessage = "Your vehicle and licence verification is awaiting administrator review and approval.";
-      } else if (finalStatus === "PENDING_VERIFICATION" || status === "PENDING" || status === "pending") {
-        errorMessage = "Vehicle and licence verification is in progress.";
-      } else if (finalStatus === "REJECTED" || status === "REJECTED" || status === "rejected") {
+      if (commutexStatus === "REJECTED" || finalStatus === "REJECTED" || status === "REJECTED" || status === "rejected") {
         errorMessage = vehicle.rejectionReason
           ? `Verification rejected: ${vehicle.rejectionReason}`
-          : "Your vehicle verification was rejected by administrator.";
-      } else if (status === "VERIFICATION_FAILED") {
-        errorMessage = "Verification provider service is temporarily unavailable. Please try again later.";
+          : "Vehicle verification was rejected. You cannot post a ride using this vehicle.";
       }
 
       return NextResponse.json(

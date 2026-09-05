@@ -59,8 +59,10 @@ export interface SanitizedRCData {
 export interface VerificationResult {
   success: boolean;
   status: VehicleVerificationStatus;
-  rcStatus: RCVerificationStatus;
+  rcStatus: string;
+  rcProviderStatus: RCVerificationStatus;
   vehicleMatchStatus: VehicleMatchStatus;
+  commutexVehicleVerificationStatus: "PENDING" | "MANUAL_REVIEW" | "VERIFIED" | "REJECTED" | "FAILED";
   provider: string;
   referenceId: string;
   orderId?: string;
@@ -70,6 +72,10 @@ export interface VerificationResult {
   notes: string;
   rejectionReason?: string;
   rcData?: SanitizedRCData;
+  verifiedCategory?: string;
+  verifiedMaker?: string;
+  verifiedModel?: string;
+  verifiedCapacity?: number | string;
   error?: string;
 }
 
@@ -444,7 +450,7 @@ export function evaluateCategoryCompatibility(
     return {
       isCompatible: false,
       isGenuineConflict: true,
-      reason: `Vehicle Category Conflict: Submitted as 'Bike / Two-Wheeler', but official government registry records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
+      reason: `Vehicle Category Conflict: Submitted as 'Bike / Two-Wheeler', but verified vehicle information records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
     };
   }
 
@@ -457,7 +463,7 @@ export function evaluateCategoryCompatibility(
     return {
       isCompatible: false,
       isGenuineConflict: true,
-      reason: `Vehicle Category Conflict: Submitted as 'Car (Sedan / Hatchback)', but official government registry records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
+      reason: `Vehicle Category Conflict: Submitted as 'Car (Sedan / Hatchback)', but verified vehicle information records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
     };
   }
 
@@ -470,7 +476,7 @@ export function evaluateCategoryCompatibility(
     return {
       isCompatible: false,
       isGenuineConflict: true,
-      reason: `Vehicle Category Conflict: Submitted as 'SUV / Compact SUV', but official government registry records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
+      reason: `Vehicle Category Conflict: Submitted as 'SUV / Compact SUV', but verified vehicle information records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
     };
   }
 
@@ -483,7 +489,7 @@ export function evaluateCategoryCompatibility(
     return {
       isCompatible: false,
       isGenuineConflict: true,
-      reason: `Vehicle Category Conflict: Submitted as 'Van / Minivan', but official government registry records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
+      reason: `Vehicle Category Conflict: Submitted as 'Van / Minivan', but verified vehicle information records a ${inference.description} (${inference.details}). Flagged for administrator manual review.`,
     };
   }
 
@@ -524,7 +530,7 @@ export function compareVehicleDetails(
   // 1. Check RC Status (Must be ACTIVE)
   const rcStatus = String(rcResult.rc_status || rcResult.status || "ACTIVE").toUpperCase();
   if (rcStatus !== "ACTIVE") {
-    mismatches.push(`RC Status is '${rcStatus}' in national registry (Vehicle must be ACTIVE).`);
+    mismatches.push(`RC Status is '${rcStatus}' in verified vehicle records (Vehicle must be ACTIVE).`);
   }
 
   // 2. Multi-field Category Normalization & Comparison
@@ -603,7 +609,9 @@ export async function verifyVehicleWithWay2API(
       success: false,
       status: "REJECTED",
       rcStatus: "FAILED",
+      rcProviderStatus: "FAILED",
       vehicleMatchStatus: "NOT_CHECKED",
+      commutexVehicleVerificationStatus: "FAILED",
       provider: "way2api",
       referenceId: "",
       messageCode: "INVALID_INPUT",
@@ -630,25 +638,27 @@ export async function verifyVehicleWithWay2API(
   const rcResult = apiResult.data || {};
   const messageCode = apiResult.messageCode;
 
-  // Map RC status
-  let rcStatus: RCVerificationStatus = "FAILED";
+  // Map RC provider status
+  let rcProviderStatus: RCVerificationStatus = "FAILED";
   if (apiResult.isSuccess) {
-    rcStatus = "VERIFIED";
+    rcProviderStatus = "VERIFIED";
   } else if (apiResult.status === "ACCEPTED") {
-    rcStatus = "PENDING";
+    rcProviderStatus = "PENDING";
   } else if (apiResult.messageCode === "RATE_LIMITED" || apiResult.status === "CONFIG_ERROR") {
-    rcStatus = "ERROR";
+    rcProviderStatus = "ERROR";
   } else {
-    rcStatus = "FAILED";
+    rcProviderStatus = "FAILED";
   }
 
   // If RC is not found or failed, return immediately
-  if (rcStatus !== "VERIFIED") {
+  if (rcProviderStatus !== "VERIFIED") {
     return {
       success: false,
-      status: rcStatus === "PENDING" ? "PENDING" : rcStatus === "ERROR" ? "VERIFICATION_FAILED" : "REJECTED",
-      rcStatus,
+      status: rcProviderStatus === "PENDING" ? "PENDING" : rcProviderStatus === "ERROR" ? "VERIFICATION_FAILED" : "REJECTED",
+      rcStatus: "NOT_FOUND",
+      rcProviderStatus,
       vehicleMatchStatus: "NOT_CHECKED",
+      commutexVehicleVerificationStatus: "FAILED",
       provider: "way2api",
       referenceId: orderId,
       orderId,
@@ -660,13 +670,14 @@ export async function verifyVehicleWithWay2API(
     };
   }
 
-  // Cross-check vehicle details against returned official RC
+  // RC Provider lookup succeeded!
+  const registryRcStatus = String(rcResult.rc_status || rcResult.status || "ACTIVE").toUpperCase();
   const comparison = compareVehicleDetails(input, rcResult);
 
   // Build sanitized RC data (Scrubbing owner address, owner name, chassis, engine from public view)
   const sanitizedData: SanitizedRCData = {
     rcNumber: rcResult.rc_number || normalizedPlate,
-    rcStatus: rcResult.rc_status || "ACTIVE",
+    rcStatus: registryRcStatus,
     makerDescription: rcResult.maker_description || "",
     makerModel: rcResult.maker_model || "",
     vehicleCategory:
@@ -686,30 +697,38 @@ export async function verifyVehicleWithWay2API(
   };
 
   let vehicleMatchStatus: VehicleMatchStatus = "MATCHED";
+  let commutexVehicleVerificationStatus: "PENDING" | "MANUAL_REVIEW" | "VERIFIED" | "REJECTED" | "FAILED" = "VERIFIED";
   let status: VehicleVerificationStatus = "VERIFIED";
-  let notes = "Vehicle RC verified successfully via Way2API.";
+  let notes = "Vehicle RC verified successfully.";
   let rejectionReason: string | undefined;
 
-  if (!comparison.isMatch) {
+  if (!comparison.isMatch || registryRcStatus !== "ACTIVE") {
     vehicleMatchStatus = "MANUAL_REVIEW";
+    commutexVehicleVerificationStatus = "MANUAL_REVIEW";
     status = "MANUAL_REVIEW";
     notes = `Vehicle details flagged for administrator review: ${comparison.mismatches.join("; ")}`;
     rejectionReason = comparison.mismatches[0];
   }
 
   return {
-    success: comparison.isMatch,
+    success: comparison.isMatch && registryRcStatus === "ACTIVE",
     status,
-    rcStatus,
+    rcStatus: registryRcStatus,
+    rcProviderStatus,
     vehicleMatchStatus,
+    commutexVehicleVerificationStatus,
     provider: "way2api",
     referenceId: orderId,
     orderId,
     messageCode,
     checkedAt: now,
-    verifiedAt: comparison.isMatch ? now : undefined,
+    verifiedAt: comparison.isMatch && registryRcStatus === "ACTIVE" ? now : undefined,
     notes,
     rejectionReason,
     rcData: sanitizedData,
+    verifiedCategory: comparison.categoryInference?.description || rcResult.vehicle_category || "",
+    verifiedMaker: rcResult.maker_description || "",
+    verifiedModel: rcResult.maker_model || "",
+    verifiedCapacity: rcResult.seating_capacity || "",
   };
 }

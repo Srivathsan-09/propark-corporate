@@ -220,13 +220,17 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         drivingLicenseOrderId: verificationResult.dlResult.orderId,
         drivingLicenseClasses: verificationResult.dlResult.vehicleClasses,
         drivingLicenseData: verificationResult.dlData || {},
+        rcProviderStatus: verificationResult.rcProviderStatus,
         rcStatus: verificationResult.rcStatus,
         rcVerifiedAt: verificationResult.rcResult.verifiedAt,
         rcMessageCode: verificationResult.rcResult.messageCode,
         rcOrderId: verificationResult.rcResult.orderId,
         vehicleMatchStatus: verificationResult.vehicleMatchStatus,
+        licenseVehicleClassStatus: verificationResult.licenseVehicleClassStatus,
+        commutexVehicleVerificationStatus: verificationResult.commutexVehicleVerificationStatus,
+        adminApprovalStatus: "PENDING",
         finalDriverStatus: verificationResult.finalDriverStatus,
-        verificationStatus: verificationResult.rcResult.status,
+        verificationStatus: verificationResult.commutexVehicleVerificationStatus === "VERIFIED" ? "VERIFIED" : verificationResult.commutexVehicleVerificationStatus === "MANUAL_REVIEW" ? "MANUAL_REVIEW" : "REJECTED",
         isApproved: false, // Re-submits for admin review; does not auto-approve
         verificationProvider: "way2api",
         verificationReference:

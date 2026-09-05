@@ -60,6 +60,10 @@ interface IVehicle {
   vehiclePhoto?: string;
   verificationStatus?: string;
   isApproved?: boolean;
+  adminApprovalStatus?: string;
+  commutexVehicleVerificationStatus?: string;
+  vehicleMatchStatus?: string;
+  finalDriverStatus?: string;
   rejectionReason?: string;
 }
 
@@ -428,10 +432,16 @@ function OfferRideForm() {
     () =>
       vehicles.filter(
         (v) =>
-          v.isApproved === true ||
-          v.verificationStatus === "VERIFIED" ||
-          v.verificationStatus === "approved" ||
-          session?.user?.role === "admin"
+          (v.isApproved === true || v.adminApprovalStatus === "APPROVED" || session?.user?.role === "admin") &&
+          v.commutexVehicleVerificationStatus !== "MANUAL_REVIEW" &&
+          v.commutexVehicleVerificationStatus !== "REJECTED" &&
+          v.commutexVehicleVerificationStatus !== "FAILED" &&
+          v.vehicleMatchStatus !== "MISMATCH" &&
+          v.vehicleMatchStatus !== "MANUAL_REVIEW" &&
+          v.verificationStatus !== "MANUAL_REVIEW" &&
+          v.verificationStatus !== "REJECTED" &&
+          v.verificationStatus !== "rejected" &&
+          v.verificationStatus !== "VERIFICATION_FAILED"
       ),
     [vehicles, session]
   );
@@ -999,26 +1009,23 @@ function OfferRideForm() {
           </div>
           {(() => {
             const first = vehicles[0];
+            const commutexStatus = first?.commutexVehicleVerificationStatus;
             const status = first?.verificationStatus;
             let title = "Vehicle Verification Required";
             let mainMessage =
-              "Your vehicle has not been verified yet. Please complete vehicle verification before posting a ride.";
+              "Vehicle verification is pending administrator review. You cannot post a ride using this vehicle until verification is completed.";
             let detail = "";
 
-            if (status === "PENDING" || status === "pending") {
-              title = "Vehicle Verification Pending";
-              mainMessage = "Vehicle verification is pending.";
-              detail =
-                "Your vehicle registration details are currently being verified with the official RC registry.";
-            } else if (status === "MANUAL_REVIEW") {
-              title = "Awaiting Admin Review";
-              mainMessage = "Your vehicle is awaiting admin review.";
+            if (commutexStatus === "MANUAL_REVIEW" || status === "MANUAL_REVIEW" || first?.vehicleMatchStatus === "MISMATCH") {
+              title = "Awaiting Administrator Review";
+              mainMessage =
+                "Vehicle verification is pending administrator review. You cannot post a ride using this vehicle until verification is completed.";
               detail =
                 first.rejectionReason ||
-                "A detail mismatch was flagged during verification and is being reviewed by the administrator.";
-            } else if (status === "REJECTED" || status === "rejected") {
+                "A vehicle details discrepancy was flagged during verification and is being reviewed by the administrator.";
+            } else if (commutexStatus === "REJECTED" || status === "REJECTED" || status === "rejected") {
               title = "Vehicle Verification Rejected";
-              mainMessage = "Your vehicle verification was rejected.";
+              mainMessage = "Your vehicle verification was rejected. You cannot post a ride using this vehicle.";
               detail = first.rejectionReason
                 ? `Reason: ${first.rejectionReason}`
                 : "Please review your registration details and resubmit.";
@@ -1026,6 +1033,11 @@ function OfferRideForm() {
               title = "Verification Temporarily Unavailable";
               mainMessage =
                 "Vehicle verification is temporarily unavailable. Please try again later.";
+            } else {
+              title = "Vehicle Verification Pending";
+              mainMessage =
+                "Vehicle verification is pending administrator review. You cannot post a ride using this vehicle until verification is completed.";
+              detail = "Your vehicle registration details have been submitted and are awaiting administrator review.";
             }
 
             return (

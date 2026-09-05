@@ -73,6 +73,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     if (action === "approve") {
       updateData = {
+        commutexVehicleVerificationStatus: "VERIFIED",
+        adminApprovalStatus: "APPROVED",
         finalDriverStatus: "VERIFIED",
         verificationStatus: "VERIFIED",
         isApproved: true,
@@ -89,6 +91,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       });
     } else if (action === "reject") {
       updateData = {
+        commutexVehicleVerificationStatus: "REJECTED",
+        adminApprovalStatus: "REJECTED",
         finalDriverStatus: "REJECTED",
         verificationStatus: "REJECTED",
         isApproved: false,
@@ -97,6 +101,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       };
     } else if (action === "manual_review") {
       updateData = {
+        commutexVehicleVerificationStatus: "MANUAL_REVIEW",
+        adminApprovalStatus: "PENDING",
         finalDriverStatus: "PENDING_ADMIN_REVIEW",
         verificationStatus: "MANUAL_REVIEW",
         vehicleMatchStatus: "MANUAL_REVIEW",
@@ -145,13 +151,17 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         drivingLicenseOrderId: verificationResult.dlResult.orderId,
         drivingLicenseClasses: verificationResult.dlResult.vehicleClasses,
         drivingLicenseData: verificationResult.dlData || {},
+        rcProviderStatus: verificationResult.rcProviderStatus,
         rcStatus: verificationResult.rcStatus,
         rcVerifiedAt: verificationResult.rcResult.verifiedAt,
         rcMessageCode: verificationResult.rcResult.messageCode,
         rcOrderId: verificationResult.rcResult.orderId,
         vehicleMatchStatus: verificationResult.vehicleMatchStatus,
+        licenseVehicleClassStatus: verificationResult.licenseVehicleClassStatus,
+        commutexVehicleVerificationStatus: verificationResult.commutexVehicleVerificationStatus,
+        adminApprovalStatus: "PENDING",
         finalDriverStatus: verificationResult.finalDriverStatus,
-        verificationStatus: verificationResult.rcResult.status,
+        verificationStatus: verificationResult.commutexVehicleVerificationStatus === "VERIFIED" ? "VERIFIED" : verificationResult.commutexVehicleVerificationStatus === "MANUAL_REVIEW" ? "MANUAL_REVIEW" : "REJECTED",
         isApproved: false,
         verificationProvider: "way2api",
         verificationReference:

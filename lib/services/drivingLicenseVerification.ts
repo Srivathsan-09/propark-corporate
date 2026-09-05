@@ -43,6 +43,8 @@ export interface DLVerificationResult {
   verifiedAt?: Date;
   vehicleClasses: string[];
   isVehicleClassEligible: boolean;
+  licenseVehicleClassStatus: "NOT_CHECKED" | "COMPATIBLE" | "INCOMPATIBLE";
+  isExpired?: boolean;
   classEligibilityReason?: string;
   notes: string;
   rejectionReason?: string;
@@ -225,6 +227,7 @@ export async function verifyDrivingLicense(
       messageCode: "INVALID_INPUT",
       checkedAt: now,
       vehicleClasses: [],
+      licenseVehicleClassStatus: "NOT_CHECKED",
       isVehicleClassEligible: false,
       notes: "Invalid driving licence number format.",
       rejectionReason: "Invalid driving licence number format.",
@@ -240,6 +243,7 @@ export async function verifyDrivingLicense(
       messageCode: "INVALID_INPUT",
       checkedAt: now,
       vehicleClasses: [],
+      licenseVehicleClassStatus: "NOT_CHECKED",
       isVehicleClassEligible: false,
       notes: "Date of birth is required in DD/MM/YYYY format.",
       rejectionReason: "Invalid date of birth format for driving licence verification.",
@@ -263,21 +267,48 @@ export async function verifyDrivingLicense(
   // Extract vehicle classes
   const vehicleClasses = extractVehicleClasses(rawData.vehicle_classes);
 
+  // Extract expiration date and check validity
+  const rawDoe = String(rawData.doe || rawData.transport_doe || rawData.expiry_date || "").trim();
+  let isDlExpired = false;
+  if (rawDoe) {
+    let parsedExpiry: Date | null = null;
+    if (/^\d{4}-\d{2}-\d{2}/.test(rawDoe)) {
+      parsedExpiry = new Date(rawDoe);
+    } else if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}/.test(rawDoe)) {
+      const parts = rawDoe.split(/[\/\-]/);
+      parsedExpiry = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+    }
+    if (parsedExpiry && !isNaN(parsedExpiry.getTime())) {
+      isDlExpired = parsedExpiry.getTime() < now.getTime();
+    }
+  }
+
   // Check vehicle class eligibility if vehicleType provided
   let isVehicleClassEligible = true;
   let classEligibilityReason: string | undefined;
 
-  if (vehicleType && apiResult.isSuccess) {
+  if (vehicleType && apiResult.isSuccess && !isDlExpired) {
     const classCheck = checkDrivingLicenseVehicleClass(vehicleClasses, vehicleType);
     isVehicleClassEligible = classCheck.isEligible;
     classEligibilityReason = classCheck.reason;
   }
 
+  const licenseVehicleClassStatus: "NOT_CHECKED" | "COMPATIBLE" | "INCOMPATIBLE" =
+    !vehicleType || !apiResult.isSuccess || isDlExpired
+      ? "NOT_CHECKED"
+      : isVehicleClassEligible
+      ? "COMPATIBLE"
+      : "INCOMPATIBLE";
+
   // Map API Result to DL Status
   let dlStatus: DrivingLicenseStatus = "FAILED";
 
   if (apiResult.isSuccess) {
-    dlStatus = "VERIFIED";
+    if (isDlExpired) {
+      dlStatus = "FAILED";
+    } else {
+      dlStatus = "VERIFIED";
+    }
   } else if (apiResult.status === "ACCEPTED") {
     dlStatus = "PENDING";
   } else if (apiResult.messageCode === "RATE_LIMITED") {
@@ -296,17 +327,20 @@ export async function verifyDrivingLicense(
     gender: rawData.gender || "",
     dobFormatted: formattedDob,
     issueDate: rawData.doi || rawData.transport_doi || "",
-    expiryDate: rawData.doe || rawData.transport_doe || "",
+    expiryDate: rawDoe || "",
     vehicleClasses,
     mode: apiResult.isMock ? "mock" : "real",
   };
 
-  const isOverallSuccess = dlStatus === "VERIFIED" && isVehicleClassEligible;
+  const isOverallSuccess = dlStatus === "VERIFIED" && isVehicleClassEligible && !isDlExpired;
 
   let notes = apiResult.message;
   let rejectionReason: string | undefined;
 
-  if (dlStatus === "VERIFIED" && !isVehicleClassEligible) {
+  if (isDlExpired) {
+    notes = "Driving licence has expired.";
+    rejectionReason = "Driving licence has expired.";
+  } else if (dlStatus === "VERIFIED" && !isVehicleClassEligible) {
     notes = `Licence verified, but vehicle class mismatch: ${classEligibilityReason}`;
     rejectionReason = classEligibilityReason;
   } else if (dlStatus !== "VERIFIED") {
@@ -324,6 +358,8 @@ export async function verifyDrivingLicense(
     verifiedAt: dlStatus === "VERIFIED" ? now : undefined,
     vehicleClasses,
     isVehicleClassEligible,
+    licenseVehicleClassStatus,
+    isExpired: isDlExpired,
     classEligibilityReason,
     notes,
     rejectionReason,

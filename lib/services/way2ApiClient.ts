@@ -61,17 +61,17 @@ export function mapMessageCodeToExplanation(messageCode: string, serviceType: "D
 
   switch (code) {
     case "OK":
-      return `${label} verified successfully in official registry.`;
+      return `${label} verified successfully.`;
     case "VERIFICATION_FAILED":
-      return `${label} details could not be verified against the official registry.`;
+      return `${label} details could not be verified.`;
     case "NO_RECORD_FOUND":
-      return `No matching ${label.toLowerCase()} record was found in the government registry.`;
+      return `No matching ${label.toLowerCase()} record was found.`;
     case "ACCEPTED":
       return `Verification request accepted and is currently being processed.`;
     case "PROVIDER_NO_RESPONSE":
       return `Provider did not respond in time. Verification queued for review.`;
     case "SOURCE_UNAVAILABLE":
-      return `The government registry source is temporarily unavailable.`;
+      return `The verification source is temporarily unavailable.`;
     case "INVALID_INPUT":
       return `Invalid ${label.toLowerCase()} or input format. Please check and try again.`;
     case "MISSING_API_KEY":
@@ -366,11 +366,16 @@ function handleMockWay2ApiCall(
       vehicleClasses = ["LMV-NT"]; // Car only (Light Motor Vehicle - Non Transport)
     }
 
+    const isExpiredMock = idStr.includes("EXPIRED") || idStr.endsWith("0000");
+    const mockDoe = isExpiredMock ? "2020-01-01" : "2038-12-31";
+
     return {
       isSuccess: true,
       status: "SUCCESS",
       messageCode: "OK",
-      message: "Driving licence verified successfully in national registry.",
+      message: isExpiredMock
+        ? "Driving licence found in records but has expired."
+        : "Driving licence verified successfully.",
       orderId: `MOCK_DL_${Date.now()}`,
       isMock: true,
       data: {
@@ -379,7 +384,7 @@ function handleMockWay2ApiCall(
         name: "SRIVATHSAN M",
         gender: "MALE",
         dob: bodyPayload.dob || "15/06/1995",
-        doe: "2038-12-31",
+        doe: mockDoe,
         doi: "2018-01-10",
         vehicle_classes: vehicleClasses,
         // Sensitive PII mocked but excluded in production views:
@@ -391,14 +396,14 @@ function handleMockWay2ApiCall(
 
   // RC Mock Record
   const isBikePlateMock = idStr.includes("BIKE") || idStr.endsWith("3333");
-  const isSuspendedMock = idStr.endsWith("7777");
+  const isSuspendedMock = idStr.includes("SUSP") || idStr.endsWith("7777");
   const isMismatchMock = idStr.includes("MISMATCH") || idStr.endsWith("9999");
 
   return {
     isSuccess: true,
     status: "SUCCESS",
     messageCode: "OK",
-    message: "RC verified successfully in national registry.",
+    message: "RC verified successfully in vehicle verification system.",
     orderId: `MOCK_RC_${Date.now()}`,
     isMock: true,
     data: {

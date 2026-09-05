@@ -35,11 +35,15 @@ export interface IVehicle extends Document {
   drivingLicenseOrderId?: string;
   drivingLicenseClasses?: string[];
   drivingLicenseData?: Record<string, any>;
-  rcStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
+  rcProviderStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
+  rcStatus?: string;
   rcVerifiedAt?: Date;
   rcMessageCode?: string;
   rcOrderId?: string;
   vehicleMatchStatus?: "NOT_CHECKED" | "MATCHED" | "MISMATCH" | "MANUAL_REVIEW";
+  licenseVehicleClassStatus?: "NOT_CHECKED" | "COMPATIBLE" | "INCOMPATIBLE";
+  commutexVehicleVerificationStatus?: "PENDING" | "MANUAL_REVIEW" | "VERIFIED" | "REJECTED" | "FAILED";
+  adminApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED";
   finalDriverStatus?: "NOT_SUBMITTED" | "PENDING_VERIFICATION" | "PENDING_ADMIN_REVIEW" | "VERIFIED" | "REJECTED";
   fuelType?: "Petrol" | "Diesel" | "CNG" | "Electric" | "Hybrid";
   engineCapacity?: string;
@@ -213,9 +217,14 @@ const VehicleSchema = new Schema<IVehicle>(
       type: Schema.Types.Mixed,
       default: {},
     },
-    rcStatus: {
+    rcProviderStatus: {
       type: String,
       enum: ["NOT_STARTED", "PENDING", "VERIFIED", "FAILED", "ERROR"],
+      default: "NOT_STARTED",
+      index: true,
+    },
+    rcStatus: {
+      type: String,
       default: "NOT_STARTED",
       index: true,
     },
@@ -234,6 +243,24 @@ const VehicleSchema = new Schema<IVehicle>(
       type: String,
       enum: ["NOT_CHECKED", "MATCHED", "MISMATCH", "MANUAL_REVIEW"],
       default: "NOT_CHECKED",
+      index: true,
+    },
+    licenseVehicleClassStatus: {
+      type: String,
+      enum: ["NOT_CHECKED", "COMPATIBLE", "INCOMPATIBLE"],
+      default: "NOT_CHECKED",
+      index: true,
+    },
+    commutexVehicleVerificationStatus: {
+      type: String,
+      enum: ["PENDING", "MANUAL_REVIEW", "VERIFIED", "REJECTED", "FAILED"],
+      default: "PENDING",
+      index: true,
+    },
+    adminApprovalStatus: {
+      type: String,
+      enum: ["PENDING", "APPROVED", "REJECTED"],
+      default: "PENDING",
       index: true,
     },
     finalDriverStatus: {

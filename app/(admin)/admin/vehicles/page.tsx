@@ -54,6 +54,7 @@ interface IVehicle {
   drivingLicenseStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
   drivingLicenseClasses?: string[];
   drivingLicenseOrderId?: string;
+  licenseVehicleClassStatus?: "NOT_CHECKED" | "COMPATIBLE" | "INCOMPATIBLE";
   drivingLicenseData?: {
     licenseNumber?: string;
     state?: string;
@@ -65,9 +66,12 @@ interface IVehicle {
     vehicleClasses?: string[];
     mode?: string;
   };
-  rcStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
+  rcProviderStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
+  rcStatus?: string;
   rcOrderId?: string;
   vehicleMatchStatus?: "NOT_CHECKED" | "MATCHED" | "MISMATCH" | "MANUAL_REVIEW";
+  commutexVehicleVerificationStatus?: "PENDING" | "MANUAL_REVIEW" | "VERIFIED" | "REJECTED" | "FAILED";
+  adminApprovalStatus?: "PENDING" | "APPROVED" | "REJECTED";
   finalDriverStatus?: "NOT_SUBMITTED" | "PENDING_VERIFICATION" | "PENDING_ADMIN_REVIEW" | "VERIFIED" | "REJECTED";
   fuelType?: string;
   engineCapacity?: string;
@@ -339,15 +343,29 @@ export default function AdminVehiclesPage() {
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map((veh) => {
                     const isApproved =
-                      veh.isApproved ||
+                      veh.isApproved === true ||
+                      veh.adminApprovalStatus === "APPROVED" ||
                       veh.finalDriverStatus === "VERIFIED" ||
                       veh.verificationStatus === "approved";
 
                     const isDlVerified = veh.drivingLicenseStatus === "VERIFIED";
-                    const isRcVerified = veh.rcStatus === "VERIFIED" || veh.verificationStatus === "VERIFIED";
-                    const isMismatch = veh.vehicleMatchStatus === "MISMATCH";
-                    const isRejected = veh.finalDriverStatus === "REJECTED" || veh.verificationStatus === "REJECTED" || veh.verificationStatus === "rejected";
-                    const isPendingReview = veh.finalDriverStatus === "PENDING_ADMIN_REVIEW" || veh.verificationStatus === "MANUAL_REVIEW";
+                    const isRcVerified = veh.rcProviderStatus === "VERIFIED" || veh.rcStatus === "VERIFIED" || (veh.rcData?.rcNumber && veh.rcStatus !== "FAILED");
+                    const isMismatch =
+                      veh.vehicleMatchStatus === "MISMATCH" ||
+                      veh.vehicleMatchStatus === "MANUAL_REVIEW" ||
+                      veh.commutexVehicleVerificationStatus === "MANUAL_REVIEW" ||
+                      Boolean(veh.rcData?.mismatchDetails && veh.rcData.mismatchDetails.length > 0);
+                    const isRejected =
+                      veh.commutexVehicleVerificationStatus === "REJECTED" ||
+                      veh.finalDriverStatus === "REJECTED" ||
+                      veh.verificationStatus === "REJECTED" ||
+                      veh.verificationStatus === "rejected";
+                    const isPendingReview =
+                      !isApproved &&
+                      (veh.commutexVehicleVerificationStatus === "MANUAL_REVIEW" ||
+                        veh.commutexVehicleVerificationStatus === "VERIFIED" ||
+                        veh.finalDriverStatus === "PENDING_ADMIN_REVIEW" ||
+                        veh.verificationStatus === "MANUAL_REVIEW");
 
                     return (
                       <tr key={veh._id} className="hover:bg-slate-50/70 transition-colors">
@@ -715,7 +733,7 @@ export default function AdminVehiclesPage() {
                 <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-1">
                   <div className="flex items-center gap-1.5 text-amber-900 font-bold text-xs">
                     <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                    <span>Registry Discrepancy Warnings Detected</span>
+                    <span>Vehicle Details Discrepancy Warnings Detected</span>
                   </div>
                   <ul className="list-disc list-inside text-[11px] text-amber-800 space-y-0.5">
                     {detailsVehicle.rcData.mismatchDetails.map((msg, idx) => (
@@ -725,17 +743,17 @@ export default function AdminVehiclesPage() {
                 </div>
               )}
 
-              {/* Comparison Table: Driver Input vs Way2API Official RC */}
+              {/* Comparison Table: Driver Input vs Verified RC Information */}
               <div className="border border-slate-200 rounded-xl overflow-hidden">
                 <div className="bg-slate-100 px-3 py-2 font-bold text-slate-800 text-xs border-b border-slate-200">
-                  2. Vehicle RC Data Comparison (Driver Submission vs National Registry)
+                  2. Vehicle RC Data Comparison (Driver Submission vs Verified Vehicle Information)
                 </div>
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-500">
                       <th className="py-2 px-3 font-semibold">Field</th>
                       <th className="py-2 px-3 font-semibold">Driver Submitted</th>
-                      <th className="py-2 px-3 font-semibold">Way2API Registry</th>
+                      <th className="py-2 px-3 font-semibold">Verified RC Result</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -778,6 +796,13 @@ export default function AdminVehiclesPage() {
                       <td className="py-2 px-3 font-semibold text-slate-600">Color</td>
                       <td className="py-2 px-3">{detailsVehicle.color || "—"}</td>
                       <td className="py-2 px-3">{detailsVehicle.rcData?.color || "—"}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-3 font-semibold text-slate-600">Seating Capacity</td>
+                      <td className="py-2 px-3 font-medium">{detailsVehicle.seatingCapacity} seats</td>
+                      <td className="py-2 px-3 font-medium text-slate-900">
+                        {(detailsVehicle.rcData as any)?.seatingCapacity || (detailsVehicle as any)?.verifiedCapacity || "—"}
+                      </td>
                     </tr>
                     <tr>
                       <td className="py-2 px-3 font-semibold text-slate-600">RC Active Status</td>

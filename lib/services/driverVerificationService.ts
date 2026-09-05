@@ -46,8 +46,12 @@ export interface DriverVerificationInput extends VerificationInput {
 export interface CombinedVerificationResult {
   isFullyEligibleForReview: boolean;
   drivingLicenseStatus: DrivingLicenseStatus;
-  rcStatus: RCVerificationStatus;
+  licenseVehicleClassStatus: "NOT_CHECKED" | "COMPATIBLE" | "INCOMPATIBLE";
+  rcProviderStatus: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
+  rcStatus: string;
   vehicleMatchStatus: VehicleMatchStatus;
+  commutexVehicleVerificationStatus: "PENDING" | "MANUAL_REVIEW" | "VERIFIED" | "REJECTED" | "FAILED";
+  adminApprovalStatus: "PENDING" | "APPROVED" | "REJECTED";
   finalDriverStatus: FinalDriverStatus;
   isApproved: boolean; // True ONLY after Admin explicitly approves
   summaryNotes: string;
@@ -86,6 +90,7 @@ export async function verifyDriverAndVehicle(
       messageCode: "NOT_PROVIDED",
       checkedAt: now,
       vehicleClasses: [],
+      licenseVehicleClassStatus: "NOT_CHECKED",
       isVehicleClassEligible: false,
       notes: "Driving licence details not provided.",
     };
@@ -96,13 +101,64 @@ export async function verifyDriverAndVehicle(
 
   // 3. Determine Overall Granular Statuses
   const dlStatus = dlResult.status;
+  const rcProviderStatus: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR" =
+    rcResult.rcProviderStatus ||
+    (rcResult.status === "VERIFIED"
+      ? "VERIFIED"
+      : rcResult.status === "PENDING"
+      ? "PENDING"
+      : rcResult.status === "VERIFICATION_FAILED" || rcResult.status === "REJECTED"
+      ? "FAILED"
+      : "ERROR");
   const rcStatus = rcResult.rcStatus;
   let vehicleMatchStatus: VehicleMatchStatus = rcResult.vehicleMatchStatus;
 
-  // If DL vehicle class is incompatible, mark vehicle match status as MISMATCH
+  const licenseVehicleClassStatus: "NOT_CHECKED" | "COMPATIBLE" | "INCOMPATIBLE" =
+    dlResult.licenseVehicleClassStatus ||
+    (dlResult.isVehicleClassEligible
+      ? "COMPATIBLE"
+      : dlStatus === "VERIFIED"
+      ? "INCOMPATIBLE"
+      : "NOT_CHECKED");
+
+  // If DL vehicle class is incompatible, flag vehicle match status as MISMATCH
   if (dlStatus === "VERIFIED" && !dlResult.isVehicleClassEligible) {
     vehicleMatchStatus = "MISMATCH";
   }
+
+  // CommuteX Vehicle Verification Status calculation
+  let commutexVehicleVerificationStatus: "PENDING" | "MANUAL_REVIEW" | "VERIFIED" | "REJECTED" | "FAILED" = "PENDING";
+
+  if (
+    rcProviderStatus === "VERIFIED" &&
+    rcStatus === "ACTIVE" &&
+    vehicleMatchStatus === "MATCHED" &&
+    dlStatus === "VERIFIED" &&
+    licenseVehicleClassStatus === "COMPATIBLE"
+  ) {
+    commutexVehicleVerificationStatus = "VERIFIED";
+  } else if (
+    vehicleMatchStatus === "MANUAL_REVIEW" ||
+    vehicleMatchStatus === "MISMATCH" ||
+    rcResult.status === "MANUAL_REVIEW" ||
+    licenseVehicleClassStatus === "INCOMPATIBLE"
+  ) {
+    commutexVehicleVerificationStatus = "MANUAL_REVIEW";
+  } else if (
+    rcProviderStatus === "FAILED" ||
+    dlStatus === "FAILED" ||
+    rcStatus === "SUSPENDED" ||
+    rcStatus === "CANCELLED"
+  ) {
+    commutexVehicleVerificationStatus = "FAILED";
+  } else if (rcProviderStatus === "PENDING" || dlStatus === "PENDING") {
+    commutexVehicleVerificationStatus = "PENDING";
+  } else {
+    commutexVehicleVerificationStatus = "MANUAL_REVIEW";
+  }
+
+  // Admin Approval Status (remains PENDING until admin approves)
+  const adminApprovalStatus: "PENDING" | "APPROVED" | "REJECTED" = "PENDING";
 
   // Evaluate Final Driver Status
   let finalDriverStatus: FinalDriverStatus = "NOT_SUBMITTED";
@@ -111,16 +167,19 @@ export async function verifyDriverAndVehicle(
   let rejectionReason: string | undefined;
 
   const isDLSuccess = dlStatus === "VERIFIED" && dlResult.isVehicleClassEligible;
-  const isRCSuccess = rcStatus === "VERIFIED" && rcResult.vehicleMatchStatus === "MATCHED";
+  const isRCSuccess = rcProviderStatus === "VERIFIED" && rcStatus === "ACTIVE" && rcResult.vehicleMatchStatus === "MATCHED";
 
   if (isDLSuccess && isRCSuccess) {
     // Both DL and RC verified, classes match, vehicle details match!
-    // Section 17 & 19: Transitions to PENDING_ADMIN_REVIEW (NOT automatically verified!)
+    // Transitions to PENDING_ADMIN_REVIEW (NOT automatically verified!)
     isFullyEligibleForReview = true;
     finalDriverStatus = "PENDING_ADMIN_REVIEW";
     summaryNotes = "Driving licence and vehicle RC verified successfully. Awaiting administrator review.";
   } else if (
+    commutexVehicleVerificationStatus === "MANUAL_REVIEW" ||
     vehicleMatchStatus === "MANUAL_REVIEW" ||
+    vehicleMatchStatus === "MISMATCH" ||
+    licenseVehicleClassStatus === "INCOMPATIBLE" ||
     rcResult.status === "MANUAL_REVIEW" ||
     dlStatus === "PENDING" ||
     rcStatus === "PENDING" ||
@@ -128,11 +187,13 @@ export async function verifyDriverAndVehicle(
     rcStatus === "ERROR"
   ) {
     finalDriverStatus = "PENDING_ADMIN_REVIEW";
-    summaryNotes = rcResult.rejectionReason || dlResult.notes || "Verification flagged for administrator manual review.";
-    rejectionReason = rcResult.rejectionReason || dlResult.rejectionReason;
+    summaryNotes =
+      rcResult.rejectionReason ||
+      dlResult.classEligibilityReason ||
+      dlResult.notes ||
+      "Verification flagged for administrator manual review.";
+    rejectionReason = rcResult.rejectionReason || dlResult.classEligibilityReason || dlResult.rejectionReason;
   } else if (
-    vehicleMatchStatus === "MISMATCH" ||
-    !dlResult.isVehicleClassEligible ||
     rcResult.status === "REJECTED" ||
     dlStatus === "FAILED" ||
     rcStatus === "FAILED"
@@ -142,7 +203,7 @@ export async function verifyDriverAndVehicle(
       (!dlResult.isVehicleClassEligible && dlResult.classEligibilityReason) ||
       rcResult.rejectionReason ||
       dlResult.rejectionReason ||
-      "Verification failed due to mismatched vehicle or licence details.";
+      "Verification failed due to invalid licence or registration details.";
     summaryNotes = rejectionReason;
   } else {
     finalDriverStatus = "PENDING_VERIFICATION";
@@ -152,8 +213,12 @@ export async function verifyDriverAndVehicle(
   return {
     isFullyEligibleForReview,
     drivingLicenseStatus: dlStatus,
+    licenseVehicleClassStatus,
+    rcProviderStatus,
     rcStatus,
     vehicleMatchStatus,
+    commutexVehicleVerificationStatus,
+    adminApprovalStatus,
     finalDriverStatus,
     isApproved: false, // Remains false until explicit Admin approval action
     summaryNotes,
