@@ -25,6 +25,22 @@ export interface IVehicle extends Document {
   vehiclePhoto?: string;
   numberPlatePhoto?: string;
   drivingLicensePhoto?: string;
+  drivingLicenseNumber?: string;
+  drivingLicenseDob?: string;
+  chassisNumber?: string;
+  engineNumber?: string;
+  drivingLicenseStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
+  drivingLicenseVerifiedAt?: Date;
+  drivingLicenseMessageCode?: string;
+  drivingLicenseOrderId?: string;
+  drivingLicenseClasses?: string[];
+  drivingLicenseData?: Record<string, any>;
+  rcStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
+  rcVerifiedAt?: Date;
+  rcMessageCode?: string;
+  rcOrderId?: string;
+  vehicleMatchStatus?: "NOT_CHECKED" | "MATCHED" | "MISMATCH" | "MANUAL_REVIEW";
+  finalDriverStatus?: "NOT_SUBMITTED" | "PENDING_VERIFICATION" | "PENDING_ADMIN_REVIEW" | "VERIFIED" | "REJECTED";
   fuelType?: "Petrol" | "Diesel" | "CNG" | "Electric" | "Hybrid";
   engineCapacity?: string;
   verificationStatus: VehicleVerificationStatus;
@@ -148,6 +164,89 @@ const VehicleSchema = new Schema<IVehicle>(
     drivingLicensePhoto: {
       type: String,
       default: "",
+    },
+    drivingLicenseNumber: {
+      type: String,
+      default: "",
+      trim: true,
+      uppercase: true,
+    },
+    drivingLicenseDob: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    chassisNumber: {
+      type: String,
+      default: "",
+      trim: true,
+      uppercase: true,
+    },
+    engineNumber: {
+      type: String,
+      default: "",
+      trim: true,
+      uppercase: true,
+    },
+    drivingLicenseStatus: {
+      type: String,
+      enum: ["NOT_STARTED", "PENDING", "VERIFIED", "FAILED", "ERROR"],
+      default: "NOT_STARTED",
+      index: true,
+    },
+    drivingLicenseVerifiedAt: {
+      type: Date,
+    },
+    drivingLicenseMessageCode: {
+      type: String,
+      default: "",
+    },
+    drivingLicenseOrderId: {
+      type: String,
+      default: "",
+    },
+    drivingLicenseClasses: {
+      type: [String],
+      default: [],
+    },
+    drivingLicenseData: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+    rcStatus: {
+      type: String,
+      enum: ["NOT_STARTED", "PENDING", "VERIFIED", "FAILED", "ERROR"],
+      default: "NOT_STARTED",
+      index: true,
+    },
+    rcVerifiedAt: {
+      type: Date,
+    },
+    rcMessageCode: {
+      type: String,
+      default: "",
+    },
+    rcOrderId: {
+      type: String,
+      default: "",
+    },
+    vehicleMatchStatus: {
+      type: String,
+      enum: ["NOT_CHECKED", "MATCHED", "MISMATCH", "MANUAL_REVIEW"],
+      default: "NOT_CHECKED",
+      index: true,
+    },
+    finalDriverStatus: {
+      type: String,
+      enum: [
+        "NOT_SUBMITTED",
+        "PENDING_VERIFICATION",
+        "PENDING_ADMIN_REVIEW",
+        "VERIFIED",
+        "REJECTED",
+      ],
+      default: "NOT_SUBMITTED",
+      index: true,
     },
     verificationStatus: {
       type: String,

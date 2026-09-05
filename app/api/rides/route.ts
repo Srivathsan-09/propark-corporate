@@ -104,8 +104,8 @@ export async function GET(req: NextRequest) {
     }
 
     const rides = await Ride.find(query)
-      .populate("driver", "name email employeeId companyName department phone verificationStatus isApproved")
-      .populate("vehicle", "vehicleModel vehicleType registrationNumber seatingCapacity availableSeats verificationStatus isApproved")
+      .populate("driver", "name email employeeId companyName department phone verificationStatus isApproved driverVerificationStatus isDriverApproved")
+      .populate("vehicle", "vehicleModel vehicleType registrationNumber seatingCapacity availableSeats verificationStatus isApproved finalDriverStatus rcStatus drivingLicenseStatus vehicleMatchStatus")
       .sort({ departureDate: 1, departureTime: 1 })
       .lean();
 
@@ -226,26 +226,28 @@ export async function POST(req: NextRequest) {
     }
 
     const status = vehicle.verificationStatus;
+    const finalStatus = vehicle.finalDriverStatus || status;
     const isVerified =
+      vehicle.isApproved === true ||
+      finalStatus === "VERIFIED" ||
       status === "VERIFIED" ||
       status === "approved" ||
-      vehicle.isApproved === true ||
       dbUser.role === "admin";
 
     if (!isVerified) {
       let errorMessage =
-        "Your vehicle has not been verified yet. Please complete vehicle verification before posting a ride.";
+        "Your driver and vehicle profile has not been approved yet. Please complete verification and wait for administrator approval before posting a ride.";
 
-      if (status === "PENDING" || status === "pending") {
-        errorMessage = "Vehicle verification is pending.";
-      } else if (status === "MANUAL_REVIEW") {
-        errorMessage = "Your vehicle is awaiting admin review.";
-      } else if (status === "REJECTED" || status === "rejected") {
+      if (finalStatus === "PENDING_ADMIN_REVIEW" || status === "MANUAL_REVIEW") {
+        errorMessage = "Your vehicle and licence verification is awaiting administrator review and approval.";
+      } else if (finalStatus === "PENDING_VERIFICATION" || status === "PENDING" || status === "pending") {
+        errorMessage = "Vehicle and licence verification is in progress.";
+      } else if (finalStatus === "REJECTED" || status === "REJECTED" || status === "rejected") {
         errorMessage = vehicle.rejectionReason
-          ? `Your vehicle verification was rejected: ${vehicle.rejectionReason}`
-          : "Your vehicle verification was rejected.";
+          ? `Verification rejected: ${vehicle.rejectionReason}`
+          : "Your vehicle verification was rejected by administrator.";
       } else if (status === "VERIFICATION_FAILED") {
-        errorMessage = "Vehicle verification is temporarily unavailable. Please try again later.";
+        errorMessage = "Verification provider service is temporarily unavailable. Please try again later.";
       }
 
       return NextResponse.json(

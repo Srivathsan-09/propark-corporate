@@ -4,12 +4,13 @@ import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Vehicle from "@/models/Vehicle";
+import User from "@/models/User";
 import { vehicleSchema } from "@/validations/vehicle.schema";
 import {
   normalizeRegistrationNumber,
   formatIndianPlateNumber,
-  verifyVehicleWithWay2API,
 } from "@/lib/services/vehicleVerification";
+import { verifyDriverAndVehicle } from "@/lib/services/driverVerificationService";
 
 interface RouteParams {
   params: {
@@ -112,6 +113,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       vehiclePhoto,
       numberPlatePhoto,
       drivingLicensePhoto,
+      drivingLicenseNumber,
+      drivingLicenseDob,
+      chassisNumber,
+      engineNumber,
       status,
     } = validationResult.data;
 
@@ -155,15 +160,29 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check if critical vehicle details changed
+    // Retrieve user for fallback DL details if not provided in form
+    const userDoc = await User.findById(session.user.id);
+    const effectiveDlNumber = (
+      drivingLicenseNumber ||
+      existingVehicle.drivingLicenseNumber ||
+      userDoc?.drivingLicenseNumber ||
+      ""
+    ).trim().toUpperCase();
+    const effectiveDob =
+      drivingLicenseDob || existingVehicle.drivingLicenseDob || userDoc?.drivingLicenseDob || "";
+
+    // Check if critical vehicle or licence details changed
     const detailsChanged =
       existingVehicle.normalizedRegistrationNumber !== normalizedPlate ||
       existingVehicle.vehicleModel !== vehicleModel ||
       (existingVehicle.make || "") !== (make || "") ||
       existingVehicle.vehicleType !== vehicleType ||
-      (existingVehicle.color || "") !== (color || "");
+      (existingVehicle.color || "") !== (color || "") ||
+      (existingVehicle.drivingLicenseNumber || "") !== effectiveDlNumber ||
+      (existingVehicle.drivingLicenseDob || "") !== effectiveDob;
 
     const wasUnverified =
+      existingVehicle.finalDriverStatus === "REJECTED" ||
       existingVehicle.verificationStatus === "REJECTED" ||
       existingVehicle.verificationStatus === "rejected" ||
       existingVehicle.verificationStatus === "MANUAL_REVIEW" ||
@@ -173,7 +192,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     // Re-verify if critical details changed or if correcting a previously unverified vehicle
     if (detailsChanged || wasUnverified) {
-      const verificationResult = await verifyVehicleWithWay2API(
+      const verificationResult = await verifyDriverAndVehicle(
         {
           registrationNumber: normalizedPlate,
           vehicleType,
@@ -182,21 +201,47 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
           color: color || "",
           fuelType: fuelType || "Petrol",
           seatingCapacity,
+          chassisNumber: chassisNumber || existingVehicle.chassisNumber || "",
+          engineNumber: engineNumber || existingVehicle.engineNumber || "",
+          drivingLicenseNumber: effectiveDlNumber,
+          drivingLicenseDob: effectiveDob,
         },
         { bypassCache: true }
       );
 
       verificationUpdate = {
-        verificationStatus: verificationResult.status,
-        isApproved: verificationResult.status === "VERIFIED",
-        verificationProvider: verificationResult.provider,
-        verificationReference: verificationResult.referenceId,
+        drivingLicenseNumber: effectiveDlNumber,
+        drivingLicenseDob: effectiveDob,
+        chassisNumber: chassisNumber || existingVehicle.chassisNumber || "",
+        engineNumber: engineNumber || existingVehicle.engineNumber || "",
+        drivingLicenseStatus: verificationResult.drivingLicenseStatus,
+        drivingLicenseVerifiedAt: verificationResult.dlResult.verifiedAt,
+        drivingLicenseMessageCode: verificationResult.dlResult.messageCode,
+        drivingLicenseOrderId: verificationResult.dlResult.orderId,
+        drivingLicenseClasses: verificationResult.dlResult.vehicleClasses,
+        drivingLicenseData: verificationResult.dlData || {},
+        rcStatus: verificationResult.rcStatus,
+        rcVerifiedAt: verificationResult.rcResult.verifiedAt,
+        rcMessageCode: verificationResult.rcResult.messageCode,
+        rcOrderId: verificationResult.rcResult.orderId,
+        vehicleMatchStatus: verificationResult.vehicleMatchStatus,
+        finalDriverStatus: verificationResult.finalDriverStatus,
+        verificationStatus: verificationResult.rcResult.status,
+        isApproved: false, // Re-submits for admin review; does not auto-approve
+        verificationProvider: "way2api",
+        verificationReference:
+          verificationResult.rcResult.orderId || verificationResult.dlResult.orderId || "",
         verificationCheckedAt: verificationResult.checkedAt,
-        verifiedAt: verificationResult.verifiedAt,
-        verificationNotes: verificationResult.notes,
+        verificationNotes: verificationResult.summaryNotes,
         rejectionReason: verificationResult.rejectionReason || "",
         rcData: verificationResult.rcData || {},
       };
+
+      if (userDoc && effectiveDlNumber) {
+        userDoc.drivingLicenseNumber = effectiveDlNumber;
+        if (effectiveDob) userDoc.drivingLicenseDob = effectiveDob;
+        await userDoc.save();
+      }
     }
 
     // Update vehicle
@@ -225,10 +270,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     );
 
     let message = "Vehicle updated successfully.";
-    if (verificationUpdate.verificationStatus === "VERIFIED") {
-      message = "Vehicle details updated and verified successfully!";
-    } else if (verificationUpdate.verificationStatus === "MANUAL_REVIEW") {
-      message = "Vehicle updated and submitted for admin review due to detail mismatch.";
+    if (verificationUpdate.finalDriverStatus === "PENDING_ADMIN_REVIEW") {
+      message = "Vehicle details updated and verified with Way2API registry! Submitted for admin approval.";
+    } else if (verificationUpdate.finalDriverStatus === "REJECTED") {
+      message = verificationUpdate.rejectionReason || "Vehicle details updated but failed verification checks.";
     }
 
     return NextResponse.json({

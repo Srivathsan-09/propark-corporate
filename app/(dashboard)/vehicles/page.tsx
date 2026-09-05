@@ -62,6 +62,34 @@ interface IVehicle {
   vehiclePhoto?: string;
   numberPlatePhoto?: string;
   drivingLicensePhoto?: string;
+  drivingLicenseNumber?: string;
+  drivingLicenseDob?: string;
+  chassisNumber?: string;
+  engineNumber?: string;
+  drivingLicenseStatus?:
+    | "NOT_STARTED"
+    | "PENDING"
+    | "VERIFIED"
+    | "FAILED"
+    | "ERROR";
+  drivingLicenseClasses?: string[];
+  rcStatus?:
+    | "NOT_STARTED"
+    | "PENDING"
+    | "VERIFIED"
+    | "FAILED"
+    | "ERROR";
+  vehicleMatchStatus?:
+    | "NOT_CHECKED"
+    | "MATCHED"
+    | "MISMATCH"
+    | "MANUAL_REVIEW";
+  finalDriverStatus?:
+    | "NOT_SUBMITTED"
+    | "PENDING_VERIFICATION"
+    | "PENDING_ADMIN_REVIEW"
+    | "VERIFIED"
+    | "REJECTED";
   verificationStatus?:
     | "pending"
     | "approved"
@@ -132,6 +160,10 @@ export default function VehiclesPage() {
     vehiclePhoto: "",
     numberPlatePhoto: "",
     drivingLicensePhoto: "",
+    drivingLicenseNumber: "",
+    drivingLicenseDob: "",
+    chassisNumber: "",
+    engineNumber: "",
     status: "active" as "active" | "inactive",
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -177,6 +209,10 @@ export default function VehiclesPage() {
       vehiclePhoto: "",
       numberPlatePhoto: "",
       drivingLicensePhoto: "",
+      drivingLicenseNumber: "",
+      drivingLicenseDob: "",
+      chassisNumber: "",
+      engineNumber: "",
       status: "active",
     });
     setFieldErrors({});
@@ -205,6 +241,10 @@ export default function VehiclesPage() {
       vehiclePhoto: vehicle.vehiclePhoto || "",
       numberPlatePhoto: vehicle.numberPlatePhoto || "",
       drivingLicensePhoto: vehicle.drivingLicensePhoto || "",
+      drivingLicenseNumber: vehicle.drivingLicenseNumber || "",
+      drivingLicenseDob: vehicle.drivingLicenseDob || "",
+      chassisNumber: vehicle.chassisNumber || "",
+      engineNumber: vehicle.engineNumber || "",
       status: vehicle.status,
     });
     setFieldErrors({});
@@ -342,6 +382,13 @@ export default function VehiclesPage() {
     if (!formData.drivingLicensePhoto) {
       const msg = "Please upload the driver's license copy.";
       setFieldErrors((prev) => ({ ...prev, drivingLicensePhoto: msg }));
+      setDialogError(msg);
+      return;
+    }
+
+    if (formData.drivingLicenseNumber && !formData.drivingLicenseDob) {
+      const msg = "Please provide your Date of Birth for Driving Licence verification.";
+      setFieldErrors((prev) => ({ ...prev, drivingLicenseDob: msg }));
       setDialogError(msg);
       return;
     }
@@ -519,22 +566,26 @@ export default function VehiclesPage() {
                     </div>
 
                     {/* Verification Status Overlay */}
-                    <div className="absolute top-2 right-2">
-                      {isVerified ? (
+                    <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                      {isApproved || vehicle.finalDriverStatus === "VERIFIED" ? (
                         <Badge className="bg-emerald-600 text-white border-0 text-[10px] font-bold shadow-sm flex items-center gap-1">
-                          <CheckCircle className="h-3 w-3" /> Verified Vehicle
+                          <CheckCircle className="h-3 w-3" /> Approved Driver
+                        </Badge>
+                      ) : vehicle.finalDriverStatus === "PENDING_ADMIN_REVIEW" ? (
+                        <Badge className="bg-blue-600 text-white border-0 text-[10px] font-bold shadow-sm flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> Awaiting Admin
+                        </Badge>
+                      ) : vehicle.vehicleMatchStatus === "MISMATCH" || isRejected ? (
+                        <Badge variant="destructive" className="text-[10px] font-bold shadow-sm flex items-center gap-1">
+                          <X className="h-3 w-3" /> Details Mismatch
                         </Badge>
                       ) : isManualReview ? (
                         <Badge className="bg-amber-600 text-white border-0 text-[10px] font-bold shadow-sm flex items-center gap-1">
                           <Clock className="h-3 w-3" /> Manual Review
                         </Badge>
-                      ) : isRejected ? (
-                        <Badge variant="destructive" className="text-[10px] font-bold shadow-sm flex items-center gap-1">
-                          <X className="h-3 w-3" /> Vehicle Rejected
-                        </Badge>
                       ) : isFailed ? (
                         <Badge className="bg-slate-700 text-white border-0 text-[10px] font-bold shadow-sm flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" /> Verification Failed
+                          <AlertCircle className="h-3 w-3" /> Verification Error
                         </Badge>
                       ) : (
                         <Badge className="bg-amber-500 text-white border-0 text-[10px] font-bold shadow-sm flex items-center gap-1">
@@ -588,6 +639,69 @@ export default function VehiclesPage() {
                       </div>
                     </div>
 
+                    {/* Dual Verification Badges: Driving Licence & Vehicle RC */}
+                    <div className="p-2.5 rounded-xl bg-slate-50/70 border border-slate-200/80 space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                          <FileBadge className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>Driving Licence:</span>
+                        </span>
+                        {vehicle.drivingLicenseStatus === "VERIFIED" ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold py-0">
+                            ✓ Verified {vehicle.drivingLicenseClasses?.length ? `(${vehicle.drivingLicenseClasses.join(", ")})` : ""}
+                          </Badge>
+                        ) : vehicle.drivingLicenseStatus === "FAILED" ? (
+                          <Badge variant="destructive" className="text-[10px] font-semibold py-0">
+                            ✗ DL Failed
+                          </Badge>
+                        ) : vehicle.drivingLicenseStatus === "PENDING" ? (
+                          <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] font-semibold py-0">
+                            ⏳ Processing
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-slate-500 py-0">
+                            Not Provided
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                          <Car className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>Vehicle RC:</span>
+                        </span>
+                        {vehicle.rcStatus === "VERIFIED" || vehicle.verificationStatus === "VERIFIED" ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold py-0">
+                            ✓ Verified Active
+                          </Badge>
+                        ) : vehicle.rcStatus === "FAILED" ? (
+                          <Badge variant="destructive" className="text-[10px] font-semibold py-0">
+                            ✗ RC Not Found
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] font-semibold py-0">
+                            ⏳ Pending RC
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Mismatch Warning Alert if any */}
+                    {vehicle.vehicleMatchStatus === "MISMATCH" ||
+                    (vehicle.rcData?.mismatchDetails && vehicle.rcData.mismatchDetails.length > 0) ? (
+                      <div className="text-[11px] text-amber-900 bg-amber-50 p-2.5 rounded-xl border border-amber-200 space-y-1">
+                        <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                          <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                          <span>Registry Discrepancy Flagged</span>
+                        </div>
+                        {vehicle.rejectionReason && (
+                          <p className="text-[10px] text-amber-800 leading-tight">
+                            {vehicle.rejectionReason}
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+
                     {/* Documents Thumbnail preview */}
                     <div className="flex items-center gap-3 pt-1">
                       {vehicle.numberPlatePhoto && (
@@ -612,52 +726,6 @@ export default function VehiclesPage() {
                         </div>
                       )}
                     </div>
-
-                    {/* Status Alert Box */}
-                    {isVerified ? (
-                      <div className="text-[11px] text-emerald-800 bg-emerald-50/80 p-2 rounded-lg border border-emerald-200/60 space-y-0.5">
-                        <div className="font-semibold flex items-center gap-1">
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                          <span>RC Verified via Way2API</span>
-                        </div>
-                        {vehicle.rcData?.fitnessUpto && (
-                          <div className="text-[10px] text-emerald-700">
-                            Fitness Valid Upto: {vehicle.rcData.fitnessUpto}
-                          </div>
-                        )}
-                      </div>
-                    ) : isManualReview ? (
-                      <div className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200/70 space-y-1">
-                        <p className="font-semibold flex items-center gap-1 text-amber-900">
-                          <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                          <span>Your vehicle is awaiting admin review.</span>
-                        </p>
-                        {vehicle.rejectionReason && (
-                          <p className="text-[10px] text-amber-700 leading-tight">
-                            Note: {vehicle.rejectionReason}
-                          </p>
-                        )}
-                      </div>
-                    ) : isRejected ? (
-                      <div className="text-[11px] text-rose-800 bg-rose-50 p-2.5 rounded-lg border border-rose-200 space-y-1">
-                        <p className="font-semibold flex items-center gap-1 text-rose-900">
-                          <X className="h-3.5 w-3.5 text-rose-600 shrink-0" />
-                          <span>Your vehicle verification was rejected.</span>
-                        </p>
-                        <p className="text-[10px] text-rose-700 leading-tight">
-                          Reason: {vehicle.rejectionReason || "Details did not match official RC information. Please correct details and resubmit."}
-                        </p>
-                      </div>
-                    ) : isFailed ? (
-                      <div className="text-[11px] text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-200 leading-tight flex items-center gap-1.5">
-                        <AlertCircle className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                        <span>Vehicle verification is temporarily unavailable. Please try again later.</span>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200/60 leading-tight">
-                        Vehicle verification is pending.
-                      </p>
-                    )}
                   </CardContent>
                 </div>
 
@@ -953,6 +1021,97 @@ export default function VehiclesPage() {
                     className="rounded-xl"
                     required
                   />
+                </div>
+              </div>
+
+              {/* DRIVING LICENCE DETAILS SECTION */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                    Driver Licence Details
+                  </Label>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Way2API DL Verification
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="drivingLicenseNumber" className="text-xs font-semibold text-slate-700">
+                      Driving Licence Number
+                    </Label>
+                    <Input
+                      id="drivingLicenseNumber"
+                      placeholder="e.g. MH0320140001234"
+                      value={formData.drivingLicenseNumber}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          drivingLicenseNumber: e.target.value.toUpperCase().replace(/\s+/g, ""),
+                        }))
+                      }
+                      className="uppercase font-mono rounded-xl"
+                    />
+                    <p className="text-[10px] text-slate-400">Standard Indian DL format (without spaces or hyphens)</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="drivingLicenseDob" className="text-xs font-semibold text-slate-700">
+                      Date of Birth (as per Licence)
+                    </Label>
+                    <Input
+                      id="drivingLicenseDob"
+                      type="date"
+                      value={formData.drivingLicenseDob}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          drivingLicenseDob: e.target.value,
+                        }))
+                      }
+                      className="rounded-xl"
+                    />
+                    <p className="text-[10px] text-slate-400">Required by national DL registry verification</p>
+                  </div>
+                </div>
+
+                {/* Optional Chassis & Engine Numbers */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="chassisNumber" className="text-xs font-medium text-slate-600">
+                      Chassis Number (Optional)
+                    </Label>
+                    <Input
+                      id="chassisNumber"
+                      placeholder="e.g. MDH45920384729103"
+                      value={formData.chassisNumber}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          chassisNumber: e.target.value.toUpperCase(),
+                        }))
+                      }
+                      className="uppercase font-mono text-xs rounded-xl"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="engineNumber" className="text-xs font-medium text-slate-600">
+                      Engine Number (Optional)
+                    </Label>
+                    <Input
+                      id="engineNumber"
+                      placeholder="e.g. ENG920194820"
+                      value={formData.engineNumber}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          engineNumber: e.target.value.toUpperCase(),
+                        }))
+                      }
+                      className="uppercase font-mono text-xs rounded-xl"
+                    />
+                  </div>
                 </div>
               </div>
 

@@ -35,6 +35,10 @@ export const vehicleSchema = z
     vehiclePhoto: z.string().optional().or(z.literal("")),
     numberPlatePhoto: z.string().optional().or(z.literal("")),
     drivingLicensePhoto: z.string().optional().or(z.literal("")),
+    drivingLicenseNumber: z.string().trim().toUpperCase().max(30).optional().default(""),
+    drivingLicenseDob: z.string().trim().max(20).optional().default(""),
+    chassisNumber: z.string().trim().toUpperCase().max(50).optional().default(""),
+    engineNumber: z.string().trim().toUpperCase().max(50).optional().default(""),
     status: z.enum(["active", "inactive"]).default("active"),
   })
   .refine((data) => data.availableSeats <= data.seatingCapacity, {

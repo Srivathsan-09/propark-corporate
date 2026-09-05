@@ -1,18 +1,31 @@
 /**
  * Vehicle RC Verification Service (CommuteX)
  * 
- * Official Provider: Way2API (https://www.way2api.com/page/service/vehicle-rc-verification)
- * Endpoint: POST https://app.way2api.com/api/v1/rc/verify
+ * Provider: Way2API (https://app.way2api.com/api/v1/rc/verify)
  * 
  * Complies with strict privacy and security constraints:
  * - Server-side only (never exposes API key to client)
- * - Sanitizes sensitive owner PII (owner_name, address are excluded from passenger/public views)
- * - Supports both REAL (Way2API) and MOCK (development/testing) modes
+ * - Sanitizes sensitive owner PII (owner_name, addresses, chassis/engine are excluded from passenger views)
  * - Robust input normalization (e.g. TN-07-AB-1234 -> TN07AB1234)
+ * - Strict vehicle category check (e.g. Two-Wheeler vs Light Motor Vehicle)
  * - Fuzzy comparison for make and model matching
  */
 
+import { executeWay2ApiCall, Way2ApiExecutionResult } from "./way2ApiClient";
 import { VehicleVerificationStatus } from "@/models/Vehicle";
+
+export type RCVerificationStatus =
+  | "NOT_STARTED"
+  | "PENDING"
+  | "VERIFIED"
+  | "FAILED"
+  | "ERROR";
+
+export type VehicleMatchStatus =
+  | "NOT_CHECKED"
+  | "MATCHED"
+  | "MISMATCH"
+  | "MANUAL_REVIEW";
 
 export interface VerificationInput {
   registrationNumber: string;
@@ -22,6 +35,8 @@ export interface VerificationInput {
   color?: string;
   fuelType?: string;
   seatingCapacity?: number;
+  chassisNumber?: string;
+  engineNumber?: string;
 }
 
 export interface SanitizedRCData {
@@ -44,8 +59,12 @@ export interface SanitizedRCData {
 export interface VerificationResult {
   success: boolean;
   status: VehicleVerificationStatus;
+  rcStatus: RCVerificationStatus;
+  vehicleMatchStatus: VehicleMatchStatus;
   provider: string;
   referenceId: string;
+  orderId?: string;
+  messageCode: string;
   checkedAt: Date;
   verifiedAt?: Date;
   notes: string;
@@ -53,14 +72,6 @@ export interface VerificationResult {
   rcData?: SanitizedRCData;
   error?: string;
 }
-
-// In-memory short-term verification cache to protect against duplicate requests
-interface CacheEntry {
-  timestamp: number;
-  result: VerificationResult;
-}
-const verificationCache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Normalizes an Indian vehicle registration plate to standard alphanumeric uppercase.
@@ -103,22 +114,64 @@ function cleanModelString(str: string): string {
 }
 
 /**
- * Performs fuzzy, case-insensitive comparison between driver submitted vehicle details
- * and Way2API returned RC details.
+ * Performs comparison between driver submitted vehicle details
+ * and Way2API returned official RC details.
+ * 
+ * Strict check for:
+ * 1. RC status (must be ACTIVE)
+ * 2. Vehicle category (Car vs Bike mismatch detection)
+ * 3. Fuzzy Make and Model matching
  */
 export function compareVehicleDetails(
   input: VerificationInput,
   rcResult: Record<string, any>
-): { isMatch: boolean; mismatches: string[] } {
+): { isMatch: boolean; mismatches: string[]; isCategoryMismatch: boolean } {
   const mismatches: string[] = [];
+  let isCategoryMismatch = false;
 
   // 1. Check RC Status
   const rcStatus = String(rcResult.rc_status || rcResult.status || "ACTIVE").toUpperCase();
   if (rcStatus !== "ACTIVE") {
-    mismatches.push(`RC Status is ${rcStatus} (Vehicle must be ACTIVE in national registry).`);
+    mismatches.push(`RC Status is '${rcStatus}' in national registry (Vehicle must be ACTIVE).`);
   }
 
-  // 2. Compare Make
+  // 2. Compare Vehicle Category / Type (Bike vs Car mismatch detection)
+  const rawCategory = String(
+    rcResult.vehicle_category || rcResult.vehicle_class || rcResult.body_type || ""
+  ).toUpperCase();
+
+  const submittedType = (input.vehicleType || "").toLowerCase().trim();
+  const isSubmittedBike = submittedType === "bike";
+
+  const isApiTwoWheeler =
+    rawCategory.includes("2W") ||
+    rawCategory.includes("TWO WHEELER") ||
+    rawCategory.includes("MCWG") ||
+    rawCategory.includes("M-CYCLE") ||
+    rawCategory.includes("MOTORCYCLE") ||
+    rawCategory.includes("SCOOTER");
+
+  const isApiFourWheeler =
+    rawCategory.includes("LMV") ||
+    rawCategory.includes("CAR") ||
+    rawCategory.includes("MOTOR CAB") ||
+    rawCategory.includes("SEDAN") ||
+    rawCategory.includes("HATCHBACK") ||
+    rawCategory.includes("4W");
+
+  if (isSubmittedBike && !isApiTwoWheeler && isApiFourWheeler) {
+    isCategoryMismatch = true;
+    mismatches.push(
+      `Vehicle Type Mismatch: Submitted as 'Bike', but government registry records a Light Motor Vehicle (${rawCategory || "LMV"}).`
+    );
+  } else if (!isSubmittedBike && isApiTwoWheeler) {
+    isCategoryMismatch = true;
+    mismatches.push(
+      `Vehicle Type Mismatch: Submitted as '${input.vehicleType}', but government registry records a Two-Wheeler (${rawCategory || "2W"}).`
+    );
+  }
+
+  // 3. Compare Make
   const submittedMake = (input.make || "").trim();
   const apiMaker = String(rcResult.maker_description || rcResult.maker || "").trim();
 
@@ -132,11 +185,13 @@ export function compareVehicleDetails(
       cleanModelString(rcResult.maker_model || "").includes(cleanSubMake);
 
     if (!makeMatch) {
-      mismatches.push(`Submitted make '${submittedMake}' does not match official RC maker '${apiMaker}'.`);
+      mismatches.push(
+        `Manufacturer Mismatch: Submitted '${submittedMake}' does not match official maker '${apiMaker}'.`
+      );
     }
   }
 
-  // 3. Compare Model
+  // 4. Compare Model
   const submittedModel = (input.vehicleModel || "").trim();
   const apiModel = String(rcResult.maker_model || rcResult.model || "").trim();
 
@@ -144,7 +199,6 @@ export function compareVehicleDetails(
     const cleanSubModel = cleanModelString(submittedModel);
     const cleanApiModel = cleanModelString(apiModel);
 
-    // Also check if model tokens match (e.g. "i20" inside "I20 SPORTZ")
     const subWords = submittedModel.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
     const apiWords = apiModel.toLowerCase();
 
@@ -154,37 +208,21 @@ export function compareVehicleDetails(
       subWords.some((w) => apiWords.includes(w));
 
     if (!modelMatch) {
-      mismatches.push(`Submitted model '${submittedModel}' does not match official RC model '${apiModel}'.`);
-    }
-  }
-
-  // 4. Compare Vehicle Class / Category if present (e.g. Bike vs Car)
-  const category = String(rcResult.vehicle_category || rcResult.vehicle_class || "").toUpperCase();
-  if (category) {
-    const isSubmittedBike = input.vehicleType.toLowerCase() === "bike";
-    const isApiTwoWheeler =
-      category.includes("2W") ||
-      category.includes("TWO WHEELER") ||
-      category.includes("MCWG") ||
-      category.includes("M-CYCLE") ||
-      category.includes("SCOOTER");
-
-    if (isSubmittedBike && !isApiTwoWheeler && (category.includes("LMV") || category.includes("CAR"))) {
-      mismatches.push(`Submitted as Bike, but RC registration is a Light Motor Vehicle (${category}).`);
-    } else if (!isSubmittedBike && isApiTwoWheeler) {
-      mismatches.push(`Submitted as ${input.vehicleType}, but RC registration is a Two-Wheeler (${category}).`);
+      mismatches.push(
+        `Model Mismatch: Submitted '${submittedModel}' does not match official model '${apiModel}'.`
+      );
     }
   }
 
   return {
     isMatch: mismatches.length === 0,
     mismatches,
+    isCategoryMismatch,
   };
 }
 
 /**
- * Main Vehicle Verification Function.
- * Handles Mock vs Real Way2API execution, rate-limiting, and sanitized output formatting.
+ * Main Vehicle RC Verification Function using Way2API.
  */
 export async function verifyVehicleWithWay2API(
   input: VerificationInput,
@@ -193,243 +231,115 @@ export async function verifyVehicleWithWay2API(
   const normalizedPlate = normalizeRegistrationNumber(input.registrationNumber);
   const now = new Date();
 
-  // Validate format
+  // Validate plate length
   if (!normalizedPlate || normalizedPlate.length < 8 || normalizedPlate.length > 11) {
     return {
       success: false,
       status: "REJECTED",
+      rcStatus: "FAILED",
+      vehicleMatchStatus: "NOT_CHECKED",
       provider: "way2api",
       referenceId: "",
+      messageCode: "INVALID_INPUT",
       checkedAt: now,
-      notes: "Invalid registration plate length or format.",
+      notes: "Invalid vehicle registration plate format.",
       rejectionReason: "Invalid vehicle registration plate format.",
     };
   }
 
-  // Check Duplicate Request Protection / Verification Cache
-  if (!options?.bypassCache) {
-    const cached = verificationCache.get(normalizedPlate);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      return cached.result;
-    }
+  const payload: Record<string, any> = {
+    rc_number: normalizedPlate,
+  };
+  if (input.chassisNumber?.trim()) {
+    payload.chassis_number = input.chassisNumber.trim().toUpperCase();
+  }
+  if (input.engineNumber?.trim()) {
+    payload.engine_number = input.engineNumber.trim().toUpperCase();
   }
 
-  const mode = (process.env.RC_VERIFICATION_MODE || "mock").toLowerCase();
-  const apiKey = process.env.RC_VERIFICATION_API_KEY;
-  const apiUrl = process.env.RC_VERIFICATION_API_URL || "https://app.way2api.com/api/v1/rc/verify";
+  // Execute Way2API request
+  const apiResult: Way2ApiExecutionResult = await executeWay2ApiCall("rc", payload, options);
 
-  // If real mode is requested but no API key is set, log warning and fallback to mock in non-production
-  const isReal = mode === "real" && Boolean(apiKey);
+  const orderId = apiResult.orderId || "";
+  const rcResult = apiResult.data || {};
+  const messageCode = apiResult.messageCode;
 
-  if (!isReal) {
-    // -------------------------------------------------------------
-    // MOCK VERIFICATION MODE (DEVELOPMENT / TESTING)
-    // -------------------------------------------------------------
-    console.info(`[VehicleVerification] Running in DEVELOPMENT / MOCK MODE for plate: ${normalizedPlate}`);
-
-    // Simulation hooks for automated and developer testing
-    if (normalizedPlate.includes("FAIL") || normalizedPlate.endsWith("8888")) {
-      return {
-        success: false,
-        status: "VERIFICATION_FAILED",
-        provider: "way2api (mock)",
-        referenceId: `MOCK_ERR_${Date.now()}`,
-        checkedAt: now,
-        notes: "Mock Gateway Timeout: Verification service is temporarily unavailable.",
-        error: "Vehicle verification is temporarily unavailable. Please try again later.",
-      };
-    }
-
-    const isSuspendedMock = normalizedPlate.endsWith("7777");
-    const isMismatchMock =
-      normalizedPlate.endsWith("9999") ||
-      (input.vehicleModel && input.vehicleModel.toUpperCase().includes("MISMATCH"));
-
-    const mockRcResult: Record<string, any> = {
-      rc_number: normalizedPlate,
-      fit_up_to: "2038-03-20",
-      registration_date: "2023-03-21",
-      vehicle_category: input.vehicleType === "Bike" ? "2W" : "LMV",
-      maker_description: isMismatchMock
-        ? "MARUTI SUZUKI INDIA LTD"
-        : input.make
-        ? `${input.make.toUpperCase()} MOTOR INDIA LTD`
-        : "HYUNDAI MOTOR INDIA LTD",
-      maker_model: isMismatchMock
-        ? "SWIFT VXI"
-        : input.vehicleModel
-        ? input.vehicleModel.toUpperCase()
-        : "I20 SPORTZ",
-      body_type: input.vehicleType === "Bike" ? "MOTORCYCLE" : "SEDAN/HATCHBACK",
-      fuel_type: input.fuelType?.toUpperCase() || "PETROL",
-      color: input.color?.toUpperCase() || "WHITE",
-      rc_status: isSuspendedMock ? "SUSPENDED" : "ACTIVE",
-      insurance_company: "ICICI LOMBARD GENERAL INSURANCE CO LTD",
-      insurance_upto: "2026-11-30",
-    };
-
-    const comparison = compareVehicleDetails(input, mockRcResult);
-
-    const sanitizedData: SanitizedRCData = {
-      rcNumber: normalizedPlate,
-      rcStatus: mockRcResult.rc_status,
-      makerDescription: mockRcResult.maker_description,
-      makerModel: mockRcResult.maker_model,
-      vehicleCategory: mockRcResult.vehicle_category,
-      bodyType: mockRcResult.body_type,
-      fuelType: mockRcResult.fuel_type,
-      color: mockRcResult.color,
-      registrationDate: mockRcResult.registration_date,
-      fitnessUpto: mockRcResult.fit_up_to,
-      insuranceUpto: mockRcResult.insurance_upto,
-      insuranceCompany: mockRcResult.insurance_company,
-      mismatchDetails: comparison.mismatches,
-      mode: "mock",
-    };
-
-    let status: VehicleVerificationStatus = "VERIFIED";
-    let notes = "Verified successfully via Way2API (Mock Mode).";
-    let rejectionReason = "";
-
-    if (!comparison.isMatch) {
-      status = "MANUAL_REVIEW";
-      notes = `Verification flagged for manual review: ${comparison.mismatches.join("; ")}`;
-      rejectionReason = comparison.mismatches[0];
-    }
-
-    const result: VerificationResult = {
-      success: comparison.isMatch,
-      status,
-      provider: "way2api",
-      referenceId: `MOCK_${Date.now()}_${normalizedPlate}`,
-      checkedAt: now,
-      verifiedAt: status === "VERIFIED" ? now : undefined,
-      notes,
-      rejectionReason: status !== "VERIFIED" ? rejectionReason : undefined,
-      rcData: sanitizedData,
-    };
-
-    // Cache successful verification to prevent immediate repeats
-    verificationCache.set(normalizedPlate, { timestamp: Date.now(), result });
-    return result;
+  // Map RC status
+  let rcStatus: RCVerificationStatus = "FAILED";
+  if (apiResult.isSuccess) {
+    rcStatus = "VERIFIED";
+  } else if (apiResult.status === "ACCEPTED") {
+    rcStatus = "PENDING";
+  } else if (apiResult.messageCode === "RATE_LIMITED" || apiResult.status === "CONFIG_ERROR") {
+    rcStatus = "ERROR";
+  } else {
+    rcStatus = "FAILED";
   }
 
-  // -------------------------------------------------------------
-  // REAL WAY2API VERIFICATION MODE
-  // -------------------------------------------------------------
-  console.info(`[VehicleVerification] Initiating real Way2API request for plate: ${normalizedPlate}`);
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12-second provider timeout
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        rc_number: normalizedPlate,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      console.error(`[VehicleVerification] Way2API HTTP Error ${response.status}:`, errorText);
-
-      // Do NOT automatically reject the vehicle on technical failures
-      return {
-        success: false,
-        status: "VERIFICATION_FAILED",
-        provider: "way2api",
-        referenceId: "",
-        checkedAt: now,
-        notes: `Provider returned HTTP ${response.status}. Verification temporarily unavailable.`,
-        error: "Vehicle verification is temporarily unavailable. Please try again later.",
-      };
-    }
-
-    const apiJson = await response.json();
-
-    // Check Way2API payload response format
-    const rcResult = apiJson?.data?.result || apiJson?.result || apiJson?.data;
-    const orderId = apiJson?.data?.order_id || apiJson?.order_id || `W2A_${Date.now()}`;
-
-    if (!rcResult) {
-      console.warn("[VehicleVerification] Empty result in Way2API response:", apiJson);
-      return {
-        success: false,
-        status: "VERIFICATION_FAILED",
-        provider: "way2api",
-        referenceId: orderId,
-        checkedAt: now,
-        notes: apiJson?.message || "RC details could not be retrieved from provider registry.",
-        error: "Vehicle verification is temporarily unavailable. Please try again later.",
-      };
-    }
-
-    // Compare vehicle information
-    const comparison = compareVehicleDetails(input, rcResult);
-
-    // Extract SANITIZED vehicle data (explicitly EXCLUDING owner_name, address, etc. for privacy)
-    const sanitizedData: SanitizedRCData = {
-      rcNumber: rcResult.rc_number || normalizedPlate,
-      rcStatus: rcResult.rc_status || "ACTIVE",
-      makerDescription: rcResult.maker_description || "",
-      makerModel: rcResult.maker_model || "",
-      vehicleCategory: rcResult.vehicle_category || "",
-      bodyType: rcResult.body_type || "",
-      fuelType: rcResult.fuel_type || "",
-      color: rcResult.color || "",
-      registrationDate: rcResult.registration_date || "",
-      fitnessUpto: rcResult.fit_up_to || "",
-      insuranceUpto: rcResult.insurance_upto || "",
-      insuranceCompany: rcResult.insurance_company || "",
-      mismatchDetails: comparison.mismatches,
-      mode: "real",
-    };
-
-    let status: VehicleVerificationStatus = "VERIFIED";
-    let notes = "Verified successfully via Way2API.";
-    let rejectionReason = "";
-
-    if (!comparison.isMatch) {
-      status = "MANUAL_REVIEW";
-      notes = `Verification flagged for manual review: ${comparison.mismatches.join("; ")}`;
-      rejectionReason = comparison.mismatches[0];
-    }
-
-    const result: VerificationResult = {
-      success: comparison.isMatch,
-      status,
-      provider: "way2api",
-      referenceId: orderId,
-      checkedAt: now,
-      verifiedAt: status === "VERIFIED" ? now : undefined,
-      notes,
-      rejectionReason: status !== "VERIFIED" ? rejectionReason : undefined,
-      rcData: sanitizedData,
-    };
-
-    // Cache verification
-    verificationCache.set(normalizedPlate, { timestamp: Date.now(), result });
-    return result;
-  } catch (error: any) {
-    console.error("[VehicleVerification] Network/execution exception:", error);
-
-    // Network timeout or connection drop
+  // If RC is not found or failed, return immediately
+  if (rcStatus !== "VERIFIED") {
     return {
       success: false,
-      status: "VERIFICATION_FAILED",
+      status: rcStatus === "PENDING" ? "PENDING" : rcStatus === "ERROR" ? "VERIFICATION_FAILED" : "REJECTED",
+      rcStatus,
+      vehicleMatchStatus: "NOT_CHECKED",
       provider: "way2api",
-      referenceId: "",
+      referenceId: orderId,
+      orderId,
+      messageCode,
       checkedAt: now,
-      notes: error.name === "AbortError" ? "Verification request timed out." : error.message || "Network error",
-      error: "Vehicle verification is temporarily unavailable. Please try again later.",
+      notes: apiResult.message,
+      rejectionReason: apiResult.message,
+      error: apiResult.error,
     };
   }
+
+  // Cross-check vehicle details against returned official RC
+  const comparison = compareVehicleDetails(input, rcResult);
+
+  // Build sanitized RC data (Scrubbing owner address, owner name, chassis, engine from public view)
+  const sanitizedData: SanitizedRCData = {
+    rcNumber: rcResult.rc_number || normalizedPlate,
+    rcStatus: rcResult.rc_status || "ACTIVE",
+    makerDescription: rcResult.maker_description || "",
+    makerModel: rcResult.maker_model || "",
+    vehicleCategory: rcResult.vehicle_category || "",
+    bodyType: rcResult.body_type || "",
+    fuelType: rcResult.fuel_type || "",
+    color: rcResult.color || "",
+    registrationDate: rcResult.registration_date || "",
+    fitnessUpto: rcResult.fit_up_to || "",
+    insuranceUpto: rcResult.insurance_upto || "",
+    insuranceCompany: rcResult.insurance_company || "",
+    mismatchDetails: comparison.mismatches,
+    mode: apiResult.isMock ? "mock" : "real",
+  };
+
+  let vehicleMatchStatus: VehicleMatchStatus = "MATCHED";
+  let status: VehicleVerificationStatus = "VERIFIED";
+  let notes = "Vehicle RC verified successfully via Way2API.";
+  let rejectionReason: string | undefined;
+
+  if (!comparison.isMatch) {
+    vehicleMatchStatus = comparison.isCategoryMismatch ? "MISMATCH" : "MANUAL_REVIEW";
+    status = comparison.isCategoryMismatch ? "REJECTED" : "MANUAL_REVIEW";
+    notes = `Vehicle details flagged: ${comparison.mismatches.join("; ")}`;
+    rejectionReason = comparison.mismatches[0];
+  }
+
+  return {
+    success: comparison.isMatch,
+    status,
+    rcStatus,
+    vehicleMatchStatus,
+    provider: "way2api",
+    referenceId: orderId,
+    orderId,
+    messageCode,
+    checkedAt: now,
+    verifiedAt: comparison.isMatch ? now : undefined,
+    notes,
+    rejectionReason,
+    rcData: sanitizedData,
+  };
 }

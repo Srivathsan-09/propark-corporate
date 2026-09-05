@@ -73,14 +73,23 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     if (action === "approve") {
       updateData = {
+        finalDriverStatus: "VERIFIED",
         verificationStatus: "VERIFIED",
         isApproved: true,
         verifiedAt: new Date(),
         rejectionReason: "",
         verificationNotes: notes || "Approved by administrator.",
       };
+
+      // Set user driver verification status to verified
+      const User = (await import("@/models/User")).default;
+      const ownerId = (vehicle.owner as any)?._id || vehicle.owner;
+      await User.findByIdAndUpdate(ownerId, {
+        $set: { driverVerificationStatus: "VERIFIED", isDriverApproved: true },
+      });
     } else if (action === "reject") {
       updateData = {
+        finalDriverStatus: "REJECTED",
         verificationStatus: "REJECTED",
         isApproved: false,
         rejectionReason: rejectionReason.trim(),
@@ -88,12 +97,17 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       };
     } else if (action === "manual_review") {
       updateData = {
+        finalDriverStatus: "PENDING_ADMIN_REVIEW",
         verificationStatus: "MANUAL_REVIEW",
+        vehicleMatchStatus: "MANUAL_REVIEW",
         isApproved: false,
         verificationNotes: notes || "Flagged for manual review by administrator.",
       };
     } else if (action === "reverify") {
-      const { normalizeRegistrationNumber, verifyVehicleWithWay2API } = await import(
+      const { verifyDriverAndVehicle } = await import(
+        "@/lib/services/driverVerificationService"
+      );
+      const { normalizeRegistrationNumber } = await import(
         "@/lib/services/vehicleVerification"
       );
 
@@ -101,7 +115,12 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         vehicle.normalizedRegistrationNumber ||
         normalizeRegistrationNumber(vehicle.registrationNumber);
 
-      const verificationResult = await verifyVehicleWithWay2API(
+      const effectiveDl =
+        vehicle.drivingLicenseNumber || (vehicle.owner as any)?.drivingLicenseNumber || "";
+      const effectiveDob =
+        vehicle.drivingLicenseDob || (vehicle.owner as any)?.drivingLicenseDob || "";
+
+      const verificationResult = await verifyDriverAndVehicle(
         {
           registrationNumber: normalizedPlate,
           vehicleType: vehicle.vehicleType,
@@ -110,19 +129,35 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
           color: vehicle.color || "",
           fuelType: vehicle.fuelType,
           seatingCapacity: vehicle.seatingCapacity,
+          chassisNumber: vehicle.chassisNumber || "",
+          engineNumber: vehicle.engineNumber || "",
+          drivingLicenseNumber: effectiveDl,
+          drivingLicenseDob: effectiveDob,
         },
         { bypassCache: true }
       );
 
       updateData = {
         normalizedRegistrationNumber: normalizedPlate,
-        verificationStatus: verificationResult.status,
-        isApproved: verificationResult.status === "VERIFIED",
-        verificationProvider: verificationResult.provider,
-        verificationReference: verificationResult.referenceId,
+        drivingLicenseStatus: verificationResult.drivingLicenseStatus,
+        drivingLicenseVerifiedAt: verificationResult.dlResult.verifiedAt,
+        drivingLicenseMessageCode: verificationResult.dlResult.messageCode,
+        drivingLicenseOrderId: verificationResult.dlResult.orderId,
+        drivingLicenseClasses: verificationResult.dlResult.vehicleClasses,
+        drivingLicenseData: verificationResult.dlData || {},
+        rcStatus: verificationResult.rcStatus,
+        rcVerifiedAt: verificationResult.rcResult.verifiedAt,
+        rcMessageCode: verificationResult.rcResult.messageCode,
+        rcOrderId: verificationResult.rcResult.orderId,
+        vehicleMatchStatus: verificationResult.vehicleMatchStatus,
+        finalDriverStatus: verificationResult.finalDriverStatus,
+        verificationStatus: verificationResult.rcResult.status,
+        isApproved: false,
+        verificationProvider: "way2api",
+        verificationReference:
+          verificationResult.rcResult.orderId || verificationResult.dlResult.orderId || "",
         verificationCheckedAt: verificationResult.checkedAt,
-        verifiedAt: verificationResult.verifiedAt,
-        verificationNotes: verificationResult.notes,
+        verificationNotes: verificationResult.summaryNotes,
         rejectionReason: verificationResult.rejectionReason || "",
         rcData: verificationResult.rcData || {},
       };
@@ -132,7 +167,21 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       id,
       { $set: updateData },
       { new: true }
-    ).populate("owner", "name employeeId email department");
+    ).populate("owner", "name employeeId email department drivingLicenseNumber drivingLicenseDob");
+
+    // Audit Log Admin Action
+    try {
+      const { logAdminActivity } = await import("@/lib/auditLogger");
+      await logAdminActivity(req, session, {
+        action: `DRIVER_VEHICLE_${action.toUpperCase()}`,
+        targetEntity: "Vehicle",
+        targetId: String(vehicle._id),
+        targetName: `${vehicle.registrationNumber} (${vehicle.vehicleModel})`,
+        details: `Administrator ${session.user.email} executed action '${action}' on vehicle ${vehicle.registrationNumber}. Final Status: ${updateData.finalDriverStatus || updatedVehicle?.finalDriverStatus || updatedVehicle?.verificationStatus}.`,
+      });
+    } catch (auditErr) {
+      console.warn("Admin audit log warning:", auditErr);
+    }
 
     return NextResponse.json({
       success: true,

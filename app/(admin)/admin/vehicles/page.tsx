@@ -47,6 +47,28 @@ interface IVehicle {
   vehiclePhoto?: string;
   numberPlatePhoto?: string;
   drivingLicensePhoto?: string;
+  drivingLicenseNumber?: string;
+  drivingLicenseDob?: string;
+  chassisNumber?: string;
+  engineNumber?: string;
+  drivingLicenseStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
+  drivingLicenseClasses?: string[];
+  drivingLicenseOrderId?: string;
+  drivingLicenseData?: {
+    licenseNumber?: string;
+    state?: string;
+    name?: string;
+    gender?: string;
+    dobFormatted?: string;
+    issueDate?: string;
+    expiryDate?: string;
+    vehicleClasses?: string[];
+    mode?: string;
+  };
+  rcStatus?: "NOT_STARTED" | "PENDING" | "VERIFIED" | "FAILED" | "ERROR";
+  rcOrderId?: string;
+  vehicleMatchStatus?: "NOT_CHECKED" | "MATCHED" | "MISMATCH" | "MANUAL_REVIEW";
+  finalDriverStatus?: "NOT_SUBMITTED" | "PENDING_VERIFICATION" | "PENDING_ADMIN_REVIEW" | "VERIFIED" | "REJECTED";
   fuelType?: string;
   engineCapacity?: string;
   verificationStatus?:
@@ -227,10 +249,10 @@ export default function AdminVehiclesPage() {
             </Link>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
-            Vehicle RC Verification
+            Driver & Vehicle Verification
           </h1>
           <p className="text-xs text-slate-500">
-            Review, verify, and approve employee vehicles with Way2API vehicle RC registry.
+            Review, verify, and approve employee driving licences and vehicle RC with official Way2API registries.
           </p>
         </div>
 
@@ -276,20 +298,20 @@ export default function AdminVehiclesPage() {
       <Card className="border-slate-200 bg-white shadow-sm">
         <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
           <CardTitle className="text-base font-bold text-slate-900">
-            Registered Fleet ({filtered.length})
+            Verification Queue & Fleet ({filtered.length})
           </CardTitle>
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" /> Verified:{" "}
-              {vehicles.filter((v) => v.verificationStatus === "VERIFIED" || v.verificationStatus === "approved" || v.isApproved).length}
+              <span className="h-2 w-2 rounded-full bg-emerald-500" /> Approved:{" "}
+              {vehicles.filter((v) => v.isApproved || v.finalDriverStatus === "VERIFIED").length}
             </span>
             <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-amber-500" /> Review:{" "}
-              {vehicles.filter((v) => v.verificationStatus === "MANUAL_REVIEW").length}
+              <span className="h-2 w-2 rounded-full bg-blue-500" /> Review Queue:{" "}
+              {vehicles.filter((v) => v.finalDriverStatus === "PENDING_ADMIN_REVIEW" || v.verificationStatus === "MANUAL_REVIEW").length}
             </span>
             <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-rose-500" /> Rejected:{" "}
-              {vehicles.filter((v) => v.verificationStatus === "REJECTED" || v.verificationStatus === "rejected").length}
+              {vehicles.filter((v) => v.finalDriverStatus === "REJECTED" || v.verificationStatus === "REJECTED" || v.verificationStatus === "rejected").length}
             </span>
           </div>
         </CardHeader>
@@ -297,7 +319,7 @@ export default function AdminVehiclesPage() {
         <CardContent className="pt-4">
           {filtered.length === 0 ? (
             <div className="text-center py-12 text-slate-500 text-sm">
-              No vehicles found matching search criteria.
+              No verification records found matching search criteria.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -305,11 +327,12 @@ export default function AdminVehiclesPage() {
                 <thead>
                   <tr className="border-b border-slate-100 text-xs uppercase text-slate-400">
                     <th className="py-3 px-4 font-semibold">Driver</th>
+                    <th className="py-3 px-4 font-semibold">Licence (DL)</th>
                     <th className="py-3 px-4 font-semibold">Vehicle</th>
                     <th className="py-3 px-4 font-semibold">Plate No.</th>
-                    <th className="py-3 px-4 font-semibold">Photos</th>
                     <th className="py-3 px-4 font-semibold">RC Status</th>
-                    <th className="py-3 px-4 font-semibold">Checked On</th>
+                    <th className="py-3 px-4 font-semibold">Comparison</th>
+                    <th className="py-3 px-4 font-semibold">Approval</th>
                     <th className="py-3 px-4 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
@@ -317,14 +340,14 @@ export default function AdminVehiclesPage() {
                   {filtered.map((veh) => {
                     const isApproved =
                       veh.isApproved ||
-                      veh.verificationStatus === "approved" ||
-                      veh.verificationStatus === "VERIFIED";
+                      veh.finalDriverStatus === "VERIFIED" ||
+                      veh.verificationStatus === "approved";
 
-                    const status = veh.verificationStatus || (isApproved ? "VERIFIED" : "PENDING");
-                    const isVerified = status === "VERIFIED" || status === "approved" || isApproved;
-                    const isManualReview = status === "MANUAL_REVIEW";
-                    const isRejected = status === "REJECTED" || status === "rejected";
-                    const isFailed = status === "VERIFICATION_FAILED";
+                    const isDlVerified = veh.drivingLicenseStatus === "VERIFIED";
+                    const isRcVerified = veh.rcStatus === "VERIFIED" || veh.verificationStatus === "VERIFIED";
+                    const isMismatch = veh.vehicleMatchStatus === "MISMATCH";
+                    const isRejected = veh.finalDriverStatus === "REJECTED" || veh.verificationStatus === "REJECTED" || veh.verificationStatus === "rejected";
+                    const isPendingReview = veh.finalDriverStatus === "PENDING_ADMIN_REVIEW" || veh.verificationStatus === "MANUAL_REVIEW";
 
                     return (
                       <tr key={veh._id} className="hover:bg-slate-50/70 transition-colors">
@@ -341,6 +364,34 @@ export default function AdminVehiclesPage() {
                               <Building2 className="h-2.5 w-2.5" />
                               {veh.owner.campusId}
                             </div>
+                          )}
+                        </td>
+
+                        {/* Licence DL Column */}
+                        <td className="py-3 px-4 text-xs">
+                          {isDlVerified ? (
+                            <div>
+                              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold gap-1">
+                                <CheckCircle className="h-3 w-3 text-emerald-600" /> DL Verified
+                              </Badge>
+                              {veh.drivingLicenseClasses && veh.drivingLicenseClasses.length > 0 && (
+                                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                  {veh.drivingLicenseClasses.join(", ")}
+                                </div>
+                              )}
+                            </div>
+                          ) : veh.drivingLicenseStatus === "FAILED" ? (
+                            <Badge variant="destructive" className="text-[10px] font-semibold gap-1">
+                              <X className="h-3 w-3" /> DL Failed
+                            </Badge>
+                          ) : veh.drivingLicenseStatus === "PENDING" ? (
+                            <Badge className="bg-amber-50 text-amber-800 border-amber-200 text-[10px] font-semibold gap-1">
+                              <Clock className="h-3 w-3 text-amber-600" /> Pending
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] text-slate-400">
+                              Not Provided
+                            </Badge>
                           )}
                         </td>
 
@@ -362,15 +413,11 @@ export default function AdminVehiclesPage() {
                           </div>
                         </td>
 
-                        {/* Plate Number */}
+                        {/* Plate Number & Photos */}
                         <td className="py-3 px-4 font-mono font-bold text-slate-800 text-xs">
-                          {veh.registrationNumber}
-                        </td>
-
-                        {/* Photos */}
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-1.5">
-                            {veh.vehiclePhoto ? (
+                          <div>{veh.registrationNumber}</div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {veh.vehiclePhoto && (
                               <button
                                 type="button"
                                 onClick={() =>
@@ -379,20 +426,13 @@ export default function AdminVehiclesPage() {
                                     title: `Vehicle: ${veh.vehicleModel} (${veh.registrationNumber})`,
                                   })
                                 }
-                                className="h-8 w-10 rounded border border-slate-200 overflow-hidden hover:opacity-80 transition-opacity"
+                                className="h-5 w-7 rounded border border-slate-200 overflow-hidden hover:opacity-80"
                                 title="View Vehicle Photo"
                               >
-                                <img
-                                  src={veh.vehiclePhoto}
-                                  alt="Vehicle"
-                                  className="h-full w-full object-cover"
-                                />
+                                <img src={veh.vehiclePhoto} alt="Veh" className="h-full w-full object-cover" />
                               </button>
-                            ) : (
-                              <span className="text-[10px] text-slate-400">No Photo</span>
                             )}
-
-                            {veh.numberPlatePhoto ? (
+                            {veh.numberPlatePhoto && (
                               <button
                                 type="button"
                                 onClick={() =>
@@ -401,82 +441,83 @@ export default function AdminVehiclesPage() {
                                     title: `Plate: ${veh.registrationNumber}`,
                                   })
                                 }
-                                className="h-8 w-10 rounded border border-slate-200 overflow-hidden hover:opacity-80 transition-opacity"
+                                className="h-5 w-7 rounded border border-slate-200 overflow-hidden hover:opacity-80"
                                 title="View Plate Photo"
                               >
-                                <img
-                                  src={veh.numberPlatePhoto}
-                                  alt="Plate"
-                                  className="h-full w-full object-cover"
-                                />
+                                <img src={veh.numberPlatePhoto} alt="Plate" className="h-full w-full object-cover" />
                               </button>
-                            ) : null}
-
-                            {veh.drivingLicensePhoto ? (
+                            )}
+                            {veh.drivingLicensePhoto && (
                               <button
                                 type="button"
                                 onClick={() =>
                                   setPreviewPhoto({
                                     url: veh.drivingLicensePhoto!,
-                                    title: `License: ${veh.owner?.name || "Employee"} (${veh.registrationNumber})`,
+                                    title: `Licence: ${veh.owner?.name || "Driver"}`,
                                   })
                                 }
-                                className="h-8 w-10 rounded border border-slate-200 overflow-hidden hover:opacity-80 transition-opacity"
-                                title="View License"
+                                className="h-5 w-7 rounded border border-slate-200 overflow-hidden hover:opacity-80"
+                                title="View Licence Copy"
                               >
-                                <img
-                                  src={veh.drivingLicensePhoto}
-                                  alt="License"
-                                  className="h-full w-full object-cover"
-                                />
+                                <img src={veh.drivingLicensePhoto} alt="DL" className="h-full w-full object-cover" />
                               </button>
-                            ) : null}
+                            )}
                           </div>
                         </td>
 
                         {/* RC Verification Status */}
                         <td className="py-3 px-4">
-                          {isVerified ? (
+                          {isRcVerified ? (
                             <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold gap-1">
-                              <CheckCircle className="h-3 w-3 text-emerald-600" /> Verified
+                              <CheckCircle className="h-3 w-3 text-emerald-600" /> Active RC
                             </Badge>
-                          ) : isManualReview ? (
-                            <Badge className="bg-amber-100 text-amber-900 border-amber-300 text-[10px] font-semibold gap-1">
-                              <Clock className="h-3 w-3 text-amber-600" /> Manual Review
-                            </Badge>
-                          ) : isRejected ? (
+                          ) : veh.rcStatus === "FAILED" ? (
                             <Badge variant="destructive" className="text-[10px] font-semibold gap-1">
-                              <X className="h-3 w-3" /> Rejected
-                            </Badge>
-                          ) : isFailed ? (
-                            <Badge className="bg-slate-100 text-slate-800 border-slate-300 text-[10px] font-semibold gap-1">
-                              <AlertCircle className="h-3 w-3 text-slate-600" /> Provider Failed
+                              <X className="h-3 w-3" /> Not Found
                             </Badge>
                           ) : (
                             <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-semibold">
                               Pending
                             </Badge>
                           )}
-                          {veh.rcData?.mismatchDetails && veh.rcData.mismatchDetails.length > 0 && (
-                            <span
-                              className="text-[10px] text-amber-700 font-semibold block mt-0.5 truncate max-w-[140px]"
-                              title={veh.rcData.mismatchDetails.join("; ")}
-                            >
-                              ⚠ Mismatch flagged
-                            </span>
+                        </td>
+
+                        {/* Comparison Status */}
+                        <td className="py-3 px-4 text-xs">
+                          {isMismatch ? (
+                            <Badge variant="destructive" className="text-[10px] font-semibold gap-1" title={veh.rejectionReason || "Details mismatch"}>
+                              <AlertTriangle className="h-3 w-3" /> Mismatch
+                            </Badge>
+                          ) : veh.vehicleMatchStatus === "MATCHED" ? (
+                            <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-semibold gap-1">
+                              <Check className="h-3 w-3 text-emerald-600" /> Matched
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] text-slate-500">
+                              Check Needed
+                            </Badge>
                           )}
                         </td>
 
-                        {/* Checked On */}
-                        <td className="py-3 px-4 text-xs text-slate-600">
-                          <div>
-                            {veh.verificationCheckedAt
-                              ? new Date(veh.verificationCheckedAt).toLocaleDateString()
-                              : new Date(veh.createdAt).toLocaleDateString()}
-                          </div>
-                          <span className="text-[10px] text-slate-400">
-                            {veh.verificationProvider || "Way2API"}
-                          </span>
+                        {/* Approval Status */}
+                        <td className="py-3 px-4 text-xs">
+                          {isApproved ? (
+                            <Badge className="bg-emerald-600 text-white border-0 text-[10px] font-bold gap-1 shadow-xs">
+                              <CheckCircle className="h-3 w-3" /> Approved
+                            </Badge>
+                          ) : isPendingReview ? (
+                            <Badge className="bg-blue-600 text-white border-0 text-[10px] font-bold gap-1 shadow-xs">
+                              <Clock className="h-3 w-3" /> Review Queue
+                            </Badge>
+                          ) : isRejected ? (
+                            <Badge variant="destructive" className="text-[10px] font-semibold gap-1">
+                              <X className="h-3 w-3" /> Rejected
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-slate-100 text-slate-700 border-slate-200 text-[10px]">
+                              Pending
+                            </Badge>
+                          )}
                         </td>
 
                         {/* Actions */}
@@ -488,7 +529,7 @@ export default function AdminVehiclesPage() {
                               variant="outline"
                               onClick={() => setDetailsVehicle(veh)}
                               className="h-8 px-2.5 text-xs gap-1 rounded-lg text-slate-700 hover:bg-slate-100"
-                              title="View RC details & verification audit"
+                              title="View full Driver & RC comparison"
                             >
                               <Eye className="h-3.5 w-3.5" />
                               <span>View</span>
@@ -501,7 +542,7 @@ export default function AdminVehiclesPage() {
                               onClick={() => handleVerify(veh._id, "reverify")}
                               disabled={actionLoadingId === veh._id}
                               className="h-8 px-2 text-xs rounded-lg text-slate-600 hover:bg-slate-100"
-                              title="Re-run Way2API Verification"
+                              title="Re-run Way2API DL & RC Verification"
                             >
                               {actionLoadingId === veh._id ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -511,7 +552,7 @@ export default function AdminVehiclesPage() {
                             </Button>
 
                             {/* Approve */}
-                            {!isVerified && (
+                            {!isApproved && (
                               <Button
                                 size="sm"
                                 onClick={() => handleVerify(veh._id, "approve")}
@@ -562,7 +603,7 @@ export default function AdminVehiclesPage() {
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Shield className="h-5 w-5 text-emerald-600" />
-              <span>Vehicle RC Verification Details</span>
+              <span>Driver & Vehicle Verification Details</span>
             </DialogTitle>
           </DialogHeader>
 
@@ -588,6 +629,87 @@ export default function AdminVehiclesPage() {
                 </div>
               </div>
 
+              {/* Driving Licence Box */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="bg-slate-100 px-3 py-2 font-bold text-slate-800 text-xs border-b border-slate-200 flex items-center justify-between">
+                  <span>1. Driving Licence Verification (Way2API Registry)</span>
+                  {detailsVehicle.drivingLicenseStatus === "VERIFIED" ? (
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
+                      ✓ DL Verified
+                    </Badge>
+                  ) : detailsVehicle.drivingLicenseStatus === "FAILED" ? (
+                    <Badge variant="destructive" className="text-[10px]">
+                      ✗ DL Failed
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]">
+                      Pending / Not Provided
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="p-3 bg-white space-y-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Licence Number</span>
+                      <span className="font-mono font-bold text-slate-900">
+                        {detailsVehicle.drivingLicenseNumber || (detailsVehicle.owner as any)?.drivingLicenseNumber || "Not entered"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Registry Name</span>
+                      <span className="font-medium text-slate-800">
+                        {detailsVehicle.drivingLicenseData?.name || "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">State / Jurisdiction</span>
+                      <span className="text-slate-800">
+                        {detailsVehicle.drivingLicenseData?.state || "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Authorized Classes</span>
+                      <span className="font-mono font-bold text-emerald-800">
+                        {detailsVehicle.drivingLicenseClasses?.length
+                          ? detailsVehicle.drivingLicenseClasses.join(", ")
+                          : "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Validity Expiry</span>
+                      <span className="text-slate-800">
+                        {detailsVehicle.drivingLicenseData?.expiryDate || "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Vehicle Compatibility</span>
+                      {(() => {
+                        const classes = detailsVehicle.drivingLicenseClasses || [];
+                        const isBike = detailsVehicle.vehicleType.toLowerCase() === "bike";
+                        const hasBikeClass = classes.some((c) =>
+                          c.includes("MCWG") || c.includes("2W") || c.includes("M-CYCLE")
+                        );
+                        const hasCarClass = classes.some((c) =>
+                          c.includes("LMV") || c.includes("4W") || c.includes("MOTOR CAB")
+                        );
+                        const compatible = isBike ? hasBikeClass : hasCarClass;
+
+                        return compatible ? (
+                          <span className="text-emerald-700 font-bold flex items-center gap-1">
+                            <Check className="h-3 w-3" /> Compatible ({isBike ? "Motorcycle" : "LMV/Car"})
+                          </span>
+                        ) : (
+                          <span className="text-rose-700 font-bold flex items-center gap-1">
+                            <X className="h-3 w-3" /> Incompatible Class
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Mismatch Alert Box */}
               {detailsVehicle.rcData?.mismatchDetails && detailsVehicle.rcData.mismatchDetails.length > 0 && (
                 <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-1">
@@ -606,7 +728,7 @@ export default function AdminVehiclesPage() {
               {/* Comparison Table: Driver Input vs Way2API Official RC */}
               <div className="border border-slate-200 rounded-xl overflow-hidden">
                 <div className="bg-slate-100 px-3 py-2 font-bold text-slate-800 text-xs border-b border-slate-200">
-                  Data Comparison (Driver Submission vs National Registry)
+                  2. Vehicle RC Data Comparison (Driver Submission vs National Registry)
                 </div>
                 <table className="w-full text-xs">
                   <thead>
@@ -643,7 +765,7 @@ export default function AdminVehiclesPage() {
                     <tr>
                       <td className="py-2 px-3 font-semibold text-slate-600">Vehicle Type / Category</td>
                       <td className="py-2 px-3">{detailsVehicle.vehicleType}</td>
-                      <td className="py-2 px-3">
+                      <td className="py-2 px-3 font-medium text-slate-900">
                         {detailsVehicle.rcData?.vehicleCategory || detailsVehicle.rcData?.bodyType || "—"}
                       </td>
                     </tr>
@@ -712,7 +834,7 @@ export default function AdminVehiclesPage() {
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-slate-600">Order / Reference ID:</span>
                   <span className="font-mono text-slate-800">
-                    {detailsVehicle.verificationReference || "—"}
+                    {detailsVehicle.verificationReference || detailsVehicle.rcOrderId || "—"}
                   </span>
                 </div>
                 {detailsVehicle.rejectionReason && (
@@ -761,7 +883,7 @@ export default function AdminVehiclesPage() {
                     disabled={actionLoadingId === detailsVehicle._id}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white"
                   >
-                    <Check className="h-3.5 w-3.5" /> Approve Vehicle
+                    <Check className="h-3.5 w-3.5" /> Approve Driver
                   </Button>
                 </div>
               </div>
