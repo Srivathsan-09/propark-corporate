@@ -73,19 +73,35 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       { bypassCache: true }
     );
 
-    const updatedVehicle = await Vehicle.findByIdAndUpdate(
-      id,
+    const updatedVehicle = await Vehicle.findOneAndUpdate(
+      { _id: id, ...(isAdmin ? {} : { owner: session.user.id }) },
       {
         $set: {
           normalizedRegistrationNumber: normalizedPlate,
+          rcProviderStatus: verificationResult.rcProviderStatus,
+          rcStatus: verificationResult.rcStatus,
+          rcVerifiedAt: verificationResult.verifiedAt,
+          rcMessageCode: verificationResult.messageCode,
+          rcOrderId: verificationResult.orderId || "",
+          vehicleMatchStatus: verificationResult.vehicleMatchStatus,
+          commutexVehicleVerificationStatus: verificationResult.commutexVehicleVerificationStatus,
           verificationStatus: verificationResult.status,
-          isApproved: verificationResult.status === "VERIFIED",
+          isApproved:
+            verificationResult.status === "VERIFIED" &&
+            (vehicle.adminApprovalStatus === "APPROVED" || vehicle.isApproved === true),
           verificationProvider: verificationResult.provider,
           verificationReference: verificationResult.referenceId,
           verificationCheckedAt: verificationResult.checkedAt,
           verifiedAt: verificationResult.verifiedAt,
           verificationNotes: verificationResult.notes,
           rejectionReason: verificationResult.rejectionReason || "",
+          verifiedMaker: verificationResult.verifiedMaker || "",
+          verifiedModel: verificationResult.verifiedModel || "",
+          verifiedCategory: verificationResult.verifiedCategory || "",
+          verifiedBodyType: verificationResult.verifiedBodyType || "",
+          verifiedRCStatus: verificationResult.verifiedRCStatus || "",
+          verifiedCapacity: verificationResult.verifiedCapacity || "",
+          verifiedRegistrationNumber: verificationResult.verifiedRegistrationNumber || normalizedPlate,
           rcData: verificationResult.rcData || {},
         },
       },

@@ -76,6 +76,9 @@ export interface VerificationResult {
   verifiedMaker?: string;
   verifiedModel?: string;
   verifiedCapacity?: number | string;
+  verifiedBodyType?: string;
+  verifiedRCStatus?: string;
+  verifiedRegistrationNumber?: string;
   error?: string;
 }
 
@@ -117,6 +120,24 @@ function cleanCompanyNoise(str: string): string {
  */
 function cleanModelString(str: string): string {
   return str.toUpperCase().replace(/[^A-Z0-9]/gi, "");
+}
+
+/**
+ * Calculates Levenshtein edit distance for typo tolerance (e.g. Jupyter vs Jupiter)
+ */
+function calculateLevenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) dp[i][j] = dp[i - 1][j - 1];
+      else dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
 }
 
 export type RegisteredVehicleCategory =
@@ -571,12 +592,17 @@ export function compareVehicleDetails(
     const cleanApiModel = cleanModelString(apiModel);
 
     const subWords = submittedModel.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
-    const apiWords = apiModel.toLowerCase();
+    const apiWords = apiModel.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
+
+    const isFuzzyTypoMatch =
+      calculateLevenshteinDistance(cleanSubModel, cleanApiModel) <= (cleanApiModel.length >= 6 ? 2 : 1) ||
+      subWords.some((sw) => apiWords.some((aw) => calculateLevenshteinDistance(sw, aw) <= (aw.length >= 6 ? 2 : 1)));
 
     const modelMatch =
       cleanApiModel.includes(cleanSubModel) ||
       cleanSubModel.includes(cleanApiModel) ||
-      subWords.some((w) => apiWords.includes(w));
+      subWords.some((w) => apiModel.toLowerCase().includes(w)) ||
+      isFuzzyTypoMatch;
 
     if (!modelMatch) {
       mismatches.push(
@@ -604,7 +630,7 @@ export async function verifyVehicleWithWay2API(
   const now = new Date();
 
   // Validate plate length
-  if (!normalizedPlate || normalizedPlate.length < 8 || normalizedPlate.length > 11) {
+  if (!normalizedPlate || normalizedPlate.length < 6 || normalizedPlate.length > 15) {
     return {
       success: false,
       status: "REJECTED",
@@ -644,28 +670,78 @@ export async function verifyVehicleWithWay2API(
     rcProviderStatus = "VERIFIED";
   } else if (apiResult.status === "ACCEPTED") {
     rcProviderStatus = "PENDING";
-  } else if (apiResult.messageCode === "RATE_LIMITED" || apiResult.status === "CONFIG_ERROR") {
+  } else if (
+    apiResult.messageCode === "RATE_LIMITED" ||
+    apiResult.status === "CONFIG_ERROR" ||
+    apiResult.status === "PAYMENT_REQUIRED" ||
+    apiResult.messageCode === "INSUFFICIENT_BALANCE"
+  ) {
     rcProviderStatus = "ERROR";
   } else {
     rcProviderStatus = "FAILED";
   }
 
-  // If RC is not found or failed, return immediately
-  if (rcProviderStatus !== "VERIFIED") {
+  // STEP 3 — STRICT REQUEST/RESPONSE MATCH (Step 3 compliance)
+  // Confirm that: REQUEST rc_number == RESPONSE data.result.rc_number
+  const returnedPlate = normalizeRegistrationNumber(
+    rcResult.rc_number || rcResult.registration_number || ""
+  );
+
+  if (apiResult.isSuccess && returnedPlate && returnedPlate !== normalizedPlate) {
+    console.warn(
+      `[Way2API RC Mismatch] Strict match failed: Requested '${normalizedPlate}' != Returned '${returnedPlate}'. Aborting.`
+    );
     return {
       success: false,
-      status: rcProviderStatus === "PENDING" ? "PENDING" : rcProviderStatus === "ERROR" ? "VERIFICATION_FAILED" : "REJECTED",
-      rcStatus: "NOT_FOUND",
+      status: "MANUAL_REVIEW",
+      rcStatus: "MISMATCH",
+      rcProviderStatus: "FAILED",
+      vehicleMatchStatus: "MANUAL_REVIEW",
+      commutexVehicleVerificationStatus: "MANUAL_REVIEW",
+      provider: "way2api",
+      referenceId: orderId,
+      orderId,
+      messageCode: "VERIFICATION_DATA_MISMATCH",
+      checkedAt: now,
+      notes: `Verification data mismatch: Provider returned registration '${returnedPlate}' for requested plate '${normalizedPlate}'. Flagged for administrator review.`,
+      rejectionReason: "VERIFICATION_DATA_MISMATCH: Registration number mismatch between request and provider response.",
+      error: "VERIFICATION_DATA_MISMATCH",
+      verifiedRegistrationNumber: returnedPlate,
+    };
+  }
+
+  // STEP 7: If RC is not found or provider failed/unavailable, return immediately without fake data
+  if (rcProviderStatus !== "VERIFIED") {
+    const isUnavailableOrPayment =
+      apiResult.status === "PAYMENT_REQUIRED" ||
+      apiResult.status === "MANUAL_REVIEW" ||
+      messageCode === "INSUFFICIENT_BALANCE" ||
+      messageCode === "VERIFICATION_DATA_UNAVAILABLE";
+
+    return {
+      success: false,
+      status: isUnavailableOrPayment
+        ? "MANUAL_REVIEW"
+        : rcProviderStatus === "PENDING"
+        ? "PENDING"
+        : rcProviderStatus === "ERROR"
+        ? "VERIFICATION_FAILED"
+        : "REJECTED",
+      rcStatus: isUnavailableOrPayment ? "UNAVAILABLE" : "NOT_FOUND",
       rcProviderStatus,
       vehicleMatchStatus: "NOT_CHECKED",
-      commutexVehicleVerificationStatus: "FAILED",
+      commutexVehicleVerificationStatus: isUnavailableOrPayment ? "MANUAL_REVIEW" : "FAILED",
       provider: "way2api",
       referenceId: orderId,
       orderId,
       messageCode,
       checkedAt: now,
-      notes: apiResult.message,
-      rejectionReason: apiResult.message,
+      notes: isUnavailableOrPayment
+        ? "Verification data unavailable — manual review required."
+        : apiResult.message || "Verification failed.",
+      rejectionReason: isUnavailableOrPayment
+        ? "Verification data unavailable — manual review required."
+        : apiResult.message,
       error: apiResult.error,
     };
   }
@@ -703,7 +779,7 @@ export async function verifyVehicleWithWay2API(
   let rejectionReason: string | undefined;
 
   if (!comparison.isMatch || registryRcStatus !== "ACTIVE") {
-    vehicleMatchStatus = "MANUAL_REVIEW";
+    vehicleMatchStatus = "MISMATCH";
     commutexVehicleVerificationStatus = "MANUAL_REVIEW";
     status = "MANUAL_REVIEW";
     notes = `Vehicle details flagged for administrator review: ${comparison.mismatches.join("; ")}`;
@@ -730,5 +806,8 @@ export async function verifyVehicleWithWay2API(
     verifiedMaker: rcResult.maker_description || "",
     verifiedModel: rcResult.maker_model || "",
     verifiedCapacity: rcResult.seating_capacity || "",
+    verifiedBodyType: rcResult.body_type || "",
+    verifiedRCStatus: registryRcStatus,
+    verifiedRegistrationNumber: rcResult.rc_number || normalizedPlate,
   };
 }

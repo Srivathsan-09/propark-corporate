@@ -55,6 +55,13 @@ export interface IVehicle extends Document {
   verifiedAt?: Date;
   verificationNotes?: string;
   rejectionReason?: string;
+  verifiedMaker?: string;
+  verifiedModel?: string;
+  verifiedCategory?: string;
+  verifiedBodyType?: string;
+  verifiedRCStatus?: string;
+  verifiedCapacity?: number | string;
+  verifiedRegistrationNumber?: string;
   rcData?: {
     rcNumber?: string;
     rcStatus?: string;
@@ -315,6 +322,34 @@ const VehicleSchema = new Schema<IVehicle>(
       default: "",
     },
     rejectionReason: {
+      type: String,
+      default: "",
+    },
+    verifiedMaker: {
+      type: String,
+      default: "",
+    },
+    verifiedModel: {
+      type: String,
+      default: "",
+    },
+    verifiedCategory: {
+      type: String,
+      default: "",
+    },
+    verifiedBodyType: {
+      type: String,
+      default: "",
+    },
+    verifiedRCStatus: {
+      type: String,
+      default: "",
+    },
+    verifiedCapacity: {
+      type: Schema.Types.Mixed,
+      default: "",
+    },
+    verifiedRegistrationNumber: {
       type: String,
       default: "",
     },

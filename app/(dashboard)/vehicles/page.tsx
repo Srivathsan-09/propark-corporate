@@ -656,30 +656,74 @@ export default function VehiclesPage() {
                       </div>
                     </div>
 
-                    {/* Granular Verification Badges */}
-                    <div className="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2">
+                    {/* Granular Verification Badges (Step 11 compliance) */}
+                    <div className="p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-1.5">
                       {/* 1. RC Lookup Status */}
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-semibold text-slate-700 flex items-center gap-1.5">
                           <Car className="h-3.5 w-3.5 text-slate-600" />
                           <span>RC Lookup:</span>
                         </span>
-                        {vehicle.rcProviderStatus === "VERIFIED" || (vehicle.rcData?.rcNumber && vehicle.rcStatus !== "FAILED" && vehicle.rcStatus !== "NOT_FOUND") ? (
+                        {vehicle.rcProviderStatus === "VERIFIED" || (vehicle.rcData?.rcNumber && vehicle.rcStatus !== "FAILED" && vehicle.rcStatus !== "NOT_FOUND" && vehicle.rcStatus !== "UNAVAILABLE") ? (
                           <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold py-0">
-                            ✓ Record Found ({vehicle.rcData?.rcStatus || (vehicle.rcStatus === "VERIFIED" ? "Active" : vehicle.rcStatus) || "Active"})
+                            ✓ Completed
+                          </Badge>
+                        ) : vehicle.rcProviderStatus === "ERROR" || vehicle.rcStatus === "UNAVAILABLE" ? (
+                          <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] font-semibold py-0">
+                            ⚠ Unavailable
                           </Badge>
                         ) : vehicle.rcProviderStatus === "FAILED" || vehicle.rcStatus === "FAILED" || vehicle.rcStatus === "NOT_FOUND" ? (
                           <Badge variant="destructive" className="text-[10px] font-semibold py-0">
-                            ✗ RC Not Found
+                            ✗ Not Found
                           </Badge>
                         ) : (
-                          <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] font-semibold py-0">
-                            ⏳ Lookup Pending
+                          <Badge className="bg-slate-100 text-slate-700 border-slate-300 text-[10px] font-semibold py-0">
+                            ⏳ Pending
                           </Badge>
                         )}
                       </div>
 
-                      {/* 2. Driving Licence */}
+                      {/* 2. RC Status */}
+                      {(vehicle.rcData?.rcStatus || vehicle.rcStatus === "ACTIVE" || vehicle.rcStatus === "SUSPENDED") && (
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                            <span className="w-3.5 text-center font-bold text-slate-500 text-[10px]">RC</span>
+                            <span>RC Status:</span>
+                          </span>
+                          {(vehicle.rcData?.rcStatus || vehicle.rcStatus) === "ACTIVE" ? (
+                            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold py-0">
+                              ✓ Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-[10px] font-semibold py-0">
+                              ⚠ {vehicle.rcData?.rcStatus || vehicle.rcStatus || "Inactive"}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 3. Vehicle Details Match Status */}
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                          <CheckCircle className="h-3.5 w-3.5 text-slate-600" />
+                          <span>Vehicle Details:</span>
+                        </span>
+                        {vehicle.vehicleMatchStatus === "MISMATCH" || isManualReview || (vehicle.rcData?.mismatchDetails && vehicle.rcData.mismatchDetails.length > 0) ? (
+                          <Badge variant="destructive" className="bg-rose-100 text-rose-800 border-rose-300 text-[10px] font-semibold py-0">
+                            ✕ Mismatch
+                          </Badge>
+                        ) : vehicle.vehicleMatchStatus === "MATCHED" ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] font-semibold py-0">
+                            ✓ Matched
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-slate-500 py-0">
+                            Not Checked
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* 4. Driving Licence */}
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-semibold text-slate-700 flex items-center gap-1.5">
                           <FileBadge className="h-3.5 w-3.5 text-slate-600" />
@@ -710,7 +754,7 @@ export default function VehiclesPage() {
                         )}
                       </div>
 
-                      {/* 3. CommuteX Vehicle Verification */}
+                      {/* 5. CommuteX Vehicle Verification */}
                       <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60">
                         <span className="font-semibold text-slate-700 flex items-center gap-1.5">
                           <Shield className="h-3.5 w-3.5 text-indigo-600" />

@@ -93,6 +93,16 @@ export function mapMessageCodeToExplanation(messageCode: string, serviceType: "D
 }
 
 /**
+ * Helper to mask sensitive PII for server-side log safety (Step 2 compliance)
+ */
+function maskField(value?: string | number): string {
+  if (!value) return "—";
+  const str = String(value);
+  if (str.length <= 4) return "****";
+  return `${str.slice(0, 2)}${"*".repeat(Math.min(str.length - 4, 8))}${str.slice(-2)}`;
+}
+
+/**
  * Base invoker for Way2API endpoints.
  */
 export async function executeWay2ApiCall(
@@ -102,17 +112,6 @@ export async function executeWay2ApiCall(
 ): Promise<Way2ApiExecutionResult> {
   const isDL = endpoint === "driving-license";
   const serviceLabel = isDL ? "DL" : "RC";
-
-  // Cache key based on endpoint and primary identifier
-  const primaryId = isDL ? String(bodyPayload.dl_number || "") : String(bodyPayload.rc_number || "");
-  const cacheKey = `${endpoint}_${primaryId.toUpperCase().replace(/[^A-Z0-9]/g, "")}`;
-
-  if (!options?.bypassCache && primaryId) {
-    const cached = requestCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      return cached.result;
-    }
-  }
 
   // Determine mode and credentials
   const modeEnv = isDL
@@ -127,6 +126,29 @@ export async function executeWay2ApiCall(
   const apiUrl = isDL
     ? process.env.DL_VERIFICATION_API_URL || "https://app.way2api.com/api/v1/driving-license/verify"
     : process.env.RC_VERIFICATION_API_URL || "https://app.way2api.com/api/v1/rc/verify";
+
+  // Cache key based on mode, endpoint and primary identifier (Step 4 & 5 compliance)
+  const primaryId = isDL ? String(bodyPayload.dl_number || "") : String(bodyPayload.rc_number || "");
+  const normalizedPrimaryId = primaryId.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const cacheKey = `${mode}_${endpoint}_${normalizedPrimaryId}`;
+
+  if (!options?.bypassCache && normalizedPrimaryId) {
+    const cached = requestCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.result;
+    }
+  }
+
+  // STEP 1 — LOG THE EXACT SANITIZED REQUEST IMMEDIATELY BEFORE CALLING
+  if (endpoint === "rc") {
+    console.info(
+      `[Way2API RC Request] provider = Way2API | endpoint = /api/v1/rc/verify | rc_number = ${normalizedPrimaryId}`
+    );
+  } else {
+    console.info(
+      `[Way2API DL Request] provider = Way2API | endpoint = /api/v1/driving-license/verify | dl_number = ${normalizedPrimaryId}`
+    );
+  }
 
   // Section 3: If real mode is configured but API key is missing, raise configuration error
   if (mode === "real" && !apiKey) {
@@ -144,9 +166,9 @@ export async function executeWay2ApiCall(
   // MOCK MODE FOR DEVELOPMENT / TESTING
   // --------------------------------------------------------------------------
   if (mode !== "real") {
-    console.info(`[Way2API] [MOCK MODE] Executing ${endpoint} for ID: ${primaryId}`);
+    console.info(`[Way2API] [MOCK MODE] Executing ${endpoint} for ID: ${normalizedPrimaryId}`);
     const mockRes = handleMockWay2ApiCall(endpoint, bodyPayload);
-    if (primaryId && mockRes.isSuccess) {
+    if (normalizedPrimaryId && mockRes.isSuccess) {
       requestCache.set(cacheKey, { timestamp: Date.now(), result: mockRes });
     }
     return mockRes;
@@ -201,12 +223,13 @@ export async function executeWay2ApiCall(
       }
 
       if (response.status === 402) {
+        console.warn(`[Way2API] HTTP 402 Payment Required on ${endpoint} (Insufficient provider balance)`);
         return {
           isSuccess: false,
           status: "PAYMENT_REQUIRED",
           messageCode: "INSUFFICIENT_BALANCE",
-          message: "Verification service is temporarily unavailable.",
-          error: "Insufficient Way2API balance",
+          message: "Verification data unavailable — manual review required.",
+          error: "Insufficient Way2API balance. Please contact administrator.",
         };
       }
 
@@ -229,6 +252,17 @@ export async function executeWay2ApiCall(
 
     const isVerified = apiSuccess && messageCode === "OK";
 
+    // STEP 2 — LOG RAW PROVIDER RESPONSE FIELDS (Sanitized / Masked)
+    if (endpoint === "rc") {
+      console.info(
+        `[Way2API RC Response] message_code = ${messageCode || "N/A"} | status = ${apiJson.status || "N/A"} | success = ${apiSuccess} | rc_number = ${resultData.rc_number || normalizedPrimaryId} | maker_description = ${resultData.maker_description || "N/A"} | maker_model = ${resultData.maker_model || "N/A"} | vehicle_category = ${resultData.vehicle_category || resultData.vehicle_category_description || "N/A"} | body_type = ${resultData.body_type || "N/A"} | fuel_type = ${resultData.fuel_type || "N/A"} | rc_status = ${resultData.rc_status || "N/A"} | owner_name = ${maskField(resultData.owner_name)} | vehicle_chasi_number = ${maskField(resultData.vehicle_chasi_number)} | vehicle_engine_number = ${maskField(resultData.vehicle_engine_number)}`
+      );
+    } else {
+      console.info(
+        `[Way2API DL Response] message_code = ${messageCode || "N/A"} | status = ${apiJson.status || "N/A"} | success = ${apiSuccess} | dl_number = ${resultData.license_number || normalizedPrimaryId} | name = ${maskField(resultData.name)} | doe = ${resultData.doe || "N/A"} | vehicle_classes = ${JSON.stringify(resultData.vehicle_classes || [])}`
+      );
+    }
+
     const executionResult: Way2ApiExecutionResult = {
       isSuccess: isVerified,
       status: apiJson.status || (isVerified ? "SUCCESS" : "FAILED"),
@@ -239,7 +273,7 @@ export async function executeWay2ApiCall(
       isRateLimited: messageCode === "RATE_LIMITED",
     };
 
-    if (isVerified && primaryId) {
+    if (isVerified && normalizedPrimaryId) {
       requestCache.set(cacheKey, { timestamp: Date.now(), result: executionResult });
     }
 
@@ -394,49 +428,115 @@ function handleMockWay2ApiCall(
     };
   }
 
-  // RC Mock Record
-  const isBikePlateMock = idStr.includes("BIKE") || idStr.endsWith("3333");
+  // --------------------------------------------------------------------------
+  // RC MOCK RECORDS (Step 7: Never default unknown plates to Hyundai i20)
+  // --------------------------------------------------------------------------
+  
+  // Specific real test vehicle: TN32BK0727 -> TVS Jupiter (Bike / Two-Wheeler)
+  if (idStr === "TN32BK0727") {
+    console.info(
+      `[Way2API RC Response (MOCK)] message_code = OK | status = SUCCESS | success = true | rc_number = TN32BK0727 | maker_description = TVS MOTOR COMPANY LTD | maker_model = JUPITER | vehicle_category = 2W | body_type = SOLO | fuel_type = PETROL (E20) | rc_status = ACTIVE | owner_name = MA**** D | vehicle_chasi_number = MD**********81 | vehicle_engine_number = CK********81`
+    );
+    return {
+      isSuccess: true,
+      status: "SUCCESS",
+      messageCode: "OK",
+      message: "RC verified successfully in vehicle verification system.",
+      orderId: `MOCK_RC_TVS_${Date.now()}`,
+      isMock: true,
+      data: {
+        rc_number: "TN32BK0727",
+        rc_status: "ACTIVE",
+        vehicle_category: "2W",
+        vehicle_category_description: "Two Wheeler (Non Transport)",
+        vehicle_class: "M-CYCLE/SCOOTER(2WN)",
+        body_type: "SOLO",
+        maker_description: "TVS MOTOR COMPANY LTD",
+        maker_model: "JUPITER",
+        seating_capacity: 2,
+        unladen_weight: 107,
+        fuel_type: "PETROL (E20)",
+        color: "TITANIUM GREY",
+        fit_up_to: "2040-01-15",
+        registration_date: "2025-01-16",
+        insurance_company: "ICICI LOMBARD GENERAL INSURANCE CO LTD",
+        insurance_upto: "2030-01-15",
+        owner_name: "MALLIGA D",
+        vehicle_chasi_number: "MD626CK49S1E39281",
+        vehicle_engine_number: "CK49E1049281",
+      },
+    };
+  }
+
+  const isBikePlateMock = idStr.includes("BIKE") || idStr.endsWith("3333") || idStr.includes("2W");
   const isSuspendedMock = idStr.includes("SUSP") || idStr.endsWith("7777");
   const isMismatchMock = idStr.includes("MISMATCH") || idStr.endsWith("9999");
+  const isCarPlateMock = idStr.includes("CAR") || idStr.endsWith("2222");
 
+  // Only return valid mock data for known mock fixtures
+  if (isBikePlateMock || isSuspendedMock || isMismatchMock || isCarPlateMock) {
+    const mockMaker = isBikePlateMock
+      ? "HERO MOTOCORP LTD"
+      : isMismatchMock
+      ? "MARUTI SUZUKI INDIA LTD"
+      : "HYUNDAI MOTOR INDIA LTD";
+    const mockModel = isBikePlateMock
+      ? "SPLENDOR PLUS"
+      : isMismatchMock
+      ? "SWIFT VXI"
+      : "I20 SPORTZ 1.2";
+    const mockCat = isBikePlateMock ? "2W" : "LMV";
+    const mockCatDesc = isBikePlateMock ? "Two Wheeler (Non Transport)" : "Motor Car (LMV)";
+    const mockClass = isBikePlateMock ? "M-CYCLE/SCOOTER(2WN)" : "MOTOR CAR";
+    const mockBody = isBikePlateMock ? "SOLO" : "SALOON";
+    const mockSeats = isBikePlateMock ? 2 : 5;
+    const mockStatus = isSuspendedMock ? "SUSPENDED" : "ACTIVE";
+
+    console.info(
+      `[Way2API RC Response (MOCK)] message_code = OK | status = SUCCESS | success = true | rc_number = ${idStr} | maker_description = ${mockMaker} | maker_model = ${mockModel} | vehicle_category = ${mockCat} | body_type = ${mockBody} | fuel_type = PETROL | rc_status = ${mockStatus} | owner_name = CO************ER | vehicle_chasi_number = MD**********03 | vehicle_engine_number = EN********20`
+    );
+
+    return {
+      isSuccess: true,
+      status: "SUCCESS",
+      messageCode: "OK",
+      message: "RC verified successfully in vehicle verification system.",
+      orderId: `MOCK_RC_${Date.now()}`,
+      isMock: true,
+      data: {
+        rc_number: idStr,
+        rc_status: mockStatus,
+        vehicle_category: mockCat,
+        vehicle_category_description: mockCatDesc,
+        vehicle_class: mockClass,
+        body_type: mockBody,
+        maker_description: mockMaker,
+        maker_model: mockModel,
+        seating_capacity: mockSeats,
+        unladen_weight: isBikePlateMock ? 112 : 1010,
+        fuel_type: "PETROL",
+        color: "WHITE",
+        fit_up_to: "2038-03-20",
+        registration_date: "2023-03-21",
+        insurance_company: "ICICI LOMBARD GENERAL INSURANCE CO LTD",
+        insurance_upto: "2026-11-30",
+        owner_name: "COMMUTEX FLEET OWNER",
+        vehicle_chasi_number: "MDH45920384729103",
+        vehicle_engine_number: "ENG920194820",
+      },
+    };
+  }
+
+  // Step 7: For any unmapped plate in mock mode, never invent Hyundai i20 data!
+  console.warn(
+    `[Way2API RC Response (MOCK)] Registration '${idStr}' is not a designated mock fixture. Returning verification data unavailable.`
+  );
   return {
-    isSuccess: true,
-    status: "SUCCESS",
-    messageCode: "OK",
-    message: "RC verified successfully in vehicle verification system.",
-    orderId: `MOCK_RC_${Date.now()}`,
+    isSuccess: false,
+    status: "MANUAL_REVIEW",
+    messageCode: "VERIFICATION_DATA_UNAVAILABLE",
+    message: "Verification data unavailable — manual review required.",
+    orderId: `MOCK_UNAVAIL_${Date.now()}`,
     isMock: true,
-    data: {
-      rc_number: idStr,
-      rc_status: isSuspendedMock ? "SUSPENDED" : "ACTIVE",
-      vehicle_category: isBikePlateMock ? "2W" : "LMV",
-      vehicle_category_description: isBikePlateMock
-        ? "Two Wheeler (Non Transport)"
-        : "Motor Car (LMV)",
-      vehicle_class: isBikePlateMock ? "M-CYCLE/SCOOTER(2WN)" : "MOTOR CAR",
-      body_type: isBikePlateMock ? "SOLO" : "SALOON",
-      maker_description: isBikePlateMock
-        ? "HERO MOTOCORP LTD"
-        : isMismatchMock
-        ? "MARUTI SUZUKI INDIA LTD"
-        : "HYUNDAI MOTOR INDIA LTD",
-      maker_model: isBikePlateMock
-        ? "SPLENDOR PLUS"
-        : isMismatchMock
-        ? "SWIFT VXI"
-        : "I20 SPORTZ 1.2",
-      seating_capacity: isBikePlateMock ? 2 : 5,
-      unladen_weight: isBikePlateMock ? 112 : 1010,
-      fuel_type: "PETROL",
-      color: "WHITE",
-      fit_up_to: "2038-03-20",
-      registration_date: "2023-03-21",
-      insurance_company: "ICICI LOMBARD GENERAL INSURANCE CO LTD",
-      insurance_upto: "2026-11-30",
-      // Sensitive owner fields:
-      owner_name: "COMMUTEX FLEET OWNER",
-      vehicle_chasi_number: "MDH45920384729103",
-      vehicle_engine_number: "ENG920194820",
-    },
   };
 }

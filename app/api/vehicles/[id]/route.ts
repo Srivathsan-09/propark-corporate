@@ -238,6 +238,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         verificationCheckedAt: verificationResult.checkedAt,
         verificationNotes: verificationResult.summaryNotes,
         rejectionReason: verificationResult.rejectionReason || "",
+        verifiedMaker: verificationResult.rcResult.verifiedMaker || "",
+        verifiedModel: verificationResult.rcResult.verifiedModel || "",
+        verifiedCategory: verificationResult.rcResult.verifiedCategory || "",
+        verifiedBodyType: verificationResult.rcResult.verifiedBodyType || "",
+        verifiedRCStatus: verificationResult.rcResult.verifiedRCStatus || "",
+        verifiedCapacity: verificationResult.rcResult.verifiedCapacity || "",
+        verifiedRegistrationNumber: verificationResult.rcResult.verifiedRegistrationNumber || normalizedPlate,
         rcData: verificationResult.rcData || {},
       };
 
