@@ -16,11 +16,9 @@ export const vehicleSchema = z
       .string({ required_error: "Registration plate number is required" })
       .trim()
       .toUpperCase()
-      .min(3, "Registration number must be at least 3 characters")
-      .max(20, "Registration number cannot exceed 20 characters")
       .regex(
-        /^[A-Z0-9\s-]+$/,
-        "Registration number can only contain uppercase letters, numbers, spaces, and hyphens"
+        /^[A-Z]{2}\s?[0-9]{1,2}\s?[A-Z]{1,3}\s?[0-9]{1,4}$/,
+        "Registration plate number must be in standard Indian format (e.g. TN 07 AB 1234, TN 38 BK 5678, KA 01 MN 2468)"
       ),
     seatingCapacity: z.coerce
       .number({ required_error: "Seating capacity is required" })

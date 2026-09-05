@@ -678,17 +678,26 @@ export default function VehiclesPage() {
 
               {/* Registration Number */}
               <div className="space-y-1.5">
-                <Label htmlFor="registrationNumber" className="text-xs font-semibold text-slate-700">
-                  Registration Plate Number
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="registrationNumber" className="text-xs font-semibold text-slate-700">
+                    Registration Plate Number
+                  </Label>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Format: TN 07 AB 1234
+                  </span>
+                </div>
                 <Input
                   id="registrationNumber"
-                  placeholder="e.g. TN-07-CB-4092 or KA-01-MJ-8812"
+                  placeholder="e.g. TN 07 AB 1234 or KA 01 MN 2468"
                   value={formData.registrationNumber}
                   onChange={(e) => {
+                    const formatted = e.target.value
+                      .toUpperCase()
+                      .replace(/-/g, " ")
+                      .replace(/\s+/g, " ");
                     setFormData((prev) => ({
                       ...prev,
-                      registrationNumber: e.target.value.toUpperCase(),
+                      registrationNumber: formatted,
                     }));
                     if (fieldErrors.registrationNumber) {
                       setFieldErrors((prev) => {
@@ -701,8 +710,12 @@ export default function VehiclesPage() {
                   className={`uppercase font-mono rounded-xl ${fieldErrors.registrationNumber ? "border-rose-500" : ""}`}
                   required
                 />
-                {fieldErrors.registrationNumber && (
-                  <p className="text-xs text-rose-600">{fieldErrors.registrationNumber}</p>
+                {fieldErrors.registrationNumber ? (
+                  <p className="text-xs text-rose-600 font-medium">{fieldErrors.registrationNumber}</p>
+                ) : (
+                  <p className="text-[11px] text-slate-500">
+                    State code (2 letters) + RTO (1-2 digits) + Series (1-3 letters) + Number (1-4 digits). Examples: <span className="font-mono font-bold text-slate-700">TN 07 AB 1234</span>, <span className="font-mono font-bold text-slate-700">TN 38 BK 5678</span>, <span className="font-mono font-bold text-slate-700">KA 01 MN 2468</span>
+                  </p>
                 )}
               </div>
 

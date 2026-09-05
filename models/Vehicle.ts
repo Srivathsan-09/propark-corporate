@@ -57,6 +57,10 @@ const VehicleSchema = new Schema<IVehicle>(
       unique: true,
       uppercase: true,
       trim: true,
+      match: [
+        /^[A-Z]{2}\s?[0-9]{1,2}\s?[A-Z]{1,3}\s?[0-9]{1,4}$/,
+        "Registration plate number must be in standard Indian format (e.g. TN 07 AB 1234)",
+      ],
       index: true,
     },
     seatingCapacity: {
