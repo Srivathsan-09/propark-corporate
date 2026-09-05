@@ -67,8 +67,8 @@ export async function GET(req: NextRequest) {
     }
 
     const rides = await Ride.find(query)
-      .populate("driver", "name email employeeId companyName department phone profileImage verificationStatus isApproved")
-      .populate("vehicle", "vehicleModel vehicleType registrationNumber vehiclePhoto seatingCapacity availableSeats verificationStatus isApproved")
+      .populate("driver", "name email employeeId companyName department phone verificationStatus isApproved")
+      .populate("vehicle", "vehicleModel vehicleType registrationNumber seatingCapacity availableSeats verificationStatus isApproved")
       .sort({ departureDate: 1, departureTime: 1 })
       .lean();
 

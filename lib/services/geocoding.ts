@@ -7,26 +7,433 @@ export interface LocationResult {
   state?: string;
 }
 
+interface CorridorPlace {
+  shortName: string;
+  displayName: string;
+  latitude: number;
+  longitude: number;
+  city: string;
+  state: string;
+  keywords: string[];
+}
+
 /**
- * High-Performance Dual Geocoding Service
- * Combines Photon OSM Typeahead Autocomplete (fast prefix search-as-you-type)
- * with OpenStreetMap Nominatim for maximum accuracy and fuzzy matching.
+ * Curated Instant Corridor Dictionary for Chennai & Tamil Nadu
+ * Delivers sub-millisecond local autocomplete without network latency or municipal ward noise.
+ */
+const CORRIDOR_DIRECTORY: CorridorPlace[] = [
+  // Porur & Mount-Poonamallee Corridor
+  {
+    shortName: "Porur Junction",
+    displayName: "Porur Junction, Mount-Poonamallee Road, Chennai",
+    latitude: 13.0382,
+    longitude: 80.1565,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["porur", "porur junction", "porur signal", "porur flyover", "mount poonamallee"],
+  },
+  {
+    shortName: "Porur",
+    displayName: "Porur, Chennai, Tamil Nadu",
+    latitude: 13.0350,
+    longitude: 80.1580,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["porur", "porur lake", "porur roundana"],
+  },
+  {
+    shortName: "Porur Toll Gate",
+    displayName: "Porur Toll Gate / Bypass, Chennai",
+    latitude: 13.0335,
+    longitude: 80.1520,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["porur toll", "porur bypass", "porur bridge"],
+  },
+  {
+    shortName: "Mugalivakkam",
+    displayName: "Mugalivakkam Junction, Mount-Poonamallee Road, Chennai",
+    latitude: 13.0285,
+    longitude: 80.1715,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["mugalivakkam", "mugalivakam"],
+  },
+  {
+    shortName: "Ramapuram (DLF IT Park)",
+    displayName: "DLF IT Park, Mount-Poonamallee Road, Ramapuram, Chennai",
+    latitude: 13.0298,
+    longitude: 80.1770,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["dlf", "dlf it park", "ramapuram", "dlf gate"],
+  },
+  {
+    shortName: "Nandambakkam (Trade Centre)",
+    displayName: "Chennai Trade Centre, Mount-Poonamallee Road, Nandambakkam",
+    latitude: 13.0186,
+    longitude: 80.1843,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["nandambakkam", "trade centre", "chennai trade centre"],
+  },
+  {
+    shortName: "Kathipara Junction",
+    displayName: "Kathipara Flyover / Junction, Guindy, Chennai",
+    latitude: 13.0067,
+    longitude: 80.2020,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["kathipara", "kathipara junction", "kathipara cloverleaf", "guindy kathipara"],
+  },
+  // Poonamallee / West Corridor
+  {
+    shortName: "Karayanchavadi",
+    displayName: "Karayanchavadi, Poonamallee High Road (Old NH4), Chennai",
+    latitude: 13.0480,
+    longitude: 80.0910,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["karayanchavadi", "karayan", "karayanchavadi metro", "karayanchavadi junction"],
+  },
+  {
+    shortName: "Poonamallee",
+    displayName: "Poonamallee Bus Terminus, Chennai, Tamil Nadu",
+    latitude: 13.0478,
+    longitude: 80.0910,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["poonamallee", "poonamalle", "poonamalle bus stand"],
+  },
+  {
+    shortName: "Kattupakkam",
+    displayName: "Kattupakkam, Mount-Poonamallee Road, Chennai",
+    latitude: 13.0456,
+    longitude: 80.1214,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["kattupakkam", "katupakkam"],
+  },
+  {
+    shortName: "Iyyappanthangal",
+    displayName: "Iyyappanthangal Bus Depot, Mount-Poonamallee Road, Chennai",
+    latitude: 13.0418,
+    longitude: 80.1417,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["iyyappanthangal", "iyapanthangal", "iyappanthangal depot"],
+  },
+  {
+    shortName: "Kumunanchavadi",
+    displayName: "Kumunanchavadi Junction, Poonamallee High Road, Chennai",
+    latitude: 13.0470,
+    longitude: 80.0960,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["kumunanchavadi", "kumananchavadi"],
+  },
+  {
+    shortName: "Maduravoyal",
+    displayName: "Maduravoyal Grade Separator / Bypass, Chennai",
+    latitude: 13.0645,
+    longitude: 80.1627,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["maduravoyal", "maduravoyal bypass", "maduravoyal bridge"],
+  },
+  {
+    shortName: "Koyambedu (CMBT)",
+    displayName: "Koyambedu CMBT / Metro Station, Chennai",
+    latitude: 13.0694,
+    longitude: 80.1948,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["koyambedu", "cmbt", "koyambedu bus stand", "koyambedu market"],
+  },
+  {
+    shortName: "Ambattur",
+    displayName: "Ambattur Industrial Estate, Chennai",
+    latitude: 13.1147,
+    longitude: 80.1548,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["ambattur", "ambattur ot", "ambattur estate"],
+  },
+  {
+    shortName: "Avadi",
+    displayName: "Avadi Bus Stand / Railway Station, Chennai",
+    latitude: 13.1188,
+    longitude: 80.1017,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["avadi", "avadi checkpost", "avadi station"],
+  },
+  // Tech Park / Taramani / OMR Campus Belt
+  {
+    shortName: "Tech Park Chennai",
+    displayName: "Tech Park Chennai (Taramani Campus), OMR, Chennai",
+    latitude: 12.9852,
+    longitude: 80.2461,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["tech park", "tech park chennai", "campus", "taramani campus"],
+  },
+  {
+    shortName: "Taramani (Ascendas)",
+    displayName: "Ascendas IT Park / International Tech Park, Taramani, Chennai",
+    latitude: 12.9852,
+    longitude: 80.2461,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["taramani", "ascendas", "itpc", "international tech park"],
+  },
+  {
+    shortName: "TIDEL Park",
+    displayName: "TIDEL Park, Rajiv Gandhi Salai (OMR), Taramani, Chennai",
+    latitude: 12.9892,
+    longitude: 80.2510,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["tidel", "tidel park", "tidel signal"],
+  },
+  {
+    shortName: "Velachery",
+    displayName: "Velachery Main Road / MRTS Station, Chennai",
+    latitude: 12.9815,
+    longitude: 80.2180,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["velachery", "velachery bypass", "vijaya nagar"],
+  },
+  {
+    shortName: "Guindy",
+    displayName: "Guindy Metro / Railway Station, Chennai",
+    latitude: 13.0080,
+    longitude: 80.2130,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["guindy", "guindy race course", "guindy industrial estate", "guindy station"],
+  },
+  {
+    shortName: "Alandur",
+    displayName: "Alandur Metro Station, GST Road, Chennai",
+    latitude: 13.0035,
+    longitude: 80.2005,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["alandur", "alandur metro", "asarkhana"],
+  },
+  {
+    shortName: "Saidapet",
+    displayName: "Saidapet Metro / Anna Salai, Chennai",
+    latitude: 13.0175,
+    longitude: 80.2205,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["saidapet", "saidapet bridge", "anna salai saidapet"],
+  },
+  {
+    shortName: "Little Mount",
+    displayName: "Little Mount Metro Station, Anna Salai, Chennai",
+    latitude: 13.0140,
+    longitude: 80.2220,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["little mount", "little mount metro"],
+  },
+  {
+    shortName: "Perungudi",
+    displayName: "Perungudi OMR Toll Gate, Chennai",
+    latitude: 12.9654,
+    longitude: 80.2443,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["perungudi", "perungudi toll", "kandanchavadi"],
+  },
+  {
+    shortName: "Thoraipakkam",
+    displayName: "Thoraipakkam 200ft Radial Road Junction, OMR, Chennai",
+    latitude: 12.9430,
+    longitude: 80.2370,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["thoraipakkam", "thuraipakkam", "200 feet road omr"],
+  },
+  {
+    shortName: "Sholinganallur",
+    displayName: "Sholinganallur Junction, OMR - ECR Link Road, Chennai",
+    latitude: 12.8988,
+    longitude: 80.2284,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["sholinganallur", "solinganallur", "elcot sez"],
+  },
+  {
+    shortName: "Navalur",
+    displayName: "Navalur, OMR (Marina Mall), Chennai",
+    latitude: 12.8510,
+    longitude: 80.2270,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["navalur", "marina mall navalur"],
+  },
+  {
+    shortName: "Siruseri (SIPCOT)",
+    displayName: "SIPCOT IT Park, Siruseri, OMR, Chennai",
+    latitude: 12.8310,
+    longitude: 80.2225,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["siruseri", "sipcot", "siruseri it park"],
+  },
+  {
+    shortName: "Adyar",
+    displayName: "Adyar Depot / Gandhi Nagar, Chennai",
+    latitude: 13.0012,
+    longitude: 80.2565,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["adyar", "adyar signal", "maler hospital"],
+  },
+  {
+    shortName: "T. Nagar",
+    displayName: "T. Nagar (Panagal Park / Usman Road), Chennai",
+    latitude: 13.0418,
+    longitude: 80.2341,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["t. nagar", "tnagar", "panagal park", "usman road", "pondiy bazaar"],
+  },
+  {
+    shortName: "Anna Nagar",
+    displayName: "Anna Nagar Roundtana / Metro, Chennai",
+    latitude: 13.0850,
+    longitude: 80.2101,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["anna nagar", "anna nagar roundtana", "roundana"],
+  },
+  {
+    shortName: "Vadapalani",
+    displayName: "Vadapalani Junction / Forum Mall, Chennai",
+    latitude: 13.0500,
+    longitude: 80.2121,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["vadapalani", "forum mall", "vadapalani metro"],
+  },
+  {
+    shortName: "Ashok Nagar",
+    displayName: "Ashok Pillar, 100 Feet Road, Chennai",
+    latitude: 13.0368,
+    longitude: 80.2132,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["ashok nagar", "ashok pillar"],
+  },
+  // GST Road Corridor
+  {
+    shortName: "Chromepet",
+    displayName: "Chromepet, GST Road, Chennai",
+    latitude: 12.9516,
+    longitude: 80.1413,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["chromepet", "chromepet station", "mit bridge"],
+  },
+  {
+    shortName: "Pallavaram",
+    displayName: "Pallavaram Flyover, GST Road, Chennai",
+    latitude: 12.9675,
+    longitude: 80.1491,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["pallavaram", "pallavaram flyover", "pallavaram station"],
+  },
+  {
+    shortName: "Tambaram",
+    displayName: "Tambaram Sanatorium / Bus Terminus, GST Road, Chennai",
+    latitude: 12.9249,
+    longitude: 80.1332,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["tambaram", "tambaram sanatorium", "tambaram bus stand", "tambaram station"],
+  },
+  {
+    shortName: "Chengalpattu",
+    displayName: "Chengalpattu Junction, GST Road, Tamil Nadu",
+    latitude: 12.6819,
+    longitude: 79.9888,
+    city: "Chengalpattu",
+    state: "Tamil Nadu",
+    keywords: ["chengalpattu", "chengalpet", "chengalpattu station"],
+  },
+  // Kancheepuram / Western Corridor
+  {
+    shortName: "Kancheepuram",
+    displayName: "Kancheepuram Town Bus Stand, Tamil Nadu",
+    latitude: 12.8342,
+    longitude: 79.7036,
+    city: "Kancheepuram",
+    state: "Tamil Nadu",
+    keywords: ["kancheepuram", "kanchipuram", "kanchi", "kancheepuram bus stand"],
+  },
+  {
+    shortName: "Sriperumbudur",
+    displayName: "Sriperumbudur Toll Plaza, Bangalore Highway (NH48), Tamil Nadu",
+    latitude: 12.9698,
+    longitude: 79.9412,
+    city: "Sriperumbudur",
+    state: "Tamil Nadu",
+    keywords: ["sriperumbudur", "sriperumbudur toll", "hyundai factory", "sipcot sriperumbudur"],
+  },
+];
+
+/**
+ * High-Performance Geocoding Service
+ * Combines an Instant Local Corridor Index with OpenStreetMap Nominatim.
+ * Eliminates external timeout bottlenecks and filters municipal ward numbering.
  */
 class GeocodingService {
   private nominatimUrl = "https://nominatim.openstreetmap.org";
-  private photonBaseUrl = "https://photon.komoot.io";
-
-  // Preferred center focus (Chennai / Tamil Nadu campus region)
-  private defaultLat = 13.048;
-  private defaultLon = 80.091;
 
   // High-Speed In-Memory LRU Caches for zero-latency lookups
   private searchCache = new Map<string, LocationResult[]>();
   private reverseCache = new Map<string, LocationResult | null>();
 
   /**
-   * Instant Autocomplete & Search for locations matching a query string
-   * Resolves results starting from the very first letters typed (e.g. "Karaya" -> "Karayanchavadi")
+   * Search local corridor directory for instant zero-latency match
+   */
+  private searchLocalDirectory(query: string, limit: number): LocationResult[] {
+    const q = query.toLowerCase().trim();
+    if (q.length < 2) return [];
+
+    const matches: LocationResult[] = [];
+
+    for (const place of CORRIDOR_DIRECTORY) {
+      const exactMatch = place.keywords.some((k) => k === q);
+      const prefixMatch = place.keywords.some((k) => k.startsWith(q) || q.startsWith(k));
+      const containsMatch = place.keywords.some((k) => k.includes(q) || q.includes(k));
+
+      if (exactMatch || prefixMatch || containsMatch) {
+        matches.push({
+          shortName: place.shortName,
+          displayName: place.displayName,
+          latitude: place.latitude,
+          longitude: place.longitude,
+          city: place.city,
+          state: place.state,
+        });
+
+        if (matches.length >= limit) break;
+      }
+    }
+
+    return matches;
+  }
+
+  /**
+   * Autocomplete & Search for locations matching a query string
    */
   async search(query: string, limit: number = 8): Promise<LocationResult[]> {
     if (!query || query.trim().length < 1) return [];
@@ -38,73 +445,18 @@ class GeocodingService {
       return this.searchCache.get(cacheKey)!;
     }
 
-    // 1. Try Photon OSM Typeahead API (Built specifically for instant prefix search)
-    try {
-      const photonRes = await fetch(
-        `${this.photonBaseUrl}/api/?q=${encodeURIComponent(cleanQuery)}&limit=${limit}&lat=${this.defaultLat}&lon=${this.defaultLon}`,
-        {
-          headers: {
-            "Accept-Language": "en",
-          },
-          signal: AbortSignal.timeout(3500),
-        }
-      );
-
-      if (photonRes.ok) {
-        const text = await photonRes.text();
-        let photonData: any = null;
-        try {
-          photonData = JSON.parse(text);
-        } catch {
-          // not JSON
-        }
-        if (photonData && Array.isArray(photonData.features) && photonData.features.length > 0) {
-          const results: LocationResult[] = photonData.features
-            .map((feat: any) => {
-              const props = feat.properties || {};
-              const coords = feat.geometry?.coordinates || [0, 0];
-              const shortName = extractLocalityName(props, props.name || props.street || props.city);
-
-              const parts = [
-                shortName,
-                props.street !== shortName ? props.street : null,
-                props.district || props.suburb,
-                props.city || props.county,
-                props.state,
-              ].filter(Boolean);
-
-              return {
-                displayName: Array.from(new Set(parts)).join(", "),
-                shortName,
-                latitude: parseFloat(coords[1]),
-                longitude: parseFloat(coords[0]),
-                city: props.city || props.county,
-                state: props.state,
-              };
-            })
-            .filter(
-              (r: LocationResult) =>
-                !isNaN(r.latitude) &&
-                !isNaN(r.longitude) &&
-                Math.abs(r.latitude) > 0.01 &&
-                Math.abs(r.longitude) > 0.01
-            );
-
-          if (results.length > 0) {
-            this.searchCache.set(cacheKey, results);
-            return results;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("Photon typeahead warning:", err);
+    // 1. Instant Local Directory lookup (0ms response)
+    const localMatches = this.searchLocalDirectory(cleanQuery, limit);
+    if (localMatches.length >= 2) {
+      this.searchCache.set(cacheKey, localMatches);
+      return localMatches;
     }
 
-    // 2. Fallback to Nominatim Search API
+    // 2. Query Nominatim Search API directly (Fast 2000ms timeout)
     try {
       const url = `${this.nominatimUrl}/search?format=json&q=${encodeURIComponent(
         cleanQuery
-      )}&limit=${limit}&addressdetails=1&countrycodes=in&viewbox=79.7,13.4,80.4,12.7`;
+      )}&limit=${limit}&addressdetails=1&countrycodes=in&viewbox=79.6,13.4,80.4,12.7`;
 
       const headers: Record<string, string> = { "Accept-Language": "en" };
       if (typeof window === "undefined") {
@@ -113,50 +465,81 @@ class GeocodingService {
 
       const res = await fetch(url, {
         headers,
-        signal: AbortSignal.timeout(3500),
+        signal: AbortSignal.timeout(2000),
       });
 
-      if (!res.ok) {
-        throw new Error(`Nominatim HTTP ${res.status}`);
+      if (res.ok) {
+        const text = await res.text();
+        let data: any = [];
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // not JSON
+        }
+
+        if (Array.isArray(data)) {
+          const apiResults: LocationResult[] = data
+            // Filter out pure municipal ward / zone administrative boundaries
+            .filter((item: any) => {
+              const name = (item.name || "").trim();
+              const displayName = (item.display_name || "").trim();
+              const isPureWard = /^(ward|zone)\s*\d+$/i.test(name) || /^(ward|zone)\s*\d+,/i.test(displayName);
+              return !isPureWard;
+            })
+            .map((item: any) => {
+              const address = item.address || {};
+              const shortName = extractLocalityName(address, item.name || item.display_name);
+              const cleanedDisplay = cleanLocalityText(item.display_name);
+
+              return {
+                displayName: cleanedDisplay || item.display_name,
+                shortName,
+                latitude: parseFloat(item.lat),
+                longitude: parseFloat(item.lon),
+                city: cleanLocalityText(address.city || address.town || address.state_district),
+                state: address.state,
+              };
+            })
+            .filter(
+              (r: LocationResult) =>
+                !isNaN(r.latitude) &&
+                !isNaN(r.longitude) &&
+                Math.abs(r.latitude) > 0.01 &&
+                Math.abs(r.longitude) > 0.01 &&
+                !/^(ward|zone)\s*\d+/i.test(r.shortName)
+            );
+
+          // Combine local matches first, followed by deduplicated API results
+          const combined = [...localMatches];
+          for (const apiItem of apiResults) {
+            const isDuplicate = combined.some(
+              (m) =>
+                Math.hypot(m.latitude - apiItem.latitude, m.longitude - apiItem.longitude) < 0.005 ||
+                m.shortName.toLowerCase() === apiItem.shortName.toLowerCase()
+            );
+            if (!isDuplicate) {
+              combined.push(apiItem);
+            }
+            if (combined.length >= limit) break;
+          }
+
+          if (combined.length > 0) {
+            this.searchCache.set(cacheKey, combined);
+            return combined;
+          }
+        }
       }
-
-      const text = await res.text();
-      let data: any = [];
-      try {
-        data = JSON.parse(text);
-      } catch {
-        // not JSON
-      }
-      if (!Array.isArray(data)) return [];
-
-      const results: LocationResult[] = data
-        .map((item: any) => {
-          const address = item.address || {};
-          const shortName = extractLocalityName(address, item.name || item.display_name);
-
-          return {
-            displayName: item.display_name,
-            shortName,
-            latitude: parseFloat(item.lat),
-            longitude: parseFloat(item.lon),
-            city: address.city || address.town || address.state_district,
-            state: address.state,
-          };
-        })
-        .filter(
-          (r: LocationResult) =>
-            !isNaN(r.latitude) &&
-            !isNaN(r.longitude) &&
-            Math.abs(r.latitude) > 0.01 &&
-            Math.abs(r.longitude) > 0.01
-        );
-
-      this.searchCache.set(cacheKey, results);
-      return results;
     } catch (error) {
-      console.warn("Geocoding search failed:", error);
-      return [];
+      console.warn("Nominatim search warning:", error);
     }
+
+    // Return any local matches found if API failed or returned empty
+    if (localMatches.length > 0) {
+      this.searchCache.set(cacheKey, localMatches);
+      return localMatches;
+    }
+
+    return [];
   }
 
   /**
@@ -172,68 +555,36 @@ class GeocodingService {
       return this.reverseCache.get(cacheKey)!;
     }
 
-    // 1. Try Photon Reverse API first (fast, open, exact locality names)
-    try {
-      const photonUrl = `${this.photonBaseUrl}/reverse?lat=${latitude}&lon=${longitude}&lang=en`;
-      const res = await fetch(photonUrl, {
-        headers: { "Accept-Language": "en" },
-        signal: AbortSignal.timeout(3500),
-      });
-
-      if (res.ok) {
-        const text = await res.text();
-        let data: any = null;
-        try {
-          data = JSON.parse(text);
-        } catch {
-          // not JSON
-        }
-
-        if (data && Array.isArray(data.features) && data.features.length > 0) {
-          const props = data.features[0].properties || {};
-          const coords = data.features[0].geometry?.coordinates || [longitude, latitude];
-          
-          const shortName = extractLocalityName(props, props.name || props.street || props.city);
-
-          const parts = [
-            shortName,
-            props.street && props.street !== shortName ? props.street : null,
-            props.district || props.suburb,
-            props.city || props.county,
-            props.state,
-          ].filter(Boolean);
-
-          const result: LocationResult = {
-            displayName: Array.from(new Set(parts)).join(", "),
-            shortName,
-            latitude: parseFloat(coords[1]) || latitude,
-            longitude: parseFloat(coords[0]) || longitude,
-            city: props.city || props.county,
-            state: props.state,
-          };
-
-          this.reverseCache.set(cacheKey, result);
-          return result;
-        }
+    // 1. Check local corridor directory first (within 350 meters)
+    for (const place of CORRIDOR_DIRECTORY) {
+      const dist = Math.hypot(place.latitude - latitude, place.longitude - longitude);
+      if (dist < 0.0035) {
+        // ~350m radius
+        const localResult: LocationResult = {
+          displayName: place.displayName,
+          shortName: place.shortName,
+          latitude,
+          longitude,
+          city: place.city,
+          state: place.state,
+        };
+        this.reverseCache.set(cacheKey, localResult);
+        return localResult;
       }
-    } catch (err) {
-      console.warn("Photon reverse geocode warning:", err);
     }
 
-    // 2. Fallback to Nominatim Reverse API
+    // 2. Direct Nominatim Reverse API (Fast 2000ms timeout)
     try {
       const url = `${this.nominatimUrl}/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`;
 
-      const headers: Record<string, string> = {
-        "Accept-Language": "en",
-      };
+      const headers: Record<string, string> = { "Accept-Language": "en" };
       if (typeof window === "undefined") {
         headers["User-Agent"] = "CommuteX-Corporate-App/1.0 (contact@commutex.com)";
       }
 
       const res = await fetch(url, {
         headers,
-        signal: AbortSignal.timeout(3500),
+        signal: AbortSignal.timeout(2000),
       });
 
       if (res.ok) {
@@ -248,13 +599,14 @@ class GeocodingService {
         if (item && item.display_name) {
           const address = item.address || {};
           const shortName = extractLocalityName(address, item.name || item.display_name);
+          const cleanedDisplay = cleanLocalityText(item.display_name);
 
           const result: LocationResult = {
-            displayName: item.display_name,
+            displayName: cleanedDisplay || item.display_name,
             shortName,
             latitude: parseFloat(item.lat) || latitude,
             longitude: parseFloat(item.lon) || longitude,
-            city: address.city || address.town || address.state_district,
+            city: cleanLocalityText(address.city || address.town || address.state_district),
             state: address.state,
           };
 
@@ -279,54 +631,91 @@ class GeocodingService {
 }
 
 /**
+ * Strip municipal ward / zone administrative labels (e.g., "Ward 153", "Zone 11 Valasaravakkam")
+ */
+export function cleanLocalityText(text: string | undefined): string {
+  if (!text) return "";
+  return text
+    .replace(/\b(Ward|Zone)\s*\d+\b/gi, "")
+    .replace(/\bChennai Corporation\b/gi, "Chennai")
+    .replace(/,\s*,/g, ",")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s,]+|[\s,]+$/g, "")
+    .trim();
+}
+
+/**
  * Helper to extract recognizable human-friendly locality / place name
- * Prioritizes suburb, neighbourhood, town, village, amenity, building over raw road names.
+ * Prioritizes suburb, neighbourhood, town, village, amenity, building over raw road or ward names.
  */
 function extractLocalityName(propsOrAddress: any, fallbackDisplayName?: string): string {
-  if (!propsOrAddress) return fallbackDisplayName?.split(",")[0] || "Location";
+  if (!propsOrAddress) {
+    const fb = fallbackDisplayName ? cleanLocalityText(fallbackDisplayName.split(",")[0]) : "Location";
+    return fb || "Location";
+  }
 
   const p = propsOrAddress;
 
-  // 1. Prefer suburb, neighbourhood, locality, quarter, town, village
-  const locality =
-    p.suburb ||
-    p.neighbourhood ||
-    p.quarter ||
-    p.residential ||
-    p.locality ||
-    p.district ||
-    p.city_district ||
-    p.town ||
-    p.village;
+  // 1. Check specific suburb, neighbourhood, town, village, locality (skipping any raw "Ward \d+" or "Zone \d+")
+  const candidates = [
+    p.suburb,
+    p.neighbourhood,
+    p.town,
+    p.village,
+    p.residential,
+    p.locality,
+    p.quarter,
+    p.city,
+    p.district,
+    p.city_district,
+  ];
 
-  if (locality && typeof locality === "string" && locality.trim().length > 0) {
-    return locality.trim();
+  for (const cand of candidates) {
+    if (cand && typeof cand === "string") {
+      const cleaned = cleanLocalityText(cand);
+      if (cleaned.length > 0 && !/^(ward|zone)\s*\d+/i.test(cleaned)) {
+        return cleaned;
+      }
+    }
   }
 
-  // 2. Prefer specific landmark / amenity / station / building
+  // 2. Specific landmark / amenity / station / building
   const landmark = p.amenity || p.building || p.station || p.bus_stop || p.railway;
-  if (landmark && typeof landmark === "string" && landmark.trim().length > 0) {
-    return landmark.trim();
+  if (landmark && typeof landmark === "string") {
+    const cleaned = cleanLocalityText(landmark);
+    if (cleaned.length > 0 && !/^(ward|zone)\s*\d+/i.test(cleaned)) {
+      return cleaned;
+    }
   }
 
-  // 3. Check name (if it's not a raw highway/road name)
+  // 3. Check name (if it's not a highway or ward)
   const name = p.name;
-  if (name && typeof name === "string" && name.trim().length > 0) {
-    const cleanName = name.trim();
+  if (name && typeof name === "string") {
+    const cleanName = cleanLocalityText(name);
     const isHighway = /highway|expressway|bypass|national highway|nh\s*\d|sh\s*\d|road|salai/i.test(cleanName);
-    if (!isHighway) {
+    const isWard = /^(ward|zone)\s*\d+/i.test(cleanName);
+    if (!isHighway && !isWard && cleanName.length > 0) {
       return cleanName;
     }
   }
 
-  // 4. Fallback to street or first part of display name
+  // 4. Check street
   const street = p.street || p.road;
-  if (street && typeof street === "string" && street.trim().length > 0) {
-    return street.trim();
+  if (street && typeof street === "string") {
+    const cleaned = cleanLocalityText(street);
+    if (cleaned.length > 0 && !/^(ward|zone)\s*\d+/i.test(cleaned)) {
+      return cleaned;
+    }
   }
 
   if (fallbackDisplayName) {
-    return fallbackDisplayName.split(",")[0].trim();
+    const parts = fallbackDisplayName.split(",");
+    for (const part of parts) {
+      const cleaned = cleanLocalityText(part);
+      if (cleaned.length > 0 && !/^(ward|zone)\s*\d+/i.test(cleaned)) {
+        return cleaned;
+      }
+    }
   }
 
   return "Location";

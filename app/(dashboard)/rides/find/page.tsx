@@ -149,6 +149,8 @@ export default function FindRidePage() {
 
   // Request Booking Modal State
   const [selectedRide, setSelectedRide] = useState<IRide | null>(null);
+  const selectedRideRef = useRef<IRide | null>(null);
+  selectedRideRef.current = selectedRide;
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedPickupStop, setSelectedPickupStop] = useState<string>("");
   const [selectedDropStop, setSelectedDropStop] = useState<string>("");
@@ -284,8 +286,8 @@ export default function FindRidePage() {
         setRides(data.rides || []);
 
         // Also keep selectedRide updated in modal if open
-        if (selectedRide) {
-          const updatedSelected = (data.rides || []).find((r: IRide) => r._id === selectedRide._id);
+        if (selectedRideRef.current) {
+          const updatedSelected = (data.rides || []).find((r: IRide) => r._id === selectedRideRef.current?._id);
           if (updatedSelected) {
             setSelectedRide(updatedSelected);
           }
@@ -298,7 +300,7 @@ export default function FindRidePage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [searchOrigin, searchDestination, filterType, filterRideType, filterDate, selectedRide]);
+  }, [searchOrigin, searchDestination, filterType, filterRideType, filterDate]);
 
   // Initial load on filter change
   useEffect(() => {

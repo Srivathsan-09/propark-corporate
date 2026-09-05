@@ -67,7 +67,7 @@ interface IVehicle {
 }
 
 export default function VehiclesPage() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
 
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -121,10 +121,12 @@ export default function VehiclesPage() {
   };
 
   useEffect(() => {
-    if (session?.user) {
+    if (sessionStatus === "authenticated") {
       fetchVehicles();
+    } else if (sessionStatus === "unauthenticated") {
+      setIsLoading(false);
     }
-  }, [session]);
+  }, [sessionStatus]);
 
   const resetForm = () => {
     setFormData({
