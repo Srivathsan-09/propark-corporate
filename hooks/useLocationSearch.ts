@@ -11,8 +11,11 @@ export function useLocationSearch(initialQuery: string = "", debounceMs: number 
   const [error, setError] = useState<string | null>(null);
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const searchRequestIdRef = useRef(0);
 
   const searchLocations = useCallback(async (searchQuery: string) => {
+    const currentRequestId = ++searchRequestIdRef.current;
+
     if (!searchQuery || searchQuery.trim().length < 1) {
       setSuggestions([]);
       setIsOpen(false);
@@ -25,14 +28,20 @@ export function useLocationSearch(initialQuery: string = "", debounceMs: number 
 
     try {
       const results = await geocodingService.search(searchQuery);
+      if (currentRequestId !== searchRequestIdRef.current) {
+        return;
+      }
       setSuggestions(results);
-      setIsOpen(results.length > 0);
+      setIsOpen(true);
     } catch (err: any) {
+      if (currentRequestId !== searchRequestIdRef.current) return;
       console.warn("Location search error:", err);
       setError("Unable to fetch location suggestions.");
       setSuggestions([]);
     } finally {
-      setIsLoading(false);
+      if (currentRequestId === searchRequestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -46,6 +55,7 @@ export function useLocationSearch(initialQuery: string = "", debounceMs: number 
     if (text.trim().length < 1) {
       setSuggestions([]);
       setIsOpen(false);
+      setIsLoading(false);
       return;
     }
 

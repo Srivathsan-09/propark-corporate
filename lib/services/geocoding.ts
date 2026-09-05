@@ -389,6 +389,62 @@ const CORRIDOR_DIRECTORY: CorridorPlace[] = [
   },
 ];
 
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function calculateRelevanceScore(query: string, item: LocationResult): number {
+  const q = query.toLowerCase().trim();
+  const name = (item.shortName || "").toLowerCase().trim();
+  const display = (item.displayName || "").toLowerCase().trim();
+  const lat = item.latitude;
+  const lon = item.longitude;
+
+  let textScore = 0;
+  if (name === q) {
+    textScore += 120;
+  } else if (name.startsWith(q)) {
+    textScore += 90;
+  } else if (new RegExp("(^|\\s)" + escapeRegex(q), "i").test(name)) {
+    textScore += 75;
+  } else if (name.includes(q)) {
+    textScore += 45;
+  } else if (display.startsWith(q)) {
+    textScore += 35;
+  } else if (new RegExp("(^|\\s)" + escapeRegex(q), "i").test(display)) {
+    textScore += 25;
+  } else if (display.includes(q)) {
+    textScore += 10;
+  }
+
+  if (name.startsWith(q)) {
+    const diff = name.length - q.length;
+    if (diff <= 3) textScore += 20;
+    else if (diff <= 10) textScore += 10;
+  }
+
+  let geoScore = 0;
+  const isChennaiCore = lat >= 12.75 && lat <= 13.35 && lon >= 79.80 && lon <= 80.40;
+  const isGreaterChennai = lat >= 12.45 && lat <= 13.60 && lon >= 79.40 && lon <= 80.50;
+  const isTamilNadu = lat >= 8.0 && lat <= 13.6 && lon >= 76.2 && lon <= 80.5;
+
+  if (isChennaiCore) {
+    geoScore += 60;
+  } else if (isGreaterChennai) {
+    geoScore += 40;
+  } else if (isTamilNadu) {
+    geoScore += 20;
+  } else {
+    geoScore -= 70; // Heavy penalty for distant states
+  }
+
+  let qualityScore = 0;
+  if (/junction|metro|bus terminus|depot|station|park|bypass|roundana/i.test(name)) qualityScore += 15;
+  if (/shop|briyani|biriyani|hotel|mess|store|tiffin|bakery/i.test(name)) qualityScore -= 30;
+
+  return textScore + geoScore + qualityScore;
+}
+
 /**
  * High-Performance Geocoding Service
  * Combines an Instant Local Corridor Index with OpenStreetMap Nominatim.
@@ -425,7 +481,7 @@ class GeocodingService {
           state: place.state,
         });
 
-        if (matches.length >= limit) break;
+        if (matches.length >= limit * 2) break;
       }
     }
 
@@ -434,8 +490,9 @@ class GeocodingService {
 
   /**
    * Autocomplete & Search for locations matching a query string
+   * Employs multi-factor scoring (text match + regional geographic bias + landmark quality)
    */
-  async search(query: string, limit: number = 8): Promise<LocationResult[]> {
+  async search(query: string, limit: number = 6): Promise<LocationResult[]> {
     if (!query || query.trim().length < 1) return [];
 
     const cleanQuery = query.trim().toLowerCase();
@@ -445,18 +502,17 @@ class GeocodingService {
       return this.searchCache.get(cacheKey)!;
     }
 
-    // 1. Instant Local Directory lookup (0ms response)
-    const localMatches = this.searchLocalDirectory(cleanQuery, limit);
-    if (localMatches.length >= 2) {
-      this.searchCache.set(cacheKey, localMatches);
-      return localMatches;
-    }
+    const candidatePool: LocationResult[] = [];
 
-    // 2. Query Nominatim Search API directly (Fast 2000ms timeout)
+    // 1. Gather local corridor directory matches
+    const localMatches = this.searchLocalDirectory(cleanQuery, limit);
+    candidatePool.push(...localMatches);
+
+    // 2. Query Nominatim Search API (with regional viewbox bias and 2000ms timeout)
     try {
       const url = `${this.nominatimUrl}/search?format=json&q=${encodeURIComponent(
         cleanQuery
-      )}&limit=${limit}&addressdetails=1&countrycodes=in&viewbox=79.6,13.4,80.4,12.7`;
+      )}&limit=${Math.max(limit * 2, 10)}&addressdetails=1&countrycodes=in&viewbox=79.6,13.4,80.4,12.7`;
 
       const headers: Record<string, string> = { "Accept-Language": "en" };
       if (typeof window === "undefined") {
@@ -473,9 +529,7 @@ class GeocodingService {
         let data: any = [];
         try {
           data = JSON.parse(text);
-        } catch {
-          // not JSON
-        }
+        } catch {}
 
         if (Array.isArray(data)) {
           const apiResults: LocationResult[] = data
@@ -509,37 +563,66 @@ class GeocodingService {
                 !/^(ward|zone)\s*\d+/i.test(r.shortName)
             );
 
-          // Combine local matches first, followed by deduplicated API results
-          const combined = [...localMatches];
-          for (const apiItem of apiResults) {
-            const isDuplicate = combined.some(
-              (m) =>
-                Math.hypot(m.latitude - apiItem.latitude, m.longitude - apiItem.longitude) < 0.005 ||
-                m.shortName.toLowerCase() === apiItem.shortName.toLowerCase()
-            );
-            if (!isDuplicate) {
-              combined.push(apiItem);
-            }
-            if (combined.length >= limit) break;
-          }
-
-          if (combined.length > 0) {
-            this.searchCache.set(cacheKey, combined);
-            return combined;
-          }
+          candidatePool.push(...apiResults);
         }
       }
     } catch (error) {
       console.warn("Nominatim search warning:", error);
     }
 
-    // Return any local matches found if API failed or returned empty
-    if (localMatches.length > 0) {
-      this.searchCache.set(cacheKey, localMatches);
-      return localMatches;
+    if (candidatePool.length === 0) {
+      return [];
     }
 
-    return [];
+    // 3. Multi-Factor Relevance Scoring
+    const scoredCandidates = candidatePool.map((item) => ({
+      item,
+      score: calculateRelevanceScore(cleanQuery, item),
+    }));
+
+    // Find the highest score in the pool
+    const maxScore = scoredCandidates.reduce((max, c) => Math.max(max, c.score), 0);
+
+    // 4. Intelligent Relevance Filtering
+    const filteredCandidates = scoredCandidates
+      .filter(({ item, score }) => {
+        // Discard low-relevance results
+        if (score < 30) return false;
+
+        // If strong local matches exist (score >= 110), discard distant/out-of-region results
+        if (maxScore >= 110) {
+          const isTamilNadu =
+            item.latitude >= 8.0 &&
+            item.latitude <= 13.6 &&
+            item.longitude >= 76.2 &&
+            item.longitude <= 80.5;
+          if (!isTamilNadu) return false;
+          if (score < maxScore * 0.45) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => b.score - a.score);
+
+    // 5. Deduplicate by geographic proximity (within 300 meters) and matching clean short names
+    const deduplicated: LocationResult[] = [];
+    for (const { item } of filteredCandidates) {
+      const isDuplicate = deduplicated.some(
+        (existing) =>
+          (Math.hypot(existing.latitude - item.latitude, existing.longitude - item.longitude) < 0.003 &&
+            existing.shortName.toLowerCase() === item.shortName.toLowerCase()) ||
+          existing.displayName.toLowerCase() === item.displayName.toLowerCase()
+      );
+
+      if (!isDuplicate) {
+        deduplicated.push(item);
+      }
+
+      if (deduplicated.length >= limit) break;
+    }
+
+    this.searchCache.set(cacheKey, deduplicated);
+    return deduplicated;
   }
 
   /**

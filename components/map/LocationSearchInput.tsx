@@ -21,7 +21,7 @@ interface LocationSearchInputProps {
   id?: string;
   placeholder?: string;
   value: string;
-  onChange: (location: { address: string; latitude: number; longitude: number }) => void;
+  onChange: (location: { address: string; latitude: number; longitude: number; isConfirmed?: boolean }) => void;
   onSelectOnMap?: () => void;
   showCurrentLocation?: boolean;
   className?: string;
@@ -87,6 +87,7 @@ export default function LocationSearchInput({
       address: item.displayName,
       latitude: item.latitude,
       longitude: item.longitude,
+      isConfirmed: true,
     });
   };
 
@@ -98,22 +99,16 @@ export default function LocationSearchInput({
         address: loc.displayName,
         latitude: loc.latitude,
         longitude: loc.longitude,
+        isConfirmed: true,
       });
     }
   };
 
-  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault(); // Prevent accidental form submission
       if (suggestions.length > 0) {
         handlePickSuggestion(suggestions[0]);
-      } else if (query.trim().length >= 2) {
-        // Auto-resolve fuzzy prediction on Enter
-        const { resolveFuzzyLocation } = await import("@/lib/services/routeCorridor");
-        const resolved = await resolveFuzzyLocation(query);
-        if (resolved) {
-          handlePickSuggestion(resolved);
-        }
       }
     }
   };
@@ -131,11 +126,12 @@ export default function LocationSearchInput({
           onKeyDown={handleKeyDown}
           onChange={(e) => {
             handleQueryChange(e.target.value);
-            // Also notify parent of text changes
+            // Notify parent that text changed and coordinates are invalidated
             onChange({
               address: e.target.value,
               latitude: 0,
               longitude: 0,
+              isConfirmed: false,
             });
           }}
           className={`pl-9 pr-20 text-xs rounded-xl h-10 ${
@@ -155,7 +151,8 @@ export default function LocationSearchInput({
               type="button"
               onClick={() => {
                 setQuery("");
-                onChange({ address: "", latitude: 0, longitude: 0 });
+                onChange({ address: "", latitude: 0, longitude: 0, isConfirmed: false });
+                closeDropdown();
               }}
               className="p-1 text-slate-400 hover:text-slate-600 rounded-md"
               title="Clear"
@@ -187,26 +184,32 @@ export default function LocationSearchInput({
       )}
 
       {/* Autocomplete Dropdown */}
-      {isOpen && suggestions.length > 0 && (
+      {isOpen && (
         <div className="absolute z-[9999] left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto divide-y divide-slate-100 animate-in fade-in-50 duration-150">
-          {suggestions.map((item, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handlePickSuggestion(item)}
-              className="w-full text-left p-2.5 hover:bg-emerald-50/60 transition-colors flex items-start gap-2.5 text-xs group"
-            >
-              <Navigation className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-slate-800 truncate">
-                  {item.shortName}
+          {suggestions.length > 0 ? (
+            suggestions.map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handlePickSuggestion(item)}
+                className="w-full text-left p-2.5 hover:bg-emerald-50/60 transition-colors flex items-start gap-2.5 text-xs group"
+              >
+                <Navigation className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-slate-800 truncate">
+                    {item.shortName}
+                  </div>
+                  <div className="text-[11px] text-slate-500 truncate">
+                    {item.displayName}
+                  </div>
                 </div>
-                <div className="text-[11px] text-slate-500 truncate">
-                  {item.displayName}
-                </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))
+          ) : !isLoading && query.trim().length >= 2 ? (
+            <div className="p-3 text-xs text-slate-500 text-center">
+              No relevant locations found. Try another name or select a location directly on the map.
+            </div>
+          ) : null}
         </div>
       )}
     </div>

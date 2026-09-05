@@ -166,7 +166,7 @@ function OfferRideForm() {
   const [newStopPrice, setNewStopPrice] = useState<number>(100);
 
   // Routing Hook
-  const { routeResult, isCalculating, calculateRoute } = useRoute();
+  const { routeResult, isCalculating, calculateRoute, clearRoute } = useRoute();
 
   const hasInitializedProfileRef = React.useRef(false);
 
@@ -430,6 +430,8 @@ function OfferRideForm() {
         { latitude: startPoint.latitude, longitude: startPoint.longitude, name: startPoint.name },
         { latitude: endPoint.latitude, longitude: endPoint.longitude, name: endPoint.name },
       ]);
+    } else {
+      clearRoute();
     }
   }, [
     startPoint.latitude,
@@ -437,6 +439,7 @@ function OfferRideForm() {
     endPoint.latitude,
     endPoint.longitude,
     calculateRoute,
+    clearRoute,
   ]);
 
   // Ensure Starting Location (Origin) and Destination are NEVER included in intermediate Route Stops
@@ -676,6 +679,24 @@ function OfferRideForm() {
     const dateCheck = validateRideDepartureDateTime(formData.departureDate, formData.departureTime);
     if (!dateCheck.isValid) {
       setErrorMessage(dateCheck.error || "Invalid departure date or time.");
+      return;
+    }
+
+    if (!startPoint.latitude || startPoint.latitude === 0 || !startPoint.longitude || startPoint.longitude === 0) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        startingLocation: "Please select a valid starting origin from suggestions or tap on the map.",
+      }));
+      setErrorMessage("Please select a valid starting origin from suggestions or tap on the map.");
+      return;
+    }
+
+    if (!endPoint.latitude || endPoint.latitude === 0 || !endPoint.longitude || endPoint.longitude === 0) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        destination: "Please select a valid destination from suggestions or tap on the map.",
+      }));
+      setErrorMessage("Please select a valid destination from suggestions or tap on the map.");
       return;
     }
 
@@ -1165,22 +1186,24 @@ function OfferRideForm() {
                       placeholder="Search starting origin or tap location on map"
                       value={formData.startingLocation}
                       showCurrentLocation={false}
-                      onChange={async (loc) => {
-                        let name = loc.address;
-                        let lat = loc.latitude;
-                        let lng = loc.longitude;
+                      onChange={(loc) => {
+                        const name = loc.address;
+                        const lat = loc.latitude;
+                        const lng = loc.longitude;
                         setFormData((prev) => ({ ...prev, startingLocation: name }));
 
-                        if ((!lat || !lng) && name.trim().length >= 3) {
-                          const { resolveFuzzyLocation } = await import("@/lib/services/routeCorridor");
-                          const resolved = await resolveFuzzyLocation(name);
-                          if (resolved) {
-                            lat = resolved.latitude;
-                            lng = resolved.longitude;
-                            name = resolved.shortName;
-                          }
+                        if (!lat || !lng || lat === 0 || lng === 0) {
+                          setStartPoint({
+                            name: name.split(",")[0].trim(),
+                            address: name,
+                            latitude: 0,
+                            longitude: 0,
+                          });
+                          clearRoute();
+                          return;
                         }
 
+                        // Explicit selection from suggestions or map click
                         const resolvedCoords = resolvePlaceCoordinates(name, lat, lng, true);
                         setStartPoint({
                           name: name.split(",")[0].trim(),
@@ -1223,22 +1246,24 @@ function OfferRideForm() {
                       placeholder="Search destination or tap location on map"
                       value={formData.destination}
                       showCurrentLocation={false}
-                      onChange={async (loc) => {
-                        let name = loc.address;
-                        let lat = loc.latitude;
-                        let lng = loc.longitude;
+                      onChange={(loc) => {
+                        const name = loc.address;
+                        const lat = loc.latitude;
+                        const lng = loc.longitude;
                         setFormData((prev) => ({ ...prev, destination: name }));
 
-                        if ((!lat || !lng) && name.trim().length >= 3) {
-                          const { resolveFuzzyLocation } = await import("@/lib/services/routeCorridor");
-                          const resolved = await resolveFuzzyLocation(name);
-                          if (resolved) {
-                            lat = resolved.latitude;
-                            lng = resolved.longitude;
-                            name = resolved.shortName;
-                          }
+                        if (!lat || !lng || lat === 0 || lng === 0) {
+                          setEndPoint({
+                            name: name.split(",")[0].trim(),
+                            address: name,
+                            latitude: 0,
+                            longitude: 0,
+                          });
+                          clearRoute();
+                          return;
                         }
 
+                        // Explicit selection from suggestions or map click
                         const resolvedCoords = resolvePlaceCoordinates(name, lat, lng, false);
                         setEndPoint({
                           name: name.split(",")[0].trim(),
