@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -18,6 +18,29 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const router = useRouter();
+
+  const [avatarSrc, setAvatarSrc] = useState<string | null>(session?.user?.image || null);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setAvatarSrc(session?.user?.image || null);
+    setImgError(false);
+  }, [session?.user?.image]);
+
+  useEffect(() => {
+    const handleProfilePhotoUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ image?: string }>;
+      if (customEvent.detail && customEvent.detail.image !== undefined) {
+        setAvatarSrc(customEvent.detail.image || null);
+        setImgError(false);
+      }
+    };
+
+    window.addEventListener("profile-photo-updated", handleProfilePhotoUpdated);
+    return () => {
+      window.removeEventListener("profile-photo-updated", handleProfilePhotoUpdated);
+    };
+  }, []);
 
   const isSuperAdmin = session?.user?.role === "admin";
   const isCampusAdmin = session?.user?.role === "campus_admin";
@@ -126,11 +149,13 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
               className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 hover:border-emerald-500 hover:bg-emerald-50 transition-colors overflow-hidden shrink-0"
               title="View Profile"
             >
-              {session.user.image ? (
+              {avatarSrc && !imgError ? (
                 <img
-                  src={session.user.image}
+                  key={avatarSrc}
+                  src={avatarSrc}
                   alt={session.user.name || "User"}
                   className="h-full w-full object-cover"
+                  onError={() => setImgError(true)}
                 />
               ) : (
                 getInitials(session.user.name || "PP")

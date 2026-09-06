@@ -44,7 +44,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       headers: {
         "Content-Type": contentType,
         "Content-Length": imageBuffer.length.toString(),
-        "Cache-Control": "public, max-age=86400, stale-while-revalidate=43200",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
       },
     });
   } catch (error) {

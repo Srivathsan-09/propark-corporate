@@ -365,8 +365,16 @@ export default function ProfilePage() {
       if (res.ok) {
         setProfile(data.profile);
         setSuccessMessage("Profile photo saved successfully!");
+        const freshAvatarUrl = `/api/profile/${data.profile._id}/avatar?t=${Date.now()}`;
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("profile-photo-updated", {
+              detail: { image: freshAvatarUrl },
+            })
+          );
+        }
         await updateSession({
-          image: `/api/profile/${data.profile._id}/avatar?t=${Date.now()}`,
+          image: freshAvatarUrl,
         });
         setIsAdjustModalOpen(false);
       } else {
@@ -414,6 +422,13 @@ export default function ProfilePage() {
       if (res.ok) {
         setProfile(data.profile);
         setSuccessMessage("Profile photo removed.");
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("profile-photo-updated", {
+              detail: { image: "" },
+            })
+          );
+        }
         await updateSession({
           image: "",
         });
@@ -491,14 +506,24 @@ export default function ProfilePage() {
       setProfile(data.profile);
       setSuccessMessage("Profile updated successfully!");
 
+      const freshAvatarUrl = data.profile.profileImage
+        ? `/api/profile/${data.profile._id}/avatar?t=${Date.now()}`
+        : "";
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("profile-photo-updated", {
+            detail: { image: freshAvatarUrl },
+          })
+        );
+      }
+
       // Refresh client session with new name/dept/image
       await updateSession({
         name: data.profile.name,
         department: data.profile.department,
         phone: data.profile.phone,
-        image: data.profile.profileImage
-          ? `/api/profile/${data.profile._id}/avatar?t=${Date.now()}`
-          : "",
+        image: freshAvatarUrl,
       });
     } catch (err) {
       console.error("Profile save error:", err);

@@ -69,7 +69,7 @@ export const authOptions: NextAuthOptions = {
             image: user.profileImage?.startsWith("http")
               ? user.profileImage
               : user.profileImage
-              ? `/api/profile/${user._id}/avatar`
+              ? `/api/profile/${user._id}/avatar?v=${user.updatedAt ? new Date(user.updatedAt).getTime() : Date.now()}`
               : "",
           };
       },
@@ -186,9 +186,10 @@ export const authOptions: NextAuthOptions = {
             token.verificationStatus = dbUser.verificationStatus || (dbUser.role === "admin" ? "approved" : "pending");
             token.isApproved = dbUser.isApproved ?? (dbUser.role === "admin");
             if (dbUser.profileImage) {
+              const v = dbUser.updatedAt ? `?v=${new Date(dbUser.updatedAt).getTime()}` : "";
               token.picture = dbUser.profileImage.startsWith("http")
                 ? dbUser.profileImage
-                : `/api/profile/${dbUser._id}/avatar`;
+                : `/api/profile/${dbUser._id}/avatar${v}`;
             } else {
               token.picture = "";
             }
@@ -234,7 +235,7 @@ export const authOptions: NextAuthOptions = {
           try {
             await connectToDatabase();
             const liveUser = await User.findOne({ email: session.user.email.toLowerCase().trim() })
-              .select("isApproved verificationStatus role name employeeId companyName campusId campusName profileImage");
+              .select("isApproved verificationStatus role name employeeId companyName campusId campusName profileImage updatedAt");
             if (liveUser) {
               const isSuper = session.user.email.toLowerCase().trim() === "srimana2006@gmail.com" || liveUser.role === "admin";
               const isCampusAdm = liveUser.role === "campus_admin";
@@ -247,9 +248,10 @@ export const authOptions: NextAuthOptions = {
               if (liveUser.campusId) session.user.campusId = liveUser.campusId;
               if (liveUser.campusName) session.user.campusName = liveUser.campusName;
               if (liveUser.profileImage) {
+                const v = liveUser.updatedAt ? `?v=${new Date(liveUser.updatedAt).getTime()}` : "";
                 session.user.image = liveUser.profileImage.startsWith("http")
                   ? liveUser.profileImage
-                  : `/api/profile/${liveUser._id}/avatar`;
+                  : `/api/profile/${liveUser._id}/avatar${v}`;
               } else {
                 session.user.image = "";
               }
