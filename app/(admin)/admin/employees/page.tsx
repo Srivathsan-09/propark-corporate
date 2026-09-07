@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
@@ -15,6 +15,17 @@ import {
   Crown,
   Car,
   Clock,
+  ShieldCheck,
+  MapPin,
+  ChevronRight,
+  MoreHorizontal,
+  AlertCircle,
+  RefreshCw,
+  FilterX,
+  Eye,
+  CheckCircle2,
+  XCircle,
+  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -25,6 +36,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CarLoader } from "@/components/common/CarLoader";
 import { getInitials } from "@/lib/utils";
 
@@ -66,8 +92,15 @@ export default function AdminEmployeesPage() {
   const [campusFilter, setCampusFilter] = useState<string>("all");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
-  // Alerts
-  const [feedbackMessage, setFeedbackMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  // Reject confirmation dialog
+  const [rejectDialogEmployee, setRejectDialogEmployee] = useState<IEmployee | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+
+  // Feedback banner
+  const [feedbackMessage, setFeedbackMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const fetchEmployees = async () => {
     try {
@@ -87,7 +120,7 @@ export default function AdminEmployeesPage() {
       }
     } catch (err) {
       console.error("Failed to load employees:", err);
-      setFeedbackMessage({ type: "error", text: "Failed to load directory." });
+      setFeedbackMessage({ type: "error", text: "Failed to load directory data." });
     } finally {
       setIsLoading(false);
     }
@@ -97,14 +130,22 @@ export default function AdminEmployeesPage() {
     fetchEmployees();
   }, []);
 
-  const handleVerify = async (employeeId: string, action: "approve" | "reject") => {
+  const handleVerify = async (
+    employeeId: string,
+    action: "approve" | "reject",
+    reason?: string
+  ) => {
     try {
       setActionLoadingId(employeeId);
       setFeedbackMessage(null);
+
       const res = await fetch(`/api/admin/employees/${employeeId}/verify`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          rejectionReason: reason || undefined,
+        }),
       });
 
       const data = await res.json();
@@ -121,45 +162,75 @@ export default function AdminEmployeesPage() {
               : emp
           )
         );
-        setFeedbackMessage({ type: "success", text: data.message });
+        setFeedbackMessage({
+          type: "success",
+          text:
+            data.message ||
+            (action === "approve"
+              ? "Employee verified and approved successfully."
+              : "Employee verification status set to rejected."),
+        });
       } else {
-        setFeedbackMessage({ type: "error", text: data.error || "Failed to update verification." });
+        setFeedbackMessage({
+          type: "error",
+          text: data.error || "Failed to update verification.",
+        });
       }
     } catch (e) {
       console.error("Failed to verify employee:", e);
       setFeedbackMessage({ type: "error", text: "Network error during verification." });
     } finally {
       setActionLoadingId(null);
+      setRejectDialogEmployee(null);
+      setRejectionReason("");
     }
   };
 
   // Filter Logic
-  const filteredEmployees = employees.filter((emp) => {
-    const matchesSearch =
-      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (emp.department && emp.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (emp.companyName && emp.companyName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (emp.campusId && emp.campusId.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredEmployees = useMemo(() => {
+    return employees.filter((emp) => {
+      const searchLower = searchTerm.toLowerCase().trim();
+      const matchesSearch =
+        !searchLower ||
+        emp.name.toLowerCase().includes(searchLower) ||
+        emp.email.toLowerCase().includes(searchLower) ||
+        emp.employeeId.toLowerCase().includes(searchLower) ||
+        (emp.department && emp.department.toLowerCase().includes(searchLower)) ||
+        (emp.companyName && emp.companyName.toLowerCase().includes(searchLower)) ||
+        (emp.campusId && emp.campusId.toLowerCase().includes(searchLower)) ||
+        (emp.campusName && emp.campusName.toLowerCase().includes(searchLower));
 
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "approved" && emp.verificationStatus === "approved") ||
-      (statusFilter === "pending" && emp.verificationStatus === "pending") ||
-      (statusFilter === "rejected" && emp.verificationStatus === "rejected");
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "approved" && emp.verificationStatus === "approved") ||
+        (statusFilter === "pending" && emp.verificationStatus === "pending") ||
+        (statusFilter === "rejected" && emp.verificationStatus === "rejected");
 
-    const matchesRole =
-      roleFilter === "all" ||
-      (roleFilter === "admin" && emp.role === "admin") ||
-      (roleFilter === "campus_admin" && emp.role === "campus_admin") ||
-      (roleFilter === "employee" && emp.role === "employee");
+      const matchesRole =
+        roleFilter === "all" ||
+        (roleFilter === "admin" && emp.role === "admin") ||
+        (roleFilter === "campus_admin" && emp.role === "campus_admin") ||
+        (roleFilter === "employee" && emp.role === "employee");
 
-    const matchesCampus =
-      campusFilter === "all" || emp.campusId === campusFilter;
+      const matchesCampus =
+        campusFilter === "all" || emp.campusId === campusFilter;
 
-    return matchesSearch && matchesStatus && matchesRole && matchesCampus;
-  });
+      return matchesSearch && matchesStatus && matchesRole && matchesCampus;
+    });
+  }, [employees, searchTerm, statusFilter, roleFilter, campusFilter]);
+
+  const hasActiveFilters =
+    searchTerm !== "" ||
+    statusFilter !== "all" ||
+    roleFilter !== "all" ||
+    campusFilter !== "all";
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setRoleFilter("all");
+    setCampusFilter("all");
+  };
 
   const superAdminCount = employees.filter((e) => e.role === "admin").length;
   const campusAdminCount = employees.filter((e) => e.role === "campus_admin").length;
@@ -168,364 +239,613 @@ export default function AdminEmployeesPage() {
 
   if (isLoading) {
     return (
-      <div className="py-20 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 shadow-xs">
-        <CarLoader size="page" message="Loading corporate employee directory..." />
+      <div className="py-24 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+        <CarLoader size="page" message="Loading employee directory..." />
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 animate-in fade-in-50 duration-300">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-        <div>
+    <div className="space-y-6 animate-in fade-in-50 duration-300">
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Link href="/admin" className="text-xs text-slate-500 hover:text-purple-600 flex items-center gap-1 font-semibold transition-colors">
+            <Link
+              href="/admin"
+              className="text-xs text-slate-500 hover:text-purple-600 inline-flex items-center gap-1 font-semibold transition-colors"
+            >
               <ArrowLeft className="h-3.5 w-3.5" /> Back to Overview
             </Link>
           </div>
-          <div className="flex flex-wrap items-center gap-3 mt-2">
+          <div className="flex flex-wrap items-center gap-2.5 pt-1">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
               <Users className="h-6 w-6 text-purple-600" />
-              Employees
+              Employee Directory
             </h1>
             {isSuperAdmin ? (
-              <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold px-2.5 py-0.5">
-                Super Admin
-              </Badge>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200/80">
+                <Crown className="h-3 w-3 text-purple-600" />
+                Super Admin Portal
+              </span>
             ) : (
-              <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-0.5">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80">
+                <Building2 className="h-3 w-3 text-blue-600" />
                 Campus Admin ({session?.user?.campusId})
-              </Badge>
+              </span>
             )}
           </div>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 max-w-2xl">
             {isSuperAdmin
-              ? "View and manage employee accounts and verification requests across campuses."
-              : "View and manage employee accounts for your assigned campus."}
+              ? "Oversee corporate commuter profiles, vehicle registrations, and verification workflows across all campuses."
+              : `Managing corporate employees and verification requests for ${session?.user?.campusId || "your designated campus"}.`}
           </p>
         </div>
 
         {isSuperAdmin && (
-          <Link href="/admin/campuses">
-            <button className="h-9 px-4 text-xs font-semibold rounded-lg gap-2 border border-purple-200 text-purple-700 hover:bg-purple-50 flex items-center transition-colors">
-              <Building2 className="h-3.5 w-3.5" /> Manage Campuses
-            </button>
-          </Link>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Link href="/admin/campuses">
+              <button className="h-9 px-3.5 text-xs font-semibold rounded-xl gap-2 border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 flex items-center transition-all shadow-2xs">
+                <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                Manage Campuses
+              </button>
+            </Link>
+          </div>
         )}
       </div>
 
-      {/* Feedback banner */}
+      {/* Feedback Banner */}
       {feedbackMessage && (
         <div
-          className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm border animate-in fade-in-50 ${
+          className={`flex items-center justify-between rounded-xl px-4 py-3 text-xs sm:text-sm border animate-in fade-in-50 transition-all ${
             feedbackMessage.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-              : "bg-rose-50 text-rose-800 border-rose-200"
+              ? "bg-emerald-50/90 text-emerald-800 border-emerald-200"
+              : "bg-rose-50/90 text-rose-800 border-rose-200"
           }`}
         >
-          {feedbackMessage.type === "success" ? (
-            <Check className="h-4 w-4 shrink-0 text-emerald-600" />
-          ) : (
-            <X className="h-4 w-4 shrink-0 text-rose-600" />
-          )}
-          <span className="font-medium">{feedbackMessage.text}</span>
+          <div className="flex items-center gap-2.5">
+            {feedbackMessage.type === "success" ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            ) : (
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+            )}
+            <span className="font-medium">{feedbackMessage.text}</span>
+          </div>
+          <button
+            onClick={() => setFeedbackMessage(null)}
+            className="text-slate-400 hover:text-slate-700 p-1"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
 
-      {/* Metrics Widgets - Compact */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+      {/* Modern KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Total Commuters</span>
-            <div className="text-xl font-bold text-slate-900 mt-0.5">{employees.length}</div>
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+              Total Commuters
+            </span>
+            <div className="text-xl font-bold text-slate-900 mt-1">{employees.length}</div>
+            <span className="text-[10px] text-slate-500 mt-0.5 block">Registered accounts</span>
           </div>
-          <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
-            <Users className="h-4 w-4" />
+          <div className="h-10 w-10 bg-purple-50 border border-purple-100/80 rounded-xl flex items-center justify-center text-purple-600">
+            <Users className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider block">Pending Review</span>
-            <div className="text-xl font-bold text-amber-800 mt-0.5">{pendingCount}</div>
+            <span className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider block">
+              Pending Review
+            </span>
+            <div className="text-xl font-bold text-amber-800 mt-1">{pendingCount}</div>
+            <span className="text-[10px] text-slate-500 mt-0.5 block">
+              {pendingCount > 0 ? "Requires admin action" : "Queue caught up"}
+            </span>
           </div>
-          <div className="p-2 bg-amber-50 rounded-lg text-amber-600">
-            <Clock className="h-4 w-4" />
+          <div className="h-10 w-10 bg-amber-50 border border-amber-100/80 rounded-xl flex items-center justify-center text-amber-600">
+            <Clock className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider block">Campus Admins</span>
-            <div className="text-xl font-bold text-blue-900 mt-0.5">{campusAdminCount}</div>
+            <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider block">
+              Campus Admins
+            </span>
+            <div className="text-xl font-bold text-blue-900 mt-1">{campusAdminCount}</div>
+            <span className="text-[10px] text-slate-500 mt-0.5 block">Campus coordinators</span>
           </div>
-          <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-            <Crown className="h-4 w-4" />
+          <div className="h-10 w-10 bg-blue-50 border border-blue-100/80 rounded-xl flex items-center justify-center text-blue-600">
+            <ShieldCheck className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider block">Physical Campuses</span>
-            <div className="text-xl font-bold text-emerald-900 mt-0.5">{campuses.length}</div>
+            <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider block">
+              Physical Campuses
+            </span>
+            <div className="text-xl font-bold text-emerald-900 mt-1">{campuses.length}</div>
+            <span className="text-[10px] text-slate-500 mt-0.5 block">Active facilities</span>
           </div>
-          <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
-            <Building className="h-4 w-4" />
+          <div className="h-10 w-10 bg-emerald-50 border border-emerald-100/80 rounded-xl flex items-center justify-center text-emerald-600">
+            <Building className="h-5 w-5" />
           </div>
         </div>
       </div>
 
       {/* Filter and Search Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Role Filter */}
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="h-9 w-auto inline-flex items-center justify-start gap-1.5 px-3 text-xs font-semibold rounded-xl border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70 shadow-2xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all cursor-pointer">
+            <SelectTrigger className="h-9 w-auto min-w-[130px] inline-flex items-center justify-start gap-1.5 px-3 text-xs font-semibold rounded-xl border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 shadow-2xs">
               <SelectValue placeholder="All Roles" />
             </SelectTrigger>
-            <SelectContent className="min-w-[180px] rounded-xl border-slate-200 shadow-lg bg-white p-1">
-              <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Roles</SelectItem>
-              <SelectItem value="admin" className="text-xs font-medium cursor-pointer">Super Admins ({superAdminCount})</SelectItem>
-              <SelectItem value="campus_admin" className="text-xs font-medium cursor-pointer">Campus Admins ({campusAdminCount})</SelectItem>
-              <SelectItem value="employee" className="text-xs font-medium cursor-pointer">Employees ({employeeOnlyCount})</SelectItem>
+            <SelectContent className="min-w-[170px] rounded-xl border-slate-200 shadow-lg bg-white p-1">
+              <SelectItem value="all" className="text-xs font-medium cursor-pointer">
+                All Roles ({employees.length})
+              </SelectItem>
+              <SelectItem value="employee" className="text-xs font-medium cursor-pointer">
+                Employees ({employeeOnlyCount})
+              </SelectItem>
+              <SelectItem value="campus_admin" className="text-xs font-medium cursor-pointer">
+                Campus Admins ({campusAdminCount})
+              </SelectItem>
+              <SelectItem value="admin" className="text-xs font-medium cursor-pointer">
+                Super Admins ({superAdminCount})
+              </SelectItem>
             </SelectContent>
           </Select>
 
           {/* Status Filter */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-9 w-auto inline-flex items-center justify-start gap-1.5 px-3 text-xs font-semibold rounded-xl border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70 shadow-2xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all cursor-pointer">
+            <SelectTrigger className="h-9 w-auto min-w-[135px] inline-flex items-center justify-start gap-1.5 px-3 text-xs font-semibold rounded-xl border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 shadow-2xs">
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
             <SelectContent className="min-w-[160px] rounded-xl border-slate-200 shadow-lg bg-white p-1">
-              <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Statuses</SelectItem>
-              <SelectItem value="pending" className="text-xs font-medium cursor-pointer">Pending Review</SelectItem>
-              <SelectItem value="approved" className="text-xs font-medium cursor-pointer">Approved</SelectItem>
-              <SelectItem value="rejected" className="text-xs font-medium cursor-pointer">Rejected</SelectItem>
+              <SelectItem value="all" className="text-xs font-medium cursor-pointer">
+                All Statuses
+              </SelectItem>
+              <SelectItem value="approved" className="text-xs font-medium cursor-pointer">
+                Approved
+              </SelectItem>
+              <SelectItem value="pending" className="text-xs font-medium cursor-pointer">
+                Pending Review ({pendingCount})
+              </SelectItem>
+              <SelectItem value="rejected" className="text-xs font-medium cursor-pointer">
+                Rejected
+              </SelectItem>
             </SelectContent>
           </Select>
 
           {/* Campus Filter (For Super Admin) */}
           {isSuperAdmin && campuses.length > 0 && (
             <Select value={campusFilter} onValueChange={setCampusFilter}>
-              <SelectTrigger className="h-9 w-auto max-w-[220px] inline-flex items-center justify-start gap-1.5 px-3 text-xs font-semibold rounded-xl border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70 shadow-2xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all cursor-pointer">
+              <SelectTrigger className="h-9 w-auto max-w-[220px] inline-flex items-center justify-start gap-1.5 px-3 text-xs font-semibold rounded-xl border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 shadow-2xs">
                 <SelectValue placeholder="All Campuses" />
               </SelectTrigger>
-              <SelectContent className="min-w-[220px] max-h-64 rounded-xl border-slate-200 shadow-lg bg-white p-1">
-                <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Campuses</SelectItem>
+              <SelectContent className="min-w-[220px] max-h-60 rounded-xl border-slate-200 shadow-lg bg-white p-1">
+                <SelectItem value="all" className="text-xs font-medium cursor-pointer">
+                  All Campuses
+                </SelectItem>
                 {campuses.map((c) => (
                   <SelectItem key={c.campusId} value={c.campusId} className="text-xs font-medium cursor-pointer">
-                    {c.campusId} - {c.name}
+                    {c.campusId} — {c.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           )}
+
+          {hasActiveFilters && (
+            <button
+              onClick={resetFilters}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <FilterX className="h-3.5 w-3.5" />
+              Clear filters
+            </button>
+          )}
         </div>
 
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+        {/* Search Field */}
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
           <Input
-            placeholder="Search by name, ID, email, company..."
+            placeholder="Search name, ID, email, company, campus..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8 h-9 text-xs rounded-lg"
+            className="pl-9 pr-8 h-9 text-xs rounded-xl border-slate-200 focus:border-purple-500 focus:ring-purple-500/20 shadow-2xs"
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Employees Table */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
-        {isLoading ? (
-          <div className="py-16 flex flex-col items-center justify-center">
-            <CarLoader size="lg" message="Loading employee directory..." />
-          </div>
-        ) : filteredEmployees.length === 0 ? (
-          <div className="text-center py-16 text-slate-500 text-xs">
-            <Users className="mx-auto h-8 w-8 text-slate-300 mb-1.5" />
-            No records found matching your filters.
+      {/* Employee Results Table */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+        {/* Table Subheader / Count Bar */}
+        <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <span className="font-medium">
+            Showing <strong className="text-slate-800">{filteredEmployees.length}</strong> of{" "}
+            <strong className="text-slate-800">{employees.length}</strong> total employees
+          </span>
+          {pendingCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full text-[11px] font-semibold">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+              {pendingCount} pending verification
+            </span>
+          )}
+        </div>
+
+        {filteredEmployees.length === 0 ? (
+          <div className="text-center py-20 px-4">
+            <div className="h-12 w-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+              <Users className="h-6 w-6" />
+            </div>
+            <h3 className="text-sm font-semibold text-slate-800">No employees match your criteria</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              Try adjusting your search keywords, role filters, or campus selection.
+            </p>
+            {hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+              >
+                <RefreshCw className="h-3 w-3" /> Reset all filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs" style={{ minWidth: "680px" }}>
+            <table className="w-full text-left text-xs" style={{ minWidth: "850px" }}>
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] uppercase tracking-wider text-slate-500">
-                  <th className="py-3 pl-6 pr-4 font-bold w-[220px]">Employee / Admin</th>
-                  <th className="py-3 px-4 font-bold w-[110px]">Emp Id</th>
-                  <th className="py-3 px-4 font-bold w-[120px]">Role</th>
-                  <th className="py-3 px-4 font-bold w-[170px]">Company & Campus</th>
-                  <th className="py-3 px-4 font-bold w-[90px]">Fleet</th>
-                  <th className="py-3 px-4 font-bold w-[100px]">Status</th>
-                  <th className="py-3 pl-4 pr-6 font-bold text-right">Actions</th>
+                <tr className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-semibold tracking-wider text-slate-500 uppercase select-none">
+                  <th className="py-3.5 pl-6 pr-4 font-semibold">Employee</th>
+                  <th className="py-3.5 px-4 font-semibold">ID</th>
+                  <th className="py-3.5 px-4 font-semibold">Role</th>
+                  <th className="py-3.5 px-4 font-semibold">Organization & Campus</th>
+                  <th className="py-3.5 px-4 font-semibold">Fleet</th>
+                  <th className="py-3.5 px-4 font-semibold">Status</th>
+                  <th className="py-3.5 pl-4 pr-6 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredEmployees.map((emp) => (
-                  <tr key={emp._id} className="hover:bg-slate-50/60 transition-colors">
-                    {/* Employee Info - Name + Email, constrained */}
-                    <td className="py-3 pl-6 pr-4 max-w-[220px]">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-100 text-purple-800 font-bold text-[10px] shrink-0 overflow-hidden">
-                          {emp.profileImage ? (
-                            <img
-                              src={emp.profileImage}
-                              alt={emp.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            getInitials(emp.name)
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-slate-900 truncate text-xs">
-                            {emp.name}
+                {filteredEmployees.map((emp) => {
+                  const isAdmin = emp.role === "admin" || emp.role === "campus_admin";
+                  const isPending = emp.verificationStatus === "pending";
+                  const isApproved = emp.verificationStatus === "approved";
+                  const isRejected = emp.verificationStatus === "rejected";
+
+                  return (
+                    <tr
+                      key={emp._id}
+                      className="hover:bg-slate-50/80 transition-colors group"
+                    >
+                      {/* 1. Employee: Avatar + Name + Department/Email */}
+                      <td className="py-3.5 pl-6 pr-4 max-w-[260px]">
+                        <div className="flex items-center gap-3">
+                          <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-purple-100 to-indigo-100 text-purple-800 font-bold text-xs shrink-0 overflow-hidden border border-purple-200/60 shadow-2xs">
+                            {emp.profileImage ? (
+                              <img
+                                src={emp.profileImage}
+                                alt={emp.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              getInitials(emp.name)
+                            )}
                           </div>
-                          <div className="text-[11px] text-slate-500 truncate">{emp.email}</div>
+                          <div className="min-w-0 flex-1">
+                            <Link
+                              href={`/admin/employees/${emp._id}`}
+                              className="font-semibold text-slate-900 hover:text-purple-600 transition-colors truncate block text-xs sm:text-sm"
+                              title={emp.name}
+                            >
+                              {emp.name}
+                            </Link>
+                            <div className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+                              {emp.department && (
+                                <>
+                                  <span className="font-medium text-slate-600 truncate max-w-[110px]">
+                                    {emp.department}
+                                  </span>
+                                  <span className="text-slate-300">•</span>
+                                </>
+                              )}
+                              <span className="truncate text-slate-400" title={emp.email}>
+                                {emp.email}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Employee ID */}
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 tracking-wide inline-block">
-                        {emp.employeeId}
-                      </span>
-                    </td>
+                      {/* 2. Employee ID: Clean Monospace */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100/80 px-2 py-0.5 rounded-md border border-slate-200/70">
+                          {emp.employeeId}
+                        </span>
+                      </td>
 
-                    {/* Role & Access Tier */}
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      {emp.role === "admin" ? (
-                        <Badge className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-semibold py-0.5 px-2">
-                          Super Admin
-                        </Badge>
-                      ) : emp.role === "campus_admin" ? (
-                        <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-semibold py-0.5 px-2">
-                          Campus Admin
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-slate-600 text-[10px] font-medium py-0.5 px-2">
-                          Employee
-                        </Badge>
-                      )}
-                    </td>
-
-                    {/* Company & Physical Campus */}
-                    <td className="py-3 px-4 max-w-[170px]">
-                      {emp.role === "admin" ? (
-                        <div>
-                          <span className="font-bold text-[11px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 tracking-wide inline-block">
-                            Platform Wide
+                      {/* 3. Role: Sleek badge with clear visual differentiation */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {emp.role === "admin" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/80">
+                            <Crown className="h-3 w-3 text-purple-600" />
+                            Super Admin
                           </span>
-                          <div className="text-[10px] text-slate-400 mt-0.5">All Campuses</div>
-                        </div>
-                      ) : emp.role === "campus_admin" ? (
-                        <div>
-                          <span className="font-bold text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 tracking-wide inline-block">
-                            {emp.campusId || "Campus Admin"}
+                        ) : emp.role === "campus_admin" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/80">
+                            <Building2 className="h-3 w-3 text-blue-600" />
+                            Campus Admin
                           </span>
-                          <div className="text-[10px] text-slate-500 mt-0.5 truncate">
-                            {emp.campusName || "Designated Campus"}
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="font-semibold text-slate-900 text-xs truncate">
-                            {emp.companyName || "—"}
-                          </div>
-                          <div className="text-[10px] text-slate-500 truncate mt-0.5 flex items-center gap-1">
-                            <span className="font-bold text-[11px] text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 tracking-wide inline-block">
-                              {emp.campusId || "—"}
-                            </span>
-                            {emp.campusName && <span className="text-slate-400 truncate">{emp.campusName}</span>}
-                          </div>
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Vehicles */}
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                        {emp.vehicleCount} {emp.vehicleCount === 1 ? "vehicle" : "vehicles"}
-                      </span>
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      {emp.role === "admin" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800">Super Admin</span>
-                      ) : emp.role === "campus_admin" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800">Campus Admin</span>
-                      ) : emp.verificationStatus === "approved" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Approved
-                        </span>
-                      ) : emp.verificationStatus === "rejected" ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                          Rejected
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                          Pending
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3 pl-4 pr-6 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* View Details CTA */}
-                        <Link
-                          href={`/admin/employees/${emp._id}`}
-                          className="h-7 px-2.5 text-xs font-semibold border border-slate-200 text-slate-700 bg-white hover:bg-slate-100 hover:text-emerald-700 hover:border-emerald-300 rounded-lg flex items-center gap-1 transition-colors shadow-2xs"
-                          title="View Complete Commute History & Activity Audit"
-                        >
-                          View Details
-                        </Link>
-
-                        {emp.role === "admin" || emp.role === "campus_admin" ? (
-                          <span className="text-slate-400 text-[11px] italic pr-1">System Admin</span>
                         ) : (
-                          <>
-                            {/* Approve */}
-                            {emp.verificationStatus !== "approved" && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                            Employee
+                          </span>
+                        )}
+                      </td>
+
+                      {/* 4. Company & Campus: Clean text layout (no ugly clipped badges) */}
+                      <td className="py-3.5 px-4 max-w-[220px]">
+                        {emp.role === "admin" ? (
+                          <div>
+                            <div className="font-semibold text-slate-800 text-xs">
+                              Platform Headquarters
+                            </div>
+                            <div className="text-[11px] text-slate-400 mt-0.5">
+                              All Campuses & Corridors
+                            </div>
+                          </div>
+                        ) : emp.role === "campus_admin" ? (
+                          <div>
+                            <div className="font-semibold text-slate-800 text-xs">
+                              {emp.companyName || "Campus Management"}
+                            </div>
+                            <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1 truncate">
+                              <MapPin className="h-3 w-3 text-blue-500 shrink-0" />
+                              <span className="truncate">
+                                {emp.campusName || emp.campusId || "Assigned Campus"}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="font-semibold text-slate-800 text-xs truncate">
+                              {emp.companyName || "Corporate Partner"}
+                            </div>
+                            <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1 truncate">
+                              <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                              <span className="truncate">
+                                {emp.campusName
+                                  ? `${emp.campusName} (${emp.campusId || "Main"})`
+                                  : emp.campusId || "Main Campus"}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* 5. Fleet / Vehicles: Clean icon + count */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {emp.vehicleCount > 0 ? (
+                          <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                            <Car className="h-3.5 w-3.5 text-purple-600" />
+                            <span>
+                              {emp.vehicleCount}{" "}
+                              <span className="text-[11px] font-normal text-slate-500">
+                                {emp.vehicleCount === 1 ? "vehicle" : "vehicles"}
+                              </span>
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                            <Car className="h-3.5 w-3.5 text-slate-300" />
+                            <span>None</span>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* 6. Status: Modern dot indicator without redundancy */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        {isAdmin ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-700 bg-purple-50/60 px-2.5 py-0.5 rounded-full border border-purple-200/50">
+                            <span className="h-1.5 w-1.5 rounded-full bg-purple-600" />
+                            Active Admin
+                          </span>
+                        ) : isApproved ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50/60 px-2.5 py-0.5 rounded-full border border-emerald-200/60">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            Approved
+                          </span>
+                        ) : isPending ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200/80">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Pending Review
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-700 bg-rose-50/60 px-2.5 py-0.5 rounded-full border border-rose-200/60">
+                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                            Rejected
+                          </span>
+                        )}
+                      </td>
+
+                      {/* 7. Actions: Balanced, contextual, elegant */}
+                      <td className="py-3.5 pl-4 pr-6 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          {/* Pending Fast-Action: Approve or Reject */}
+                          {!isAdmin && isPending && (
+                            <div className="flex items-center gap-1.5 mr-1">
                               <button
                                 type="button"
                                 onClick={() => handleVerify(emp._id, "approve")}
                                 disabled={actionLoadingId === emp._id}
-                                className="h-7 px-2.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60 shadow-2xs"
+                                className="h-7 px-2.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-1 transition-all shadow-2xs disabled:opacity-50"
+                                title="Approve Employee"
                               >
-                                {actionLoadingId === emp._id && (
+                                {actionLoadingId === emp._id ? (
                                   <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Check className="h-3 w-3" />
                                 )}
                                 Approve
                               </button>
-                            )}
-
-                            {/* Reject */}
-                            {emp.verificationStatus !== "rejected" && (
                               <button
                                 type="button"
-                                onClick={() => handleVerify(emp._id, "reject")}
+                                onClick={() => setRejectDialogEmployee(emp)}
                                 disabled={actionLoadingId === emp._id}
-                                className="h-7 px-2.5 text-xs font-semibold border border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60"
+                                className="h-7 px-2 text-xs font-semibold border border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg flex items-center gap-1 transition-all disabled:opacity-50"
+                                title="Reject Employee"
                               >
-                                {actionLoadingId === emp._id && (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                )}
+                                <X className="h-3 w-3" />
                                 Reject
                               </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                            </div>
+                          )}
+
+                          {/* Primary Action: View Details */}
+                          <Link
+                            href={`/admin/employees/${emp._id}`}
+                            className="h-7 px-2.5 text-xs font-semibold border border-slate-200 text-slate-700 hover:text-purple-700 hover:border-purple-300 hover:bg-purple-50/40 rounded-lg inline-flex items-center gap-1 transition-all shadow-2xs"
+                            title="View Complete Commute History & Activity Audit"
+                          >
+                            <span>View Details</span>
+                            <ChevronRight className="h-3 w-3 text-slate-400 group-hover:text-purple-600 transition-colors" />
+                          </Link>
+
+                          {/* Secondary contextual menu (for non-admin employees) */}
+                          {!isAdmin && !isPending && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  className="h-7 w-7 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center transition-colors shadow-2xs"
+                                  title="More options"
+                                >
+                                  <MoreHorizontal className="h-3.5 w-3.5" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-44">
+                                <DropdownMenuItem asChild>
+                                  <Link
+                                    href={`/admin/employees/${emp._id}`}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Eye className="h-3.5 w-3.5 text-slate-500" />
+                                    <span>View Audit History</span>
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                {isApproved ? (
+                                  <DropdownMenuItem
+                                    onClick={() => setRejectDialogEmployee(emp)}
+                                    className="text-rose-600 focus:text-rose-700 focus:bg-rose-50"
+                                  >
+                                    <XCircle className="h-3.5 w-3.5 text-rose-500" />
+                                    <span>Revoke / Reject</span>
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    onClick={() => handleVerify(emp._id, "approve")}
+                                    className="text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                    <span>Re-approve</span>
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* Confirmation Dialog for Rejecting Employee */}
+      <Dialog
+        open={rejectDialogEmployee !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRejectDialogEmployee(null);
+            setRejectionReason("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-700">
+              <AlertCircle className="h-5 w-5" />
+              Reject Employee Verification
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to reject verification for{" "}
+              <strong className="text-slate-900">{rejectDialogEmployee?.name}</strong> (
+              {rejectDialogEmployee?.employeeId})? This employee will not be eligible to post or book
+              rides on CommuteX until their credentials are reviewed and re-approved.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <label className="text-xs font-semibold text-slate-700 block">
+              Reason for rejection (Optional):
+            </label>
+            <textarea
+              rows={3}
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="e.g., Incomplete company credentials, invalid employee ID..."
+              className="w-full text-xs rounded-xl border border-slate-200 p-2.5 focus:border-rose-400 focus:ring-1 focus:ring-rose-400 outline-none resize-none"
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              onClick={() => {
+                setRejectDialogEmployee(null);
+                setRejectionReason("");
+              }}
+              className="h-9 px-4 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={actionLoadingId !== null}
+              onClick={() => {
+                if (rejectDialogEmployee) {
+                  handleVerify(
+                    rejectDialogEmployee._id,
+                    "reject",
+                    rejectionReason.trim()
+                  );
+                }
+              }}
+              className="h-9 px-4 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              {actionLoadingId !== null && <Loader2 className="h-3 w-3 animate-spin" />}
+              Confirm Rejection
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
