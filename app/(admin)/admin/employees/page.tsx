@@ -18,6 +18,13 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CarLoader } from "@/components/common/CarLoader";
 import { getInitials } from "@/lib/utils";
 
@@ -273,43 +280,46 @@ export default function AdminEmployeesPage() {
       <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {/* Role Filter */}
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600"
-          >
-            <option value="all">All Roles</option>
-            <option value="admin">Super Admins ({superAdminCount})</option>
-            <option value="campus_admin">Campus Admins ({campusAdminCount})</option>
-            <option value="employee">Employees ({employeeOnlyCount})</option>
-          </select>
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="h-9 w-auto inline-flex items-center justify-start gap-1.5 px-3 text-xs font-semibold rounded-xl border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70 shadow-2xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all cursor-pointer">
+              <SelectValue placeholder="All Roles" />
+            </SelectTrigger>
+            <SelectContent className="min-w-[180px] rounded-xl border-slate-200 shadow-lg bg-white p-1">
+              <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Roles</SelectItem>
+              <SelectItem value="admin" className="text-xs font-medium cursor-pointer">Super Admins ({superAdminCount})</SelectItem>
+              <SelectItem value="campus_admin" className="text-xs font-medium cursor-pointer">Campus Admins ({campusAdminCount})</SelectItem>
+              <SelectItem value="employee" className="text-xs font-medium cursor-pointer">Employees ({employeeOnlyCount})</SelectItem>
+            </SelectContent>
+          </Select>
 
           {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600"
-          >
-            <option value="all">All Statuses</option>
-            <option value="pending">Pending Review</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-auto inline-flex items-center justify-start gap-1.5 px-3 text-xs font-semibold rounded-xl border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70 shadow-2xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all cursor-pointer">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent className="min-w-[160px] rounded-xl border-slate-200 shadow-lg bg-white p-1">
+              <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Statuses</SelectItem>
+              <SelectItem value="pending" className="text-xs font-medium cursor-pointer">Pending Review</SelectItem>
+              <SelectItem value="approved" className="text-xs font-medium cursor-pointer">Approved</SelectItem>
+              <SelectItem value="rejected" className="text-xs font-medium cursor-pointer">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
 
           {/* Campus Filter (For Super Admin) */}
           {isSuperAdmin && campuses.length > 0 && (
-            <select
-              value={campusFilter}
-              onChange={(e) => setCampusFilter(e.target.value)}
-              className="h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600"
-            >
-              <option value="all">All Campuses</option>
-              {campuses.map((c) => (
-                <option key={c.campusId} value={c.campusId}>
-                  {c.campusId} - {c.name}
-                </option>
-              ))}
-            </select>
+            <Select value={campusFilter} onValueChange={setCampusFilter}>
+              <SelectTrigger className="h-9 w-auto max-w-[220px] inline-flex items-center justify-start gap-1.5 px-3 text-xs font-semibold rounded-xl border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70 shadow-2xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all cursor-pointer">
+                <SelectValue placeholder="All Campuses" />
+              </SelectTrigger>
+              <SelectContent className="min-w-[220px] max-h-64 rounded-xl border-slate-200 shadow-lg bg-white p-1">
+                <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Campuses</SelectItem>
+                {campuses.map((c) => (
+                  <SelectItem key={c.campusId} value={c.campusId} className="text-xs font-medium cursor-pointer">
+                    {c.campusId} - {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
 

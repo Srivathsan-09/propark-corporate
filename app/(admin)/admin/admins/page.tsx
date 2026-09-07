@@ -27,6 +27,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CarLoader } from "@/components/common/CarLoader";
 
 interface CampusAdminItem {
@@ -301,15 +308,16 @@ export default function CampusAdminsPage() {
       {/* Filter & Search Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
         <div className="flex items-center gap-2">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-8 px-2.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 font-medium focus:outline-purple-600 shadow-2xs"
-          >
-            <option value="all">All Campuses ({campuses.length})</option>
-            <option value="assigned">Assigned Admins ({assignedCount})</option>
-            <option value="unassigned">Pending Allocation ({unassignedCount})</option>
-          </select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-8 w-auto inline-flex items-center justify-start gap-1.5 px-2.5 text-xs font-semibold rounded-lg border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70 shadow-2xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all cursor-pointer">
+              <SelectValue placeholder="All Campuses" />
+            </SelectTrigger>
+            <SelectContent className="min-w-[190px] rounded-xl border-slate-200 shadow-lg bg-white p-1">
+              <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Campuses ({campuses.length})</SelectItem>
+              <SelectItem value="assigned" className="text-xs font-medium cursor-pointer">Assigned Admins ({assignedCount})</SelectItem>
+              <SelectItem value="unassigned" className="text-xs font-medium cursor-pointer">Pending Allocation ({unassignedCount})</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="relative w-full sm:w-64">

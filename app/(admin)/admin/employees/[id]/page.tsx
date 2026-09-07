@@ -37,6 +37,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CarLoader } from "@/components/common/CarLoader";
 import MapView from "@/components/map/MapView";
@@ -566,28 +573,30 @@ export default function EmployeeDetailsPage() {
               </div>
 
               {/* Role filter */}
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="h-8 text-xs border border-slate-200 rounded-lg px-2.5 bg-white text-slate-700"
-              >
-                <option value="all">Role: All Roles</option>
-                <option value="driver">Role: Driver</option>
-                <option value="passenger">Role: Passenger</option>
-              </select>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="h-8 w-auto inline-flex items-center justify-start gap-1.5 px-2.5 text-xs font-semibold rounded-lg border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70 shadow-2xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all cursor-pointer">
+                  <SelectValue placeholder="Role: All Roles" />
+                </SelectTrigger>
+                <SelectContent className="min-w-[150px] rounded-xl border-slate-200 shadow-lg bg-white p-1">
+                  <SelectItem value="all" className="text-xs font-medium cursor-pointer">Role: All Roles</SelectItem>
+                  <SelectItem value="driver" className="text-xs font-medium cursor-pointer">Role: Driver</SelectItem>
+                  <SelectItem value="passenger" className="text-xs font-medium cursor-pointer">Role: Passenger</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* Status filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-8 text-xs border border-slate-200 rounded-lg px-2.5 bg-white text-slate-700"
-              >
-                <option value="all">Status: All Statuses</option>
-                <option value="completed">Status: Completed</option>
-                <option value="cancelled">Status: Cancelled</option>
-                <option value="upcoming">Status: Upcoming (Scheduled)</option>
-                <option value="ongoing">Status: Ongoing (In Progress)</option>
-              </select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-8 w-auto inline-flex items-center justify-start gap-1.5 px-2.5 text-xs font-semibold rounded-lg border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50/70 shadow-2xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all cursor-pointer">
+                  <SelectValue placeholder="Status: All Statuses" />
+                </SelectTrigger>
+                <SelectContent className="min-w-[180px] rounded-xl border-slate-200 shadow-lg bg-white p-1">
+                  <SelectItem value="all" className="text-xs font-medium cursor-pointer">Status: All Statuses</SelectItem>
+                  <SelectItem value="completed" className="text-xs font-medium cursor-pointer">Status: Completed</SelectItem>
+                  <SelectItem value="cancelled" className="text-xs font-medium cursor-pointer">Status: Cancelled</SelectItem>
+                  <SelectItem value="upcoming" className="text-xs font-medium cursor-pointer">Status: Upcoming (Scheduled)</SelectItem>
+                  <SelectItem value="ongoing" className="text-xs font-medium cursor-pointer">Status: Ongoing (In Progress)</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* Date From */}
               <Input
