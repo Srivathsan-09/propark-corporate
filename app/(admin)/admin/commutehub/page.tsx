@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import {
   Compass,
   Route,
@@ -24,6 +25,7 @@ import {
   ShieldCheck,
   Zap,
   Layers,
+  ArrowLeft,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +56,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { cn } from "@/lib/utils";
 
 export default function AdminCommuteHubPage() {
   const { data: session } = useSession();
@@ -65,6 +68,7 @@ export default function AdminCommuteHubPage() {
   const [selectedDateRange, setSelectedDateRange] = useState<string>("30d");
   const [data, setData] = useState<ICommuteHubIntelligencePayload | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<
     "corridors" | "temporal" | "carpool" | "capacity" | "insights"
   >("corridors");
@@ -89,7 +93,7 @@ export default function AdminCommuteHubPage() {
 
   // 2. Fetch CommuteHub Intelligence Data
   const fetchIntelligence = async () => {
-    setIsLoading(true);
+    setIsRefreshing(true);
     try {
       const campusParam = isSuperAdmin ? selectedCampus : campusAdminId || "";
       let url = `/api/admin/commutehub/analytics?dateRange=${encodeURIComponent(selectedDateRange)}`;
@@ -106,6 +110,7 @@ export default function AdminCommuteHubPage() {
       console.error("Failed to fetch CommuteHub intelligence:", err);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -115,8 +120,8 @@ export default function AdminCommuteHubPage() {
 
   if (isLoading && !data) {
     return (
-      <div className="py-24 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 shadow-xs">
-        <CarLoader size="page" message="Loading CommuteHub mobility intelligence..." />
+      <div className="py-24 flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200/80 shadow-2xs">
+        <CarLoader size="page" message="Synthesizing CommuteHub mobility intelligence..." />
       </div>
     );
   }
@@ -131,45 +136,65 @@ export default function AdminCommuteHubPage() {
   const recommendedPickupAreas = data?.recommendedPickupAreas || [];
   const insights = data?.insights || [];
 
+  const tabItems: {
+    id: "corridors" | "temporal" | "carpool" | "capacity" | "insights";
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    badge?: number | string;
+  }[] = [
+    { id: "corridors", label: "Corridors & Flows", icon: Route },
+    { id: "temporal", label: "Peak Hours & Timing", icon: Clock },
+    {
+      id: "carpool",
+      label: "Carpool Opportunities",
+      icon: Sparkles,
+      badge: carpoolOpportunities.length,
+    },
+    { id: "capacity", label: "Capacity & Pickups", icon: Car },
+    { id: "insights", label: "Mobility Insights", icon: Zap },
+  ];
+
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-300">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 rounded-2xl p-6 text-white shadow-md relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-[radial-gradient(#a855f7_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge className="bg-purple-500/30 text-purple-200 border-purple-400/30 font-semibold px-2.5 py-0.5 text-xs flex items-center gap-1.5">
-              <Compass className="h-3.5 w-3.5" />
-              Admin Mobility Intelligence
-            </Badge>
-            <Badge variant="outline" className="text-emerald-400 border-emerald-500/40 text-[11px]">
-              CommuteX Data Engine
-            </Badge>
+    <div className="space-y-5 max-w-7xl mx-auto pb-12 animate-in fade-in-50 duration-300">
+      {/* Clean Modern Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+              <Compass className="h-3.5 w-3.5 text-purple-600" /> Admin Mobility Intelligence
+            </span>
+            <span className="text-xs text-slate-300">|</span>
+            <span className="text-xs font-medium text-slate-500">CommuteX Analytics Engine</span>
+            {isRefreshing && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 font-semibold animate-pulse">
+                <RefreshCw className="h-2.5 w-2.5 animate-spin" /> Live Syncing
+              </span>
+            )}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2">
-            Commute<span className="text-emerald-400">Hub</span> Intelligence
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            CommuteHub Intelligence
           </h1>
-          <p className="mt-1 text-sm text-slate-300 max-w-2xl">
-            Real-time corridor flows, peak departure windows, employee commute clustering, and explainable carpool optimization based on active CommuteX rides.
+          <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+            Real-time arterial corridor flows, peak departure windows, employee commute clustering, and explainable carpool optimization.
           </p>
         </div>
 
-        {/* Filter Controls */}
-        <div className="relative z-10 flex flex-wrap items-center gap-2.5 bg-slate-800/80 p-2 rounded-xl border border-purple-500/20 backdrop-blur-xs">
-          {/* Campus Selector (Super Admin only) */}
+        {/* Clean Filter Controls */}
+        <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-center">
+          {/* Campus Selector (Super Admin) */}
           {isSuperAdmin ? (
-            <div className="w-44">
+            <div className="w-48">
               <Select value={selectedCampus} onValueChange={setSelectedCampus}>
-                <SelectTrigger className="h-9 bg-slate-900 border-slate-700 text-white text-xs font-medium focus:ring-purple-500">
-                  <Building2 className="h-3.5 w-3.5 mr-1 text-purple-400 shrink-0" />
+                <SelectTrigger className="h-9 bg-white border-slate-200 text-slate-800 text-xs font-medium focus:ring-purple-500 shadow-2xs">
+                  <Building2 className="h-3.5 w-3.5 mr-1.5 text-slate-500 shrink-0" />
                   <SelectValue placeholder="All Campuses" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                  <SelectItem value="all" className="text-xs hover:bg-slate-800">
+                <SelectContent className="bg-white border-slate-200 text-slate-800">
+                  <SelectItem value="all" className="text-xs font-medium">
                     All Campuses (Global)
                   </SelectItem>
                   {campuses.map((c) => (
-                    <SelectItem key={c.campusId} value={c.campusId} className="text-xs hover:bg-slate-800">
+                    <SelectItem key={c.campusId} value={c.campusId} className="text-xs">
                       {c.name}
                     </SelectItem>
                   ))}
@@ -177,92 +202,92 @@ export default function AdminCommuteHubPage() {
               </Select>
             </div>
           ) : (
-            <Badge variant="secondary" className="bg-purple-900/60 text-purple-200 text-xs py-1.5 px-3 border border-purple-500/30">
-              <Building2 className="h-3.5 w-3.5 mr-1.5" />
-              {campusAdminId || "Assigned Campus"}
-            </Badge>
+            <div className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700">
+              <Building2 className="h-3.5 w-3.5 text-purple-600" />
+              <span>{campusAdminId || "Assigned Campus"}</span>
+            </div>
           )}
 
           {/* Date Range Selector */}
           <div className="w-36">
             <Select value={selectedDateRange} onValueChange={setSelectedDateRange}>
-              <SelectTrigger className="h-9 bg-slate-900 border-slate-700 text-white text-xs font-medium focus:ring-purple-500">
-                <Calendar className="h-3.5 w-3.5 mr-1 text-emerald-400 shrink-0" />
+              <SelectTrigger className="h-9 bg-white border-slate-200 text-slate-800 text-xs font-medium focus:ring-purple-500 shadow-2xs">
+                <Calendar className="h-3.5 w-3.5 mr-1.5 text-slate-500 shrink-0" />
                 <SelectValue placeholder="Timeframe" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                <SelectItem value="today" className="text-xs hover:bg-slate-800">Today</SelectItem>
-                <SelectItem value="7d" className="text-xs hover:bg-slate-800">Last 7 Days</SelectItem>
-                <SelectItem value="30d" className="text-xs hover:bg-slate-800">Last 30 Days</SelectItem>
-                <SelectItem value="all" className="text-xs hover:bg-slate-800">All Time</SelectItem>
+              <SelectContent className="bg-white border-slate-200 text-slate-800">
+                <SelectItem value="today" className="text-xs">Today</SelectItem>
+                <SelectItem value="7d" className="text-xs">Last 7 Days</SelectItem>
+                <SelectItem value="30d" className="text-xs">Last 30 Days</SelectItem>
+                <SelectItem value="all" className="text-xs">All Time</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <Button
-            size="sm"
             variant="outline"
+            size="sm"
             onClick={fetchIntelligence}
-            disabled={isLoading}
-            className="h-9 bg-purple-600 hover:bg-purple-700 text-white border-none text-xs gap-1.5 shadow-sm"
+            disabled={isRefreshing}
+            className="h-9 text-xs rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 gap-1.5 shadow-2xs"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
           </Button>
         </div>
       </div>
 
-      {/* 6 High-Impact Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* 5 Well-Spaced, Balanced KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         {/* Metric 1 */}
-        <Card className="border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Carpools</span>
-              <div className="p-1.5 bg-purple-50 text-purple-700 rounded-md">
-                <Route className="h-4 w-4" />
-              </div>
+        <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl p-4 flex flex-col justify-between hover:border-slate-300 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Commutes</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+              <Route className="h-4.5 w-4.5" />
             </div>
-            <div className="mt-2 flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900">{overview?.totalCarpoolsAnalyzed ?? 0}</span>
-              <span className="text-[11px] text-slate-500">rides</span>
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              {overview?.totalCarpoolsAnalyzed ?? 0}
+              <span className="text-xs font-normal text-slate-400 ml-1">rides</span>
             </div>
-            <p className="mt-1 text-[11px] text-slate-500 truncate">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               {overview?.scheduledActiveRides ?? 0} active · {overview?.completedRides ?? 0} completed
             </p>
-          </CardContent>
+          </div>
         </Card>
 
         {/* Metric 2 */}
-        <Card className="border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Commuters</span>
-              <div className="p-1.5 bg-blue-50 text-blue-700 rounded-md">
-                <Users className="h-4 w-4" />
-              </div>
+        <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl p-4 flex flex-col justify-between hover:border-slate-300 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Commuters</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <Users className="h-4.5 w-4.5" />
             </div>
-            <div className="mt-2 flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900">{overview?.totalCommuters ?? 0}</span>
-              <span className="text-[11px] text-slate-500">employees</span>
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              {overview?.totalCommuters ?? 0}
+              <span className="text-xs font-normal text-slate-400 ml-1">people</span>
             </div>
-            <p className="mt-1 text-[11px] text-slate-500 truncate">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               {overview?.uniqueDrivers ?? 0} drivers · {overview?.uniquePassengers ?? 0} passengers
             </p>
-          </CardContent>
+          </div>
         </Card>
 
         {/* Metric 3 */}
-        <Card className="border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Occupancy</span>
-              <div className="p-1.5 bg-emerald-50 text-emerald-700 rounded-md">
-                <TrendingUp className="h-4 w-4" />
-              </div>
+        <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl p-4 flex flex-col justify-between hover:border-slate-300 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Fleet Occupancy</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+              <TrendingUp className="h-4.5 w-4.5" />
             </div>
-            <div className="mt-2 flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-emerald-600">{overview?.avgOccupancyRate ?? 0}%</span>
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-emerald-600 tracking-tight">
+              {overview?.avgOccupancyRate ?? 0}%
             </div>
             <div className="mt-1.5 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
               <div
@@ -270,234 +295,203 @@ export default function AdminCommuteHubPage() {
                 style={{ width: `${Math.min(100, overview?.avgOccupancyRate || 0)}%` }}
               />
             </div>
-          </CardContent>
+            <p className="text-[10px] text-slate-400 mt-1">
+              {overview?.unusedSeatCapacity ?? 0} vacant seats available
+            </p>
+          </div>
         </Card>
 
         {/* Metric 4 */}
-        <Card className="border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Unused Seats</span>
-              <div className="p-1.5 bg-amber-50 text-amber-700 rounded-md">
-                <Car className="h-4 w-4" />
-              </div>
+        <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl p-4 flex flex-col justify-between hover:border-slate-300 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Carbon Avoided</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+              <Leaf className="h-4.5 w-4.5" />
             </div>
-            <div className="mt-2 flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900">{overview?.unusedSeatCapacity ?? 0}</span>
-              <span className="text-[11px] text-slate-500">vacant</span>
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              {overview?.estimatedCo2SavedKg ?? 0}
+              <span className="text-xs font-normal text-slate-400 ml-1">kg CO₂</span>
             </div>
-            <p className="mt-1 text-[11px] text-amber-600 font-medium truncate">
-              Target for carpool matching
+            <p className="text-[11px] text-teal-600 font-medium mt-0.5">
+              {overview?.totalPassengerDistanceKm ?? 0} carpooled km
             </p>
-          </CardContent>
+          </div>
         </Card>
 
         {/* Metric 5 */}
-        <Card className="border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">CO₂ Saved</span>
-              <div className="p-1.5 bg-teal-50 text-teal-700 rounded-md">
-                <Leaf className="h-4 w-4" />
-              </div>
+        <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl p-4 flex flex-col justify-between hover:border-slate-300 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Fuel Cost Saved</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <IndianRupee className="h-4.5 w-4.5" />
             </div>
-            <div className="mt-2 flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-teal-700">{overview?.estimatedCo2SavedKg ?? 0}</span>
-              <span className="text-[11px] text-slate-500">kg</span>
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-slate-900 tracking-tight">
+              ₹{overview?.estimatedCostSavedInr?.toLocaleString() ?? 0}
             </div>
-            <p className="mt-1 text-[11px] text-slate-500 truncate">
-              {overview?.totalPassengerDistanceKm ?? 0} carpooled km
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Employee transit savings
             </p>
-          </CardContent>
-        </Card>
-
-        {/* Metric 6 */}
-        <Card className="border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Fuel Saved</span>
-              <div className="p-1.5 bg-indigo-50 text-indigo-700 rounded-md">
-                <IndianRupee className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold text-slate-900">₹{overview?.estimatedCostSavedInr?.toLocaleString() ?? 0}</span>
-            </div>
-            <p className="mt-1 text-[11px] text-slate-500 truncate">
-              Commuter pocket savings
-            </p>
-          </CardContent>
+          </div>
         </Card>
       </div>
 
-      {/* Modern Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto pb-1">
-        <button
-          onClick={() => setActiveTab("corridors")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === "corridors"
-              ? "bg-purple-600 text-white shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          }`}
-        >
-          <Route className="h-4 w-4" />
-          Corridors & Flows
-        </button>
-        <button
-          onClick={() => setActiveTab("temporal")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === "temporal"
-              ? "bg-purple-600 text-white shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          }`}
-        >
-          <Clock className="h-4 w-4" />
-          Peak Hours & Timing
-        </button>
-        <button
-          onClick={() => setActiveTab("carpool")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === "carpool"
-              ? "bg-purple-600 text-white shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          }`}
-        >
-          <Sparkles className="h-4 w-4" />
-          Carpool Opportunities
-          <Badge className="ml-1 bg-white text-purple-700 text-[10px] px-1.5 py-0 font-bold">
-            {carpoolOpportunities.length}
-          </Badge>
-        </button>
-        <button
-          onClick={() => setActiveTab("capacity")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === "capacity"
-              ? "bg-purple-600 text-white shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          }`}
-        >
-          <Car className="h-4 w-4" />
-          Capacity & Pickups
-        </button>
-        <button
-          onClick={() => setActiveTab("insights")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-            activeTab === "insights"
-              ? "bg-purple-600 text-white shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          }`}
-        >
-          <Zap className="h-4 w-4" />
-          Mobility Insights
-        </button>
+      {/* Sleek Segmented Navigation Tab Bar */}
+      <div className="bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 inline-flex items-center gap-1 overflow-x-auto max-w-full">
+        {tabItems.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer",
+                isActive
+                  ? "bg-white text-slate-900 shadow-xs border border-slate-200/70 font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              )}
+            >
+              <Icon className={cn("h-3.5 w-3.5", isActive ? "text-purple-600" : "text-slate-400")} />
+              <span>{tab.label}</span>
+              {tab.badge !== undefined && (
+                <span
+                  className={cn(
+                    "px-1.5 py-0.2 rounded-full text-[10px] font-bold",
+                    isActive ? "bg-purple-100 text-purple-700" : "bg-slate-200/70 text-slate-600"
+                  )}
+                >
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab 1: Corridors & Flows */}
       {activeTab === "corridors" && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Top Corridors List */}
-          <Card className="border-slate-200/80 shadow-xs">
-            <CardHeader className="pb-3">
+          <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl">
+            <CardHeader className="p-5 pb-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                     <Route className="h-4 w-4 text-purple-600" />
                     Top Commuting Corridors
                   </CardTitle>
-                  <CardDescription className="text-xs">
-                    Arterial routes automatically classified from driver starting points, campus dropoffs, and passenger pickup stops.
+                  <CardDescription className="text-xs mt-0.5">
+                    Arterial routes automatically detected from driver starting points, intermediate passenger stops, and campus destinations.
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-purple-700 border-purple-200 text-xs w-fit">
-                  {corridors.length} Identified Corridors
+                <Badge variant="outline" className="text-purple-700 border-purple-200 bg-purple-50/50 text-xs w-fit">
+                  {corridors.length} Identified {corridors.length === 1 ? "Corridor" : "Corridors"}
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {corridors.map((c, idx) => (
-                  <div
-                    key={c.id || idx}
-                    className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 hover:border-purple-200 transition-all gap-4"
-                  >
-                    <div className="space-y-1 max-w-md">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-slate-900">{c.name}</span>
-                        {c.status === "high_demand" && (
-                          <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold border-emerald-200">
-                            High Demand
-                          </Badge>
-                        )}
-                        {c.status === "balanced" && (
-                          <Badge className="bg-blue-100 text-blue-800 text-[10px] font-semibold border-blue-200">
-                            Balanced
-                          </Badge>
-                        )}
-                        {c.status === "underserved" && (
-                          <Badge className="bg-amber-100 text-amber-800 text-[10px] font-semibold border-amber-200">
-                            Underserved
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 leading-relaxed">{c.description}</p>
-                      {c.frequentStops.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                          <span className="text-[10px] font-semibold text-slate-400 uppercase">Frequent stops:</span>
-                          {c.frequentStops.map((s, sIdx) => (
-                            <span
-                              key={sIdx}
-                              className="text-[11px] bg-white border border-slate-200 px-2 py-0.5 rounded-md text-slate-700"
-                            >
-                              {s.name} ({s.count})
-                            </span>
-                          ))}
-                        </div>
+            <CardContent className="p-5 pt-2 space-y-3.5">
+              {corridors.map((c, idx) => (
+                <div
+                  key={c.id || idx}
+                  className="p-4 rounded-xl border border-slate-200/80 bg-white hover:border-purple-300 hover:shadow-xs transition-all space-y-3"
+                >
+                  {/* Row 1: Title & Top Badges */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-900">{c.name}</span>
+                      {c.status === "high_demand" && (
+                        <Badge className="bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200">
+                          High Demand
+                        </Badge>
+                      )}
+                      {c.status === "balanced" && (
+                        <Badge className="bg-blue-50 text-blue-700 text-[10px] font-semibold border border-blue-200">
+                          Balanced
+                        </Badge>
+                      )}
+                      {c.status === "underserved" && (
+                        <Badge className="bg-amber-50 text-amber-700 text-[10px] font-semibold border border-amber-200">
+                          Underserved
+                        </Badge>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-6 self-end md:self-center shrink-0">
+                    <div className="flex items-center gap-4 text-xs">
                       <div className="text-right">
-                        <span className="text-xs text-slate-400 uppercase font-semibold">Volume</span>
-                        <p className="text-sm font-bold text-slate-900">{c.totalRides} rides</p>
-                        <p className="text-[11px] text-slate-500">
-                          {c.uniqueDrivers} drivers · {c.uniquePassengers} pass.
-                        </p>
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold block">Volume</span>
+                        <span className="font-bold text-slate-900">{c.totalRides} rides</span>
                       </div>
-
                       <div className="text-right">
-                        <span className="text-xs text-slate-400 uppercase font-semibold">Occupancy</span>
-                        <p className="text-sm font-bold text-emerald-600">{c.occupancyRate}%</p>
-                        <p className="text-[11px] text-slate-500">
-                          {c.totalSeatsBooked}/{c.totalSeatsOffered} seats
-                        </p>
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold block">Occupancy</span>
+                        <span className="font-bold text-emerald-600">{c.occupancyRate}%</span>
                       </div>
-
                       <div className="text-right">
-                        <span className="text-xs text-slate-400 uppercase font-semibold">Avg Fare</span>
-                        <p className="text-sm font-bold text-slate-900">₹{c.avgPrice}</p>
-                        <p className="text-[11px] text-slate-500">{c.avgDistanceKm} km</p>
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold block">Avg Fare</span>
+                        <span className="font-bold text-slate-900">₹{c.avgPrice}</span>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <p className="text-xs text-slate-500 leading-relaxed">{c.description}</p>
+
+                  {/* Row 2: Route Pathway / Stops (Visual Sequence) */}
+                  {c.frequentStops.length > 0 && (
+                    <div className="p-3 bg-slate-50/70 border border-slate-200/70 rounded-xl space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <MapPin className="h-3 w-3 text-purple-600" />
+                        <span>Observed Stops & Route Sequence</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        {c.frequentStops.map((stop, sIdx) => (
+                          <React.Fragment key={sIdx}>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-white border border-slate-200 text-slate-800 shadow-2xs">
+                              <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+                              {stop.name}
+                              <span className="text-[10px] text-slate-400 font-normal">({stop.count} trips)</span>
+                            </span>
+                            {sIdx < c.frequentStops.length - 1 && (
+                              <ArrowRight className="h-3 w-3 text-slate-300 shrink-0" />
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Row 3: Meta details */}
+                  <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100 gap-2">
+                    <div className="flex items-center gap-3">
+                      <span>{c.uniqueDrivers} active drivers</span>
+                      <span>·</span>
+                      <span>{c.uniquePassengers} registered passengers</span>
+                      <span>·</span>
+                      <span>{c.totalSeatsBooked}/{c.totalSeatsOffered} seats filled</span>
+                    </div>
+                    <span className="font-medium text-slate-600">Average Distance: {c.avgDistanceKm} km</span>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
 
           {/* Frequent Origins & Frequent Destinations */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Origins */}
-            <Card className="border-slate-200/80 shadow-xs">
-              <CardHeader className="pb-2">
+            <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl">
+              <CardHeader className="p-5 pb-2">
                 <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-emerald-600" />
-                  Frequent Commuter Origin Areas
+                  Frequent Commuter Origins
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Primary residential clusters where employees begin morning commutes.
+                  Primary residential neighborhoods where employees initiate commutes.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="p-5 pt-2 space-y-3">
                 {frequentOrigins.map((area, idx) => (
                   <div key={idx} className="space-y-1">
                     <div className="flex items-center justify-between text-xs font-semibold">
@@ -518,17 +512,17 @@ export default function AdminCommuteHubPage() {
             </Card>
 
             {/* Destinations */}
-            <Card className="border-slate-200/80 shadow-xs">
-              <CardHeader className="pb-2">
+            <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl">
+              <CardHeader className="p-5 pb-2">
                 <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-purple-600" />
                   Frequent Campus Destinations
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Top terminal delivery hubs and dropoff facilities across campuses.
+                  Terminal dropoff facilities and campus delivery destinations.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="p-5 pt-2 space-y-3">
                 {frequentDestinations.map((area, idx) => (
                   <div key={idx} className="space-y-1">
                     <div className="flex items-center justify-between text-xs font-semibold">
@@ -553,56 +547,48 @@ export default function AdminCommuteHubPage() {
 
       {/* Tab 2: Peak Hours & Timing */}
       {activeTab === "temporal" && (
-        <div className="space-y-6">
-          {/* Peak Callout Banners */}
+        <div className="space-y-5">
+          {/* Peak Callout Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="bg-gradient-to-br from-amber-50 to-orange-50/60 border-amber-200/80 shadow-xs">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
-                  <Clock className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Morning Rush Peak</span>
-                  <p className="text-lg font-black text-slate-900">{patterns?.peakMorningWindow || "08:15 AM – 09:15 AM"}</p>
-                  <p className="text-xs text-amber-700">Inbound to Campus Gates</p>
-                </div>
-              </CardContent>
+            <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl p-4 flex items-center gap-3.5">
+              <div className="h-11 w-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Morning Inbound Peak</span>
+                <p className="text-base font-bold text-slate-900">{patterns?.peakMorningWindow || "08:15 AM – 09:15 AM"}</p>
+                <p className="text-[11px] text-amber-600 font-medium">To Campus Gates</p>
+              </div>
             </Card>
 
-            <Card className="bg-gradient-to-br from-purple-50 to-indigo-50/60 border-purple-200/80 shadow-xs">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                  <Clock className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold text-purple-800 uppercase tracking-wider">Evening Return Peak</span>
-                  <p className="text-lg font-black text-slate-900">{patterns?.peakEveningWindow || "05:30 PM – 06:45 PM"}</p>
-                  <p className="text-xs text-purple-700">Outbound to Residential Hubs</p>
-                </div>
-              </CardContent>
+            <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl p-4 flex items-center gap-3.5">
+              <div className="h-11 w-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Evening Outbound Peak</span>
+                <p className="text-base font-bold text-slate-900">{patterns?.peakEveningWindow || "05:30 PM – 06:45 PM"}</p>
+                <p className="text-[11px] text-purple-600 font-medium">From Campus to Residential Hubs</p>
+              </div>
             </Card>
 
-            <Card className="bg-gradient-to-br from-emerald-50 to-teal-50/60 border-emerald-200/80 shadow-xs">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                  <TrendingUp className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Directional Ratio</span>
-                  <p className="text-lg font-black text-slate-900">
-                    {patterns?.directionalSplit.pickupPercent ?? 58}% Inbound
-                  </p>
-                  <p className="text-xs text-emerald-700">
-                    {patterns?.directionalSplit.dropPercent ?? 42}% Outbound Commutes
-                  </p>
-                </div>
-              </CardContent>
+            <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl p-4 flex items-center gap-3.5">
+              <div className="h-11 w-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Directional Split</span>
+                <p className="text-base font-bold text-slate-900">
+                  {patterns?.directionalSplit.pickupPercent ?? 58}% Inbound / {patterns?.directionalSplit.dropPercent ?? 42}% Outbound
+                </p>
+                <p className="text-[11px] text-emerald-600 font-medium">Balanced Daily Flow</p>
+              </div>
             </Card>
           </div>
 
           {/* Rush Hour Distribution Chart */}
-          <Card className="border-slate-200/80 shadow-xs">
-            <CardHeader>
+          <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl">
+            <CardHeader className="p-5 pb-2">
               <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-purple-600" />
                 Hourly Commute Distribution (Rush Hour Curve)
@@ -611,7 +597,7 @@ export default function AdminCommuteHubPage() {
                 Observed ride departures and capacity volumes across 24 hours.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5 pt-2">
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
@@ -631,8 +617,8 @@ export default function AdminCommuteHubPage() {
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} />
-                    <Bar dataKey="pickupRides" name="To Campus (Pickup)" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="dropRides" name="From Campus (Drop)" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="pickupRides" name="Inbound (To Campus)" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="dropRides" name="Outbound (From Campus)" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -640,23 +626,23 @@ export default function AdminCommuteHubPage() {
           </Card>
 
           {/* Day of Week Breakdown */}
-          <Card className="border-slate-200/80 shadow-xs">
-            <CardHeader className="pb-2">
+          <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl">
+            <CardHeader className="p-5 pb-2">
               <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-slate-700" />
-                Day of Week Commute Volume
+                Day-of-Week Commute Density
               </CardTitle>
               <CardDescription className="text-xs">
-                Workday distribution indicating hybrid and on-site attendance density.
+                Weekly attendance density indicating hybrid vs on-site carpooling volume.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5 pt-2">
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
                 {patterns?.dayOfWeekDistribution.map((d, idx) => (
-                  <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-1">
+                  <div key={idx} className="p-3 bg-slate-50/70 border border-slate-200 rounded-xl text-center space-y-1">
                     <span className="text-xs font-bold text-slate-700">{d.day.substring(0, 3)}</span>
-                    <p className="text-lg font-black text-purple-700">{d.ridesCount}</p>
-                    <p className="text-[10px] text-slate-500 font-medium">{d.occupancyRate}% occupancy</p>
+                    <p className="text-lg font-bold text-purple-700">{d.ridesCount}</p>
+                    <p className="text-[10px] text-slate-400 font-medium">{d.occupancyRate}% occupancy</p>
                   </div>
                 ))}
               </div>
@@ -665,35 +651,35 @@ export default function AdminCommuteHubPage() {
         </div>
       )}
 
-      {/* Tab 3: Carpool Matching Opportunities */}
+      {/* Tab 3: Carpool Opportunities */}
       {activeTab === "carpool" && (
         <div className="space-y-4">
-          <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-xl flex items-start gap-3 text-purple-900 text-xs leading-relaxed">
-            <Sparkles className="h-5 w-5 text-purple-600 shrink-0 mt-0.5" />
+          <div className="p-4 bg-purple-50/60 border border-purple-200/80 rounded-2xl flex items-start gap-3 text-purple-900 text-xs leading-relaxed">
+            <Sparkles className="h-4.5 w-4.5 text-purple-600 shrink-0 mt-0.5" />
             <div>
               <p className="font-bold text-sm text-purple-950">
-                Automated Commuter Clustering & Match Detection
+                Automated Commuter Clustering & Carpool Matching
               </p>
-              <p className="mt-0.5">
-                These high-confidence carpool matches are detected by comparing recurring employee commute corridors, departure windows, and vehicle excess capacity without altering CommuteX driver preferences.
+              <p className="mt-0.5 text-slate-600">
+                These high-confidence opportunities are detected by comparing recurring employee commute corridors, departure windows, and vehicle excess capacity without altering CommuteX driver preferences.
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {carpoolOpportunities.map((opp) => (
-              <Card key={opp.id} className="border-slate-200/80 shadow-xs hover:border-purple-300 hover:shadow-md transition-all">
-                <CardHeader className="pb-3">
+              <Card key={opp.id} className="border-slate-200 bg-white shadow-2xs rounded-2xl hover:border-purple-300 hover:shadow-xs transition-all">
+                <CardHeader className="p-4 pb-2">
                   <div className="flex items-center justify-between">
                     <Badge className="bg-purple-100 text-purple-800 text-[11px] font-bold border-purple-200">
                       {opp.matchScore}% Match Score
                     </Badge>
-                    <span className="text-[11px] font-semibold text-slate-500">{opp.timeWindow}</span>
+                    <span className="text-[11px] font-medium text-slate-500">{opp.timeWindow}</span>
                   </div>
                   <CardTitle className="text-sm font-bold text-slate-900 mt-2">{opp.corridor}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3.5">
-                  <div className="space-y-1.5 text-xs">
+                <CardContent className="p-4 pt-1 space-y-3">
+                  <div className="space-y-1 text-xs">
                     <div className="flex items-center gap-2 text-slate-700">
                       <MapPin className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                       <span className="truncate"><strong>From:</strong> {opp.originArea}</span>
@@ -704,25 +690,25 @@ export default function AdminCommuteHubPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 p-2.5 bg-slate-50 rounded-lg text-xs">
+                  <div className="grid grid-cols-2 gap-2 p-2.5 bg-slate-50 rounded-xl text-xs">
                     <div>
-                      <span className="text-slate-400 uppercase text-[10px] font-semibold">Empty Seats</span>
-                      <p className="font-bold text-slate-800">{opp.availableSeats} available</p>
+                      <span className="text-slate-400 uppercase text-[10px] font-semibold block">Empty Seats</span>
+                      <span className="font-bold text-slate-800">{opp.availableSeats} available</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 uppercase text-[10px] font-semibold">Commuter Demand</span>
-                      <p className="font-bold text-purple-700">{opp.passengerDemand} seeking rides</p>
+                      <span className="text-slate-400 uppercase text-[10px] font-semibold block">Demand</span>
+                      <span className="font-bold text-purple-700">{opp.passengerDemand} seeking rides</span>
                     </div>
                   </div>
 
-                  <div className="p-2 bg-emerald-50/60 border border-emerald-100 rounded-lg text-[11px] text-emerald-800 flex items-center justify-between">
+                  <div className="p-2 bg-emerald-50/70 border border-emerald-100 rounded-lg text-[11px] text-emerald-800 flex items-center justify-between">
                     <span>Potential vehicle reduction:</span>
                     <strong className="font-bold text-emerald-900">-{opp.potentialVehicleReduction} cars/day</strong>
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
                     <span>Days: {opp.recurringDays.join(", ")}</span>
-                    <span className="text-emerald-700 font-semibold">+{opp.estimatedDailyCo2SavingKg} kg CO₂/day</span>
+                    <span className="text-emerald-700 font-semibold">+{opp.estimatedDailyCo2SavingKg} kg CO₂</span>
                   </div>
                 </CardContent>
               </Card>
@@ -731,22 +717,21 @@ export default function AdminCommuteHubPage() {
         </div>
       )}
 
-      {/* Tab 4: Capacity & Recommended Pickups */}
+      {/* Tab 4: Capacity & Pickups */}
       {activeTab === "capacity" && (
-        <div className="space-y-6">
-          {/* Capacity Breakdown */}
+        <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="border-slate-200/80 shadow-xs">
-              <CardHeader>
+            <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl">
+              <CardHeader className="p-5 pb-3">
                 <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <Car className="h-4 w-4 text-purple-600" />
                   Vehicle Seat Capacity Status
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Fleet-wide seat allocation and empty seat analysis.
+                  Fleet-wide seat allocation and empty seat recovery targets.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="p-5 pt-0 space-y-3">
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <div>
                     <span className="text-xs text-slate-500 font-medium">Total Offered Capacity</span>
@@ -772,21 +757,21 @@ export default function AdminCommuteHubPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-slate-200/80 shadow-xs">
-              <CardHeader>
+            <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl">
+              <CardHeader className="p-5 pb-3">
                 <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-amber-600" />
-                  Demand Density & Bottleneck Resolution
+                  Demand Density & Transit Policy
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  How CommuteX drivers can capture unmet passenger demand along active corridors.
+                  Guidance for optimizing employee boarding efficiency along primary transit routes.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="p-5 pt-0 space-y-3">
                 <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-amber-900 text-xs leading-relaxed space-y-1">
                   <p className="font-bold">Unused Seat Recovery Plan</p>
                   <p>
-                    Currently, {capacity?.emptySeats ?? 0} seats travel empty daily. If CommuteX drivers add recommended intermediate pickup spots, seat utilization is projected to increase by 24%.
+                    Currently, {capacity?.emptySeats ?? 0} seats travel empty daily. If CommuteX drivers add recommended intermediate pickup spots, seat utilization is projected to increase significantly.
                   </p>
                 </div>
 
@@ -801,8 +786,8 @@ export default function AdminCommuteHubPage() {
           </div>
 
           {/* Recommended Pickup Areas */}
-          <Card className="border-slate-200/80 shadow-xs">
-            <CardHeader>
+          <Card className="border-slate-200 bg-white shadow-2xs rounded-2xl">
+            <CardHeader className="p-5 pb-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -818,16 +803,16 @@ export default function AdminCommuteHubPage() {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5 pt-0">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {recommendedPickupAreas.map((rec) => (
                   <div
                     key={rec.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/40 hover:bg-slate-50 hover:border-purple-200 transition-all space-y-2.5"
+                    className="p-4 rounded-xl border border-slate-200 bg-white hover:border-purple-300 hover:shadow-xs transition-all space-y-2.5"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <h4 className="font-bold text-sm text-slate-900 leading-snug">{rec.name}</h4>
-                      <Badge variant="outline" className="bg-white text-purple-700 border-purple-200 text-[10px] shrink-0 font-bold">
+                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] shrink-0 font-bold">
                         {rec.observedCommuterDemand} commuters
                       </Badge>
                     </div>
@@ -838,7 +823,7 @@ export default function AdminCommuteHubPage() {
                       <p className="text-slate-400 text-[10px]">Coordinates: {rec.latitude}, {rec.longitude}</p>
                     </div>
 
-                    <p className="text-xs text-slate-600 bg-white p-2.5 rounded-lg border border-slate-200/80 leading-relaxed">
+                    <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200/80 leading-relaxed">
                       {rec.rationale}
                     </p>
 
@@ -859,37 +844,45 @@ export default function AdminCommuteHubPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {insights.map((ins) => (
-              <Card key={ins.id} className="border-slate-200/80 shadow-xs hover:shadow-md transition-all">
-                <CardHeader className="pb-3">
+              <Card
+                key={ins.id}
+                className={cn(
+                  "border-slate-200 bg-white shadow-2xs rounded-2xl hover:shadow-xs transition-all border-l-4",
+                  ins.severity === "high" && "border-l-rose-500",
+                  ins.severity === "medium" && "border-l-amber-500",
+                  ins.severity === "info" && "border-l-blue-500"
+                )}
+              >
+                <CardHeader className="p-5 pb-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                       {ins.category} Insight
                     </span>
                     {ins.severity === "high" && (
-                      <Badge className="bg-rose-100 text-rose-800 border-rose-200 text-[10px] font-bold">
+                      <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[10px] font-bold">
                         High Priority
                       </Badge>
                     )}
                     {ins.severity === "medium" && (
-                      <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] font-bold">
+                      <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-bold">
                         Medium Priority
                       </Badge>
                     )}
                     {ins.severity === "info" && (
-                      <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-[10px] font-bold">
+                      <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-bold">
                         Observation
                       </Badge>
                     )}
                   </div>
                   <CardTitle className="text-base font-bold text-slate-900 mt-2">{ins.title}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="p-5 pt-0 space-y-3">
                   <p className="text-xs text-slate-600 leading-relaxed">{ins.description}</p>
-                  <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between text-xs">
+                  <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-lg flex items-center justify-between text-xs">
                     <span className="text-slate-500 font-medium">Quantified Impact:</span>
                     <strong className="font-bold text-purple-800">{ins.impactMetric}</strong>
                   </div>
-                  <div className="text-xs text-slate-700 space-y-1">
+                  <div className="text-xs text-slate-700 space-y-0.5">
                     <span className="font-semibold text-slate-900">Recommended Action:</span>
                     <p className="text-slate-600">{ins.recommendedAction}</p>
                   </div>

@@ -534,7 +534,11 @@ export async function getCommuteHubIntelligence(options: {
   }
 
   // 3. Fallback Heuristics for Brand New / Seeded Environments
-  if (totalCarpools === 0) {
+  let uniqueDriversCount = driverSet.size;
+  let uniquePassengersCount = passengerSet.size;
+  let totalCommuters = new Set([...Array.from(driverSet), ...Array.from(passengerSet)]).size;
+
+  if (rides.length === 0) {
     totalCarpools = 12;
     scheduledActive = 4;
     completedCount = 8;
@@ -542,15 +546,14 @@ export async function getCommuteHubIntelligence(options: {
     totalSeatsBooked = 29;
     totalDistanceKm = 360;
     totalFare = 4500;
+    uniqueDriversCount = 4;
+    uniquePassengersCount = 8;
+    totalCommuters = 12;
   }
 
   const unusedSeatCapacity = Math.max(0, totalSeatsOffered - totalSeatsBooked);
   const avgOccupancyRate =
-    totalSeatsOffered > 0 ? Math.round((totalSeatsBooked / totalSeatsOffered) * 100 * 10) / 10 : 68.5;
-
-  const totalCommuters = new Set([...Array.from(driverSet), ...Array.from(passengerSet)]).size || Math.max(8, totalSeatsBooked);
-  const uniqueDriversCount = driverSet.size || Math.max(3, Math.round(totalCarpools * 0.4));
-  const uniquePassengersCount = passengerSet.size || Math.max(5, totalSeatsBooked);
+    totalSeatsOffered > 0 ? Math.round((totalSeatsBooked / totalSeatsOffered) * 100 * 10) / 10 : 0;
 
   // Carbon and Cost Metrics (Standard: ~0.171 kg CO2 / carpooled passenger km, ~₹8.5 saved / km)
   const estimatedCo2SavedKg = Math.round(totalDistanceKm * 0.171 * 10) / 10;
@@ -569,7 +572,7 @@ export async function getCommuteHubIntelligence(options: {
     }
 
     const occRate =
-      data.seatsOffered > 0 ? Math.round((data.seatsBooked / data.seatsOffered) * 100) : 70;
+      data.seatsOffered > 0 ? Math.round((data.seatsBooked / data.seatsOffered) * 100) : 0;
 
     let status: "high_demand" | "balanced" | "underserved" = "balanced";
     if (occRate >= 80 || data.seatsOffered - data.seatsBooked < 2) {
@@ -593,8 +596,8 @@ export async function getCommuteHubIntelligence(options: {
       totalSeatsOffered: data.seatsOffered,
       totalSeatsBooked: data.seatsBooked,
       occupancyRate: occRate,
-      uniqueDrivers: data.uniqueDrivers.size || 2,
-      uniquePassengers: data.uniquePassengers.size || Math.max(1, data.seatsBooked),
+      uniqueDrivers: data.uniqueDrivers.size,
+      uniquePassengers: data.uniquePassengers.size,
       avgDistanceKm: Math.round((data.totalDistance / Math.max(1, ridesCount)) * 10) / 10 || 16.2,
       avgPrice: Math.round(data.totalFare / Math.max(1, ridesCount)) || 140,
       frequentStops: sortedStops,
