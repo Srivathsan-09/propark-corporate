@@ -22,6 +22,7 @@ import {
   Cpu,
   Leaf,
   IndianRupee,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +75,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "Rides",
       href: "/admin/rides",
       icon: Route,
+    },
+    {
+      title: "CommuteHub",
+      href: "/admin/commutehub",
+      icon: Compass,
     },
     {
       title: "Sustainability",
