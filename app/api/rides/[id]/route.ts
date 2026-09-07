@@ -7,6 +7,7 @@ import Ride from "@/models/Ride";
 import Vehicle from "@/models/Vehicle";
 import Notification from "@/models/Notification";
 import { offerRideSchema } from "@/validations/ride.schema";
+import { logEmployeeActivity } from "@/lib/services/activityLogger";
 
 export const dynamic = "force-dynamic";
 
@@ -160,6 +161,12 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
 
     ride.vehicle = new mongoose.Types.ObjectId(vehicleId);
     ride.vehicleType = vehicle.vehicleType;
+    ride.vehicleSnapshot = {
+      vehicleModel: vehicle.vehicleModel,
+      registrationNumber: vehicle.registrationNumber,
+      vehicleType: vehicle.vehicleType,
+      seatingCapacity: vehicle.seatingCapacity,
+    };
     ride.rideType = rideType;
     ride.startingLocation = startingLocation;
     ride.destination = destination;
@@ -175,6 +182,16 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     ride.notes = notes || "";
 
     await ride.save();
+
+    logEmployeeActivity({
+      employeeId: (ride.driver as any)._id || ride.driver,
+      campusId: ride.campusId || "CAMP001",
+      activityType: "RIDE_UPDATED",
+      entityType: "RIDE",
+      entityId: ride._id.toString(),
+      description: `Updated scheduled ride details for route ${startingLocation} to ${destination}`,
+      metadata: { origin: startingLocation, destination, departureDate, departureTime, vehicleModel: vehicle.vehicleModel },
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
@@ -256,12 +273,33 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
     await Promise.all(notificationPromises);
 
-    // 3. Delete the ride itself
-    await Ride.findByIdAndDelete(ride._id);
+    // 3. Mark the ride as cancelled instead of deleting to preserve historical integrity
+    const previousStatus = ride.status;
+    ride.status = "cancelled";
+    ride.completedAt = new Date();
+    ride.cancellation = {
+      cancelledBy: new mongoose.Types.ObjectId(session.user.id),
+      cancelledByRole: session.user.role === "admin" ? "admin" : "driver",
+      cancelledAt: new Date(),
+      reason: "Cancelled by driver",
+      previousStatus,
+    };
+    await ride.save();
+
+    // 4. Log RIDE_CANCELLED activity
+    logEmployeeActivity({
+      employeeId: (ride.driver as any)._id || ride.driver,
+      campusId: ride.campusId || "CAMP001",
+      activityType: "RIDE_CANCELLED",
+      entityType: "RIDE",
+      entityId: ride._id.toString(),
+      description: `Cancelled ride from ${ride.startingLocation} to ${ride.destination}`,
+      metadata: { status: "cancelled", reason: "Cancelled by driver" },
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
-      message: "Ride deleted successfully.",
+      message: "Ride cancelled successfully and retained in commute history.",
     });
   } catch (error: any) {
     console.error("Delete ride error:", error);

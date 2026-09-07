@@ -7,6 +7,7 @@ import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
 import { updateProfileSchema } from "@/validations/profile.schema";
+import { logEmployeeActivity } from "@/lib/services/activityLogger";
 
 export async function GET() {
   try {
@@ -103,6 +104,16 @@ export async function PATCH(req: NextRequest) {
         { status: 404 }
       );
     }
+
+    logEmployeeActivity({
+      employeeId: session.user.id,
+      campusId: (updatedUser.campusId as string) || "CAMP001",
+      activityType: "PROFILE_UPDATED",
+      entityType: "PROFILE",
+      entityId: session.user.id,
+      description: `Updated profile details and commute preferences`,
+      metadata: { name: updatedUser.name, department: updatedUser.department, homeLocation: updatedUser.homeLocation },
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,

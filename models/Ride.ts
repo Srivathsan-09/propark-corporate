@@ -51,11 +51,27 @@ export interface IRidePassengerRequest {
   updatedAt?: Date;
 }
 
+export interface IVehicleSnapshot {
+  vehicleModel: string;
+  registrationNumber: string;
+  vehicleType: string;
+  seatingCapacity?: number;
+}
+
+export interface IRideCancellation {
+  cancelledBy?: mongoose.Types.ObjectId;
+  cancelledByRole?: "driver" | "passenger" | "admin";
+  cancelledAt?: Date;
+  reason?: string;
+  previousStatus?: string;
+}
+
 export interface IRide extends Document {
   _id: mongoose.Types.ObjectId;
   driver: mongoose.Types.ObjectId;
   vehicle: mongoose.Types.ObjectId;
   vehicleType: "Car" | "SUV" | "Van" | "Bike" | "Other";
+  vehicleSnapshot?: IVehicleSnapshot;
   rideType: "pickup" | "drop";
   startingLocation: string;
   destination: string;
@@ -76,6 +92,7 @@ export interface IRide extends Document {
   campusId?: string;
   hubId?: mongoose.Types.ObjectId;
   status: "scheduled" | "in_progress" | "completed" | "cancelled";
+  cancellation?: IRideCancellation;
   acceptedPassengers: mongoose.Types.ObjectId[];
   requests: IRidePassengerRequest[];
   createdAt: Date;
@@ -266,6 +283,27 @@ const RideSchema = new Schema<IRide>(
       default: "scheduled",
       index: true,
     },
+    vehicleSnapshot: {
+      type: {
+        vehicleModel: { type: String, default: "" },
+        registrationNumber: { type: String, default: "" },
+        vehicleType: { type: String, default: "Car" },
+        seatingCapacity: { type: Number, default: 4 },
+      },
+      default: null,
+      _id: false,
+    },
+    cancellation: {
+      type: {
+        cancelledBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+        cancelledByRole: { type: String, enum: ["driver", "passenger", "admin"], default: "driver" },
+        cancelledAt: { type: Date, default: null },
+        reason: { type: String, default: "" },
+        previousStatus: { type: String, default: "scheduled" },
+      },
+      default: null,
+      _id: false,
+    },
 
     acceptedPassengers: [
       {
@@ -282,6 +320,10 @@ const RideSchema = new Schema<IRide>(
     timestamps: true,
   }
 );
+
+// Performance Indexes for fast commute history queries
+RideSchema.index({ "requests.passenger": 1, departureDate: -1 });
+RideSchema.index({ driver: 1, departureDate: -1 });
 
 if (process.env.NODE_ENV === "development" && mongoose.models.Ride) {
   delete (mongoose.models as any).Ride;

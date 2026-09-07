@@ -6,6 +6,7 @@ import Vehicle from "@/models/Vehicle";
 
 export const dynamic = "force-dynamic";
 import { vehicleSchema } from "@/validations/vehicle.schema";
+import { logEmployeeActivity } from "@/lib/services/activityLogger";
 
 export async function GET() {
   try {
@@ -110,6 +111,16 @@ export async function POST(req: NextRequest) {
       isApproved: false,
       status: status || "active",
     });
+
+    logEmployeeActivity({
+      employeeId: session.user.id,
+      campusId: (session.user as any).campusId || "CAMP001",
+      activityType: "VEHICLE_ADDED",
+      entityType: "VEHICLE",
+      entityId: newVehicle._id.toString(),
+      description: `Registered new vehicle: ${vehicleModel} (${normalizedPlate})`,
+      metadata: { vehicleModel, registrationNumber: normalizedPlate, vehicleType, seatingCapacity },
+    }).catch(() => {});
 
     return NextResponse.json(
       {

@@ -32,6 +32,7 @@ import {
   Trash2,
   FileText,
   MoreVertical,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -173,10 +174,37 @@ export default function MyRidesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"offered" | "booked">("offered");
   const [offeredSubTab, setOfferedSubTab] = useState<"pickup" | "drop">("pickup");
+  const [statusFilterTab, setStatusFilterTab] = useState<"ALL" | "UPCOMING" | "COMPLETED" | "CANCELLED">("ALL");
+  const [selectedEmpRide, setSelectedEmpRide] = useState<any | null>(null);
+  const [isEmpRideModalOpen, setIsEmpRideModalOpen] = useState(false);
+  const [showEmpMapInModal, setShowEmpMapInModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
+
+  // Filter helpers for CommuteX status tabs
+  const filterOfferedByStatus = (r: IOfferedRide) => {
+    const matchesSubTab = offeredSubTab === "pickup" ? r.rideType !== "drop" : r.rideType === "drop";
+    if (!matchesSubTab) return false;
+
+    if (statusFilterTab === "ALL") return true;
+    if (statusFilterTab === "UPCOMING") return r.status === "scheduled" || r.status === "in_progress";
+    if (statusFilterTab === "COMPLETED") return r.status === "completed";
+    if (statusFilterTab === "CANCELLED") return r.status === "cancelled";
+    return true;
+  };
+
+  const filterBookedByStatus = (booking: IBookedRide) => {
+    if (!booking || !booking.ride || !booking.ride.driver) return false;
+
+    if (statusFilterTab === "ALL") return true;
+    const isCancelled = booking.status === "cancelled" || booking.status === "rejected" || booking.ride.status === "cancelled";
+    if (statusFilterTab === "CANCELLED") return isCancelled;
+    if (statusFilterTab === "COMPLETED") return !isCancelled && booking.ride.status === "completed";
+    if (statusFilterTab === "UPCOMING") return !isCancelled && (booking.ride.status === "scheduled" || booking.ride.status === "in_progress");
+    return true;
+  };
 
   // Live GPS Tracking State for Driver
   const [activeTrackingRideId, setActiveTrackingRideId] = useState<string | null>(null);
@@ -872,6 +900,31 @@ export default function MyRidesPage() {
         </div>
       )}
 
+      {/* CommuteX Status History Tabs: ALL, UPCOMING, COMPLETED, CANCELLED */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-200/80">
+        <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-bold">
+          {(["ALL", "UPCOMING", "COMPLETED", "CANCELLED"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setStatusFilterTab(tab)}
+              className={`px-3.5 py-1.5 rounded-xl transition-all ${
+                statusFilterTab === tab
+                  ? "bg-slate-900 text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium px-2">
+          <span>Status:</span>
+          <span className="font-bold text-slate-800 uppercase">{statusFilterTab}</span>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
         <button
@@ -942,11 +995,11 @@ export default function MyRidesPage() {
             </button>
           </div>
 
-          {offeredRides.filter((r) => offeredSubTab === "pickup" ? r.rideType !== "drop" : r.rideType === "drop").length === 0 ? (
+          {offeredRides.filter(filterOfferedByStatus).length === 0 ? (
             <EmptyState
               icon={Car}
-              title={`No ${offeredSubTab === "pickup" ? "Pickup" : "Drop"} Rides`}
-              description={`You haven't posted any ${offeredSubTab} carpool rides yet. Share your commute with campus colleagues and save costs.`}
+              title={statusFilterTab === "ALL" ? `No ${offeredSubTab === "pickup" ? "Pickup" : "Drop"} Rides` : `No ${statusFilterTab.toLowerCase()} ${offeredSubTab} rides`}
+              description={`You haven't posted any ${offeredSubTab} carpool rides matching this filter. Share your commute with campus colleagues and save costs.`}
               actionLabel="Offer a Ride"
               onAction={() => {
                 window.location.href = "/rides/offer";
@@ -954,7 +1007,7 @@ export default function MyRidesPage() {
             />
           ) : (
             <div className="space-y-6">
-              {offeredRides.filter((r) => offeredSubTab === "pickup" ? r.rideType !== "drop" : r.rideType === "drop").map((ride) => {
+              {offeredRides.filter(filterOfferedByStatus).map((ride) => {
               const isPickup = ride.rideType !== "drop";
               const isLive = ride.status === "in_progress";
               const isCompleted = ride.status === "completed";
@@ -1037,6 +1090,18 @@ export default function MyRidesPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedEmpRide({ ...ride, role: "Driver" });
+                          setShowEmpMapInModal(false);
+                          setIsEmpRideModalOpen(true);
+                        }}
+                        className="h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> View Details
+                      </Button>
                       {/* SCHEDULED RIDE ACTIONS */}
                       {ride.status === "scheduled" && (
                         <div className="flex flex-wrap items-center gap-2">
@@ -1378,11 +1443,11 @@ export default function MyRidesPage() {
         </div>
       ) : (
         /* BOOKED RIDES TAB (PASSENGER VIEW WITH LIVE DRIVER TRACKING) */
-        bookedRides.length === 0 ? (
+        bookedRides.filter(filterBookedByStatus).length === 0 ? (
           <EmptyState
             icon={Users}
-            title="No Booked Rides"
-            description="You haven't requested or joined any coworker carpools yet."
+            title={statusFilterTab === "ALL" ? "No Booked Rides" : `No ${statusFilterTab.toLowerCase()} booked rides`}
+            description="You haven't requested or joined any coworker carpools yet matching this filter."
             actionLabel="Find a Ride"
             onAction={() => {
               window.location.href = "/rides/find";
@@ -1391,7 +1456,7 @@ export default function MyRidesPage() {
         ) : (
           <div className="space-y-4">
             {bookedRides
-              .filter((booking) => Boolean(booking && booking.ride && booking.ride.driver))
+              .filter(filterBookedByStatus)
               .map((booking) => {
                 const ride = booking.ride;
                 const isLive = ride.status === "in_progress";
@@ -1442,6 +1507,18 @@ export default function MyRidesPage() {
                       </div>
 
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-xs w-full sm:w-auto">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedEmpRide({ ...ride, role: "Passenger", booking });
+                            setShowEmpMapInModal(false);
+                            setIsEmpRideModalOpen(true);
+                          }}
+                          className="h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
+                        >
+                          <Eye className="h-3.5 w-3.5" /> View Details
+                        </Button>
                         {isLive && isAccepted ? (
                           <span className="whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-extrabold bg-emerald-600 text-white shadow-xs animate-pulse text-center">
                             <span className="h-2 w-2 rounded-full bg-white animate-ping shrink-0" />
@@ -2001,6 +2078,250 @@ export default function MyRidesPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* EMPLOYEE COMMUTEX RIDE DETAILS MODAL */}
+      <Dialog open={isEmpRideModalOpen} onOpenChange={setIsEmpRideModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+          <DialogHeader className="border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <span>Ride Details</span>
+                  <span className="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+                    #{selectedEmpRide?._id ? selectedEmpRide._id.slice(-8).toUpperCase() : ""}
+                  </span>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500 mt-0.5">
+                  Complete immutable CommuteX ride record
+                </DialogDescription>
+              </div>
+
+              {selectedEmpRide && (
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                      selectedEmpRide.role === "Driver"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-blue-100 text-blue-800"
+                    }`}
+                  >
+                    {selectedEmpRide.role || (activeTab === "offered" ? "Driver" : "Passenger")}
+                  </span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                      selectedEmpRide.status === "completed"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : selectedEmpRide.status === "cancelled"
+                        ? "bg-rose-50 text-rose-700 border border-rose-200"
+                        : selectedEmpRide.status === "in_progress"
+                        ? "bg-purple-50 text-purple-700 border border-purple-200"
+                        : "bg-blue-50 text-blue-700 border border-blue-200"
+                    }`}
+                  >
+                    {selectedEmpRide.status?.toUpperCase()}
+                  </span>
+                </div>
+              )}
+            </div>
+          </DialogHeader>
+
+          {selectedEmpRide && (
+            <div className="space-y-4 pt-2">
+              {/* Route & Schedule Card */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between text-xs text-slate-500 font-semibold border-b border-slate-200/60 pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{selectedEmpRide.departureDate}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{selectedEmpRide.departureTime}</span>
+                  </div>
+                  {(selectedEmpRide.distanceKm !== undefined || selectedEmpRide.durationMinutes !== undefined) && (
+                    <div className="flex items-center gap-2">
+                      {selectedEmpRide.distanceKm && <span>{selectedEmpRide.distanceKm} km</span>}
+                      {selectedEmpRide.durationMinutes && <span>• {selectedEmpRide.durationMinutes} mins</span>}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="font-semibold text-slate-900">Origin:</span>
+                    <span className="text-slate-700">{selectedEmpRide.startingLocation || selectedEmpRide.startLocation?.address}</span>
+                  </div>
+
+                  {selectedEmpRide.stops && selectedEmpRide.stops.length > 0 && (
+                    <div className="ml-1 pl-4 border-l-2 border-dashed border-slate-200 space-y-1 py-1">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase">Intermediate Stops:</span>
+                      {selectedEmpRide.stops.map((st: any, sIdx: number) => (
+                        <div key={sIdx} className="flex items-center justify-between text-slate-600">
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                            <span>{st.name || st}</span>
+                          </div>
+                          {st.price !== undefined && st.price > 0 && (
+                            <span className="text-[10px] font-bold text-emerald-700">₹{st.price}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-rose-500 shrink-0" />
+                    <span className="font-semibold text-slate-900">Destination:</span>
+                    <span className="text-slate-700">{selectedEmpRide.destination || selectedEmpRide.endLocation?.address}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vehicle & Driver Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 space-y-1.5">
+                  <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <Car className="h-3.5 w-3.5 text-slate-500" /> Vehicle Information
+                  </div>
+                  <div className="text-slate-600">
+                    <span className="font-medium text-slate-800">{selectedEmpRide.vehicle?.vehicleModel || selectedEmpRide.vehicleSnapshot?.vehicleModel || "Campus Vehicle"}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    Plate: <strong className="text-slate-700 font-mono">{selectedEmpRide.vehicle?.registrationNumber || selectedEmpRide.vehicleSnapshot?.registrationNumber || "—"}</strong>
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    Type: <span className="capitalize">{selectedEmpRide.vehicleType || selectedEmpRide.vehicle?.vehicleType || "Car"}</span>
+                  </div>
+                </div>
+
+                {selectedEmpRide.driver && (
+                  <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 space-y-1.5">
+                    <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 text-slate-500" /> Driver Details
+                    </div>
+                    <div className="text-slate-700 font-medium">{selectedEmpRide.driver.name}</div>
+                    <div className="text-[11px] text-slate-500">{selectedEmpRide.driver.companyName || selectedEmpRide.driver.department || "Colleague"}</div>
+                    {selectedEmpRide.driver.phone && (
+                      <div className="text-[11px] text-slate-600 flex items-center gap-1">
+                        <Phone className="h-3 w-3 text-emerald-600" />
+                        <a href={`tel:${selectedEmpRide.driver.phone}`} className="hover:underline text-emerald-700 font-bold">
+                          {selectedEmpRide.driver.phone}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* If Driver: show passenger summary */}
+              {selectedEmpRide.requests && selectedEmpRide.requests.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 space-y-2">
+                  <div className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 text-slate-500" /> Co-Passengers ({selectedEmpRide.requests.length})
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {selectedEmpRide.requests.map((pReq: any, pIdx: number) => (
+                      <div key={pIdx} className="bg-white border border-slate-100 rounded-xl p-2 flex items-center justify-between text-xs">
+                        <div>
+                          <span className="font-bold text-slate-800">{pReq.passenger?.name || "Passenger"}</span>
+                          <span className="text-[11px] text-slate-400 ml-1.5">({pReq.pickupStop} → {pReq.dropStop})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-emerald-700">₹{pReq.fare}</span>
+                          <Badge className="text-[9px] py-0 px-1.5 capitalize bg-slate-100 text-slate-700 border-none">
+                            {pReq.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Cancellation Record if cancelled */}
+              {(selectedEmpRide.cancellation || selectedEmpRide.status === "cancelled") && (
+                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 text-xs text-rose-800 space-y-1">
+                  <div className="font-bold flex items-center gap-1">
+                    <AlertCircle className="h-3.5 w-3.5 text-rose-600" /> Cancellation Details
+                  </div>
+                  {selectedEmpRide.cancellation?.cancelledByRole && (
+                    <div className="text-[11px]">
+                      <strong>Cancelled By:</strong> {selectedEmpRide.cancellation.cancelledByRole}
+                    </div>
+                  )}
+                  {selectedEmpRide.cancellation?.reason && (
+                    <div className="text-[11px]">
+                      <strong>Reason:</strong> {selectedEmpRide.cancellation.reason}
+                    </div>
+                  )}
+                  {selectedEmpRide.cancellation?.cancelledAt && (
+                    <div className="text-[11px] text-rose-600">
+                      <strong>Date:</strong> {new Date(selectedEmpRide.cancellation.cancelledAt).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Route Map Toggle */}
+              <div className="pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowEmpMapInModal(!showEmpMapInModal)}
+                  className="w-full gap-1.5 text-xs font-semibold border-slate-200 text-slate-700 hover:bg-slate-100"
+                >
+                  <MapIcon className="h-3.5 w-3.5 text-emerald-600" />
+                  {showEmpMapInModal ? "Hide Route Map" : "View Route on Map"}
+                </Button>
+
+                {showEmpMapInModal && (
+                  <div className="mt-3 rounded-2xl overflow-hidden border border-slate-200">
+                    <MapView
+                      startLocation={{
+                        name: selectedEmpRide.startingLocation,
+                        address: selectedEmpRide.startLocation?.address || selectedEmpRide.startingLocation,
+                        latitude: selectedEmpRide.startLocation?.latitude || 12.9249,
+                        longitude: selectedEmpRide.startLocation?.longitude || 80.1332,
+                      }}
+                      destination={{
+                        name: selectedEmpRide.destination,
+                        address: selectedEmpRide.endLocation?.address || selectedEmpRide.destination,
+                        latitude: selectedEmpRide.endLocation?.latitude || 12.8988,
+                        longitude: selectedEmpRide.endLocation?.longitude || 80.2284,
+                      }}
+                      stops={(selectedEmpRide.stops || []).map((s: any) => ({
+                        name: s.name || s,
+                        address: s.address || s.name || s,
+                        latitude: s.latitude || 12.95,
+                        longitude: s.longitude || 80.18,
+                        price: s.price,
+                      }))}
+                      distanceText={selectedEmpRide.distanceKm ? `${selectedEmpRide.distanceKm} km` : undefined}
+                      durationText={selectedEmpRide.durationMinutes ? `${selectedEmpRide.durationMinutes} mins` : undefined}
+                      height="240px"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEmpRideModalOpen(false)}
+              className="rounded-xl text-xs font-semibold h-9"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

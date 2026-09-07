@@ -6,6 +6,7 @@ import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
 import User from "@/models/User";
 import Notification from "@/models/Notification";
+import { logEmployeeActivity } from "@/lib/services/activityLogger";
 
 interface RouteParams {
   params: {
@@ -120,6 +121,24 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         type: "request_accepted",
         ride: ride._id,
       });
+
+      // Record RIDE_JOINED activity for passenger
+      logEmployeeActivity({
+        employeeId: passengerId,
+        campusId: ride.campusId || "CAMP001",
+        activityType: "RIDE_JOINED",
+        entityType: "RIDE",
+        entityId: ride._id.toString(),
+        description: `Joined ride from ${ride.startingLocation} to ${ride.destination} (Pickup: ${rideRequest.pickupStop})`,
+        metadata: {
+          rideId: ride._id.toString(),
+          pickupStop: rideRequest.pickupStop,
+          dropStop: rideRequest.dropStop,
+          fare: rideRequest.fare,
+          seatsRequested: rideRequest.seatsRequested,
+          driverId: driverIdStr,
+        },
+      }).catch(() => {});
 
       return NextResponse.json({
         success: true,

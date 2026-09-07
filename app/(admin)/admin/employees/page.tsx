@@ -462,41 +462,52 @@ export default function AdminEmployeesPage() {
 
                     {/* Actions */}
                     <td className="py-3 pl-4 pr-6 text-right whitespace-nowrap">
-                      {emp.role === "admin" || emp.role === "campus_admin" ? (
-                        <span className="text-slate-400 text-[11px] italic pr-2">System Admin</span>
-                      ) : (
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Approve */}
-                          {emp.verificationStatus !== "approved" && (
-                            <button
-                              type="button"
-                              onClick={() => handleVerify(emp._id, "approve")}
-                              disabled={actionLoadingId === emp._id}
-                              className="h-7 px-2.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60 shadow-2xs"
-                            >
-                              {actionLoadingId === emp._id && (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              )}
-                              Approve
-                            </button>
-                          )}
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* View Details CTA */}
+                        <Link
+                          href={`/admin/employees/${emp._id}`}
+                          className="h-7 px-2.5 text-xs font-semibold border border-slate-200 text-slate-700 bg-white hover:bg-slate-100 hover:text-emerald-700 hover:border-emerald-300 rounded-lg flex items-center gap-1 transition-colors shadow-2xs"
+                          title="View Complete Commute History & Activity Audit"
+                        >
+                          View Details
+                        </Link>
 
-                          {/* Reject */}
-                          {emp.verificationStatus !== "rejected" && (
-                            <button
-                              type="button"
-                              onClick={() => handleVerify(emp._id, "reject")}
-                              disabled={actionLoadingId === emp._id}
-                              className="h-7 px-2.5 text-xs font-semibold border border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60"
-                            >
-                              {actionLoadingId === emp._id && (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              )}
-                              Reject
-                            </button>
-                          )}
-                        </div>
-                      )}
+                        {emp.role === "admin" || emp.role === "campus_admin" ? (
+                          <span className="text-slate-400 text-[11px] italic pr-1">System Admin</span>
+                        ) : (
+                          <>
+                            {/* Approve */}
+                            {emp.verificationStatus !== "approved" && (
+                              <button
+                                type="button"
+                                onClick={() => handleVerify(emp._id, "approve")}
+                                disabled={actionLoadingId === emp._id}
+                                className="h-7 px-2.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60 shadow-2xs"
+                              >
+                                {actionLoadingId === emp._id && (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                )}
+                                Approve
+                              </button>
+                            )}
+
+                            {/* Reject */}
+                            {emp.verificationStatus !== "rejected" && (
+                              <button
+                                type="button"
+                                onClick={() => handleVerify(emp._id, "reject")}
+                                disabled={actionLoadingId === emp._id}
+                                className="h-7 px-2.5 text-xs font-semibold border border-rose-200 text-rose-700 hover:bg-rose-50 rounded-lg flex items-center gap-1 transition-colors disabled:opacity-60"
+                              >
+                                {actionLoadingId === emp._id && (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                )}
+                                Reject
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

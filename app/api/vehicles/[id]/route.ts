@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Vehicle from "@/models/Vehicle";
 import { vehicleSchema } from "@/validations/vehicle.schema";
+import { logEmployeeActivity } from "@/lib/services/activityLogger";
 
 interface RouteParams {
   params: {
@@ -162,6 +163,16 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       );
     }
 
+    logEmployeeActivity({
+      employeeId: session.user.id,
+      campusId: (session.user as any).campusId || "CAMP001",
+      activityType: "VEHICLE_UPDATED",
+      entityType: "VEHICLE",
+      entityId: updatedVehicle._id.toString(),
+      description: `Updated vehicle details: ${vehicleModel} (${normalizedPlate})`,
+      metadata: { vehicleModel, registrationNumber: normalizedPlate, vehicleType },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       message: "Vehicle updated successfully.",
@@ -212,6 +223,16 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    logEmployeeActivity({
+      employeeId: session.user.id,
+      campusId: (session.user as any).campusId || "CAMP001",
+      activityType: "VEHICLE_REMOVED",
+      entityType: "VEHICLE",
+      entityId: deletedVehicle._id.toString(),
+      description: `Removed vehicle: ${deletedVehicle.vehicleModel} (${deletedVehicle.registrationNumber})`,
+      metadata: { vehicleModel: deletedVehicle.vehicleModel, registrationNumber: deletedVehicle.registrationNumber },
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,

@@ -10,6 +10,7 @@ import User from "@/models/User";
 export const dynamic = "force-dynamic";
 import Notification from "@/models/Notification";
 import { offerRideSchema } from "@/validations/ride.schema";
+import { logEmployeeActivity } from "@/lib/services/activityLogger";
 
 export async function GET(req: NextRequest) {
   try {
@@ -254,11 +255,17 @@ export async function POST(req: NextRequest) {
     // Determine basePrice as the highest stop price or last stop price
     const basePrice = stops.length > 0 ? stops[stops.length - 1].price : 0;
 
-    // Create the Ride in MongoDB
+    // Create the Ride in MongoDB with an immutable vehicle snapshot
     const newRide = await Ride.create({
       driver: dbUser._id,
       vehicle: vehicle._id,
       vehicleType: vehicle.vehicleType,
+      vehicleSnapshot: {
+        vehicleModel: vehicle.vehicleModel,
+        registrationNumber: vehicle.registrationNumber,
+        vehicleType: vehicle.vehicleType,
+        seatingCapacity: vehicle.seatingCapacity,
+      },
       rideType: rideType || "pickup",
       startingLocation,
       destination,
@@ -277,6 +284,39 @@ export async function POST(req: NextRequest) {
       status: "scheduled",
       acceptedPassengers: [],
     });
+
+    // Record structured CommuteX activity events
+    logEmployeeActivity({
+      employeeId: dbUser._id,
+      campusId: dbUser.campusId || "CAMP001",
+      activityType: "RIDE_CREATED",
+      entityType: "RIDE",
+      entityId: newRide._id.toString(),
+      description: `Offered ride from ${startingLocation} to ${destination}`,
+      metadata: {
+        origin: startingLocation,
+        destination,
+        departureDate,
+        departureTime,
+        vehicleModel: vehicle.vehicleModel,
+        availableSeats,
+        rideCode: `RIDE-${newRide._id.toString().slice(-6).toUpperCase()}`,
+      },
+    }).catch(() => {});
+
+    if (stops && stops.length > 0) {
+      stops.forEach((s) => {
+        logEmployeeActivity({
+          employeeId: dbUser._id,
+          campusId: dbUser.campusId || "CAMP001",
+          activityType: "STOP_ADDED",
+          entityType: "RIDE",
+          entityId: newRide._id.toString(),
+          description: `Added stop "${s.name}" (₹${s.price}) to ride`,
+          metadata: { stopName: s.name, price: s.price },
+        }).catch(() => {});
+      });
+    }
 
     // Populate for return
     const populatedRide = await Ride.findById(newRide._id)

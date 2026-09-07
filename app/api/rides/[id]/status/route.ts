@@ -6,6 +6,7 @@ import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
 import Notification from "@/models/Notification";
 import { calculateRideCarbonEmissions } from "@/lib/services/carbonCalculation";
+import { logEmployeeActivity } from "@/lib/services/activityLogger";
 
 interface RouteParams {
   params: {
@@ -81,8 +82,47 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
           lastUpdated: new Date(),
         };
       }
-    } else if (status === "completed" || status === "cancelled") {
+
+      logEmployeeActivity({
+        employeeId: (ride.driver as any)._id || ride.driver,
+        campusId: ride.campusId || "CAMP001",
+        activityType: "RIDE_STARTED",
+        entityType: "RIDE",
+        entityId: ride._id.toString(),
+        description: `Started ride from ${ride.startingLocation} to ${ride.destination}`,
+        metadata: { status: "in_progress", origin: ride.startingLocation, destination: ride.destination },
+      }).catch(() => {});
+    } else if (status === "completed") {
       ride.completedAt = new Date();
+
+      logEmployeeActivity({
+        employeeId: (ride.driver as any)._id || ride.driver,
+        campusId: ride.campusId || "CAMP001",
+        activityType: "RIDE_COMPLETED",
+        entityType: "RIDE",
+        entityId: ride._id.toString(),
+        description: `Completed ride from ${ride.startingLocation} to ${ride.destination} (${ride.distanceKm || 0} km)`,
+        metadata: { status: "completed", distanceKm: ride.distanceKm, origin: ride.startingLocation, destination: ride.destination },
+      }).catch(() => {});
+    } else if (status === "cancelled") {
+      ride.completedAt = new Date();
+      ride.cancellation = {
+        cancelledBy: new mongoose.Types.ObjectId(session.user.id),
+        cancelledByRole: session.user.role === "admin" ? "admin" : "driver",
+        cancelledAt: new Date(),
+        reason: body.reason || "Cancelled by driver",
+        previousStatus,
+      };
+
+      logEmployeeActivity({
+        employeeId: (ride.driver as any)._id || ride.driver,
+        campusId: ride.campusId || "CAMP001",
+        activityType: "RIDE_CANCELLED",
+        entityType: "RIDE",
+        entityId: ride._id.toString(),
+        description: `Cancelled ride from ${ride.startingLocation} to ${ride.destination}`,
+        metadata: { status: "cancelled", reason: body.reason || "Cancelled by driver" },
+      }).catch(() => {});
     }
 
     await ride.save();

@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
 import { realtimeEventBus } from "./RealtimeEventBus";
+import { logEmployeeActivity } from "@/lib/services/activityLogger";
 
 class CancellationConcurrencyService {
   /**
@@ -66,6 +67,22 @@ class CancellationConcurrencyService {
         totalSeats: updatedRide?.totalSeats,
         eventReason: "CANCELLATION_SEAT_RELEASED",
       });
+
+      // Log RIDE_LEFT structured activity for passenger
+      logEmployeeActivity({
+        employeeId: request.passenger,
+        campusId: ride.campusId || "CAMP001",
+        activityType: "RIDE_LEFT",
+        entityType: "RIDE",
+        entityId: ride._id.toString(),
+        description: `Cancelled booking for ride from ${ride.startingLocation} to ${ride.destination}`,
+        metadata: {
+          rideId: ride._id.toString(),
+          pickupStop: request.pickupStop,
+          seatsReleased: seatsToRelease,
+          cancelledByRole,
+        },
+      }).catch(() => {});
 
       return {
         success: true,
