@@ -182,7 +182,7 @@ export default function DashboardPage() {
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:16px_16px] opacity-15" />
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300 mb-3 border border-emerald-500/30">
-            <Building2 className="h-3.5 w-3.5" /> Corporate Commute Hub
+            <Building2 className="h-3.5 w-3.5" /> Corporate Commute Portal
           </div>
 
           {status === "loading" ? (

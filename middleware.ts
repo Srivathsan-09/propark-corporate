@@ -18,7 +18,6 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/parking") ||
     pathname.startsWith("/notifications");
   const isAdminRoute = pathname.startsWith("/admin");
-  const isCommuteHubRoute = pathname.startsWith("/commutehub");
 
   // 1. If user is already logged in and tries to access /login or /register
   if (isAuthRoute && token) {
@@ -35,8 +34,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // 3. If accessing admin route or commutehub route (CommuteHub is Admin-Only)
-  if (isAdminRoute || isCommuteHubRoute) {
+  // 3. If accessing admin route (Admin-Only)
+  if (isAdminRoute) {
     if (!token) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
@@ -60,7 +59,6 @@ export const config = {
     "/parking/:path*",
     "/notifications/:path*",
     "/admin/:path*",
-    "/commutehub/:path*",
     "/login",
     "/register",
   ],

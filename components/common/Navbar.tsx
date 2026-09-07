@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, Car, Shield, Menu, X, User as UserIcon, Compass } from "lucide-react";
+import { LogOut, Car, Shield, Menu, X, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, getInitials } from "@/lib/utils";
@@ -46,8 +46,6 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
   const isCampusAdmin = session?.user?.role === "campus_admin";
   const isAdmin = isSuperAdmin || isCampusAdmin;
 
-  const isCommuteHub = pathname.startsWith("/commutehub") || pathname.startsWith("/admin/hubs");
-
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/login" });
   };
@@ -66,7 +64,7 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
 
         {/* Brand Logo */}
         <Link
-          href={isAdmin ? (isCommuteHub ? "/admin/hubs" : "/admin") : "/dashboard"}
+          href={isAdmin ? "/admin" : "/dashboard"}
           className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
         >
           <img
@@ -76,48 +74,14 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
           />
           <div className="flex flex-col">
             <span className="text-base font-black tracking-tight text-slate-900 leading-tight flex items-center">
-              COMMUTE<span className="text-emerald-600">{isAdmin && isCommuteHub ? "HUB" : "X"}</span>
+              COMMUTE<span className="text-emerald-600">X</span>
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
-              {isAdmin && isCommuteHub ? "Admin Intelligence" : "Corporate Commute"}
+              Corporate Commute
             </span>
           </div>
         </Link>
       </div>
-
-      {/* Dead-Center: Mode Switcher (CommuteX ↔ CommuteHub) - Admin Only */}
-      {session?.user && isAdmin && (
-        <div className="hidden sm:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center rounded-xl bg-slate-100 p-1 text-xs font-semibold border border-slate-200/80 shadow-2xs z-20">
-          <button
-            type="button"
-            onClick={() => router.push("/admin")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all text-xs cursor-pointer",
-              !isCommuteHub
-                ? "bg-white text-slate-900 shadow-xs font-bold"
-                : "text-slate-500 hover:text-slate-900"
-            )}
-            title="Switch to CommuteX Admin Mode"
-          >
-            <Car className="h-3.5 w-3.5 text-emerald-600" />
-            <span className="font-semibold">CommuteX</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push("/admin/hubs")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all text-xs cursor-pointer",
-              isCommuteHub
-                ? "bg-emerald-600 text-white shadow-xs font-bold"
-                : "text-slate-500 hover:text-slate-900"
-            )}
-            title="Switch to CommuteHub Intelligence Mode"
-          >
-            <Compass className="h-3.5 w-3.5" />
-            <span className="font-semibold">CommuteHub</span>
-          </button>
-        </div>
-      )}
 
       {/* User info & Actions */}
       <div className="flex items-center gap-3">

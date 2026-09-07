@@ -505,7 +505,7 @@ export default function AdminCampusesPage() {
   if (isLoading) {
     return (
       <div className="py-20 flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 shadow-xs">
-        <CarLoader size="page" message="Loading Campus & Company governance hub..." />
+        <CarLoader size="page" message="Loading Campus & Company governance portal..." />
       </div>
     );
   }
