@@ -870,46 +870,46 @@ export async function getCommuteHubIntelligence(options: {
     },
   ];
 
-  // 10. Explainable Mobility Insights
+  // 10. Mobility Insights
   const insights: IMobilityInsight[] = [
     {
       id: "ins-capacity-utilization",
       category: "capacity",
-      severity: unusedSeatCapacity > 10 ? "medium" : "low",
-      title: `${unusedSeatCapacity} Unused Seats Detected Across Commute Fleet`,
-      description: `Analysis shows an overall occupancy rate of ${avgOccupancyRate}%. Empty seats are concentrated predominantly on early evening departures after 07:00 PM.`,
-      impactMetric: `₹${Math.round(unusedSeatCapacity * 120)} Potential Daily Savings`,
-      recommendedAction: "Encourage post-7 PM carpool scheduling with flexible departure notifications.",
+      severity: unusedSeatCapacity > 0 ? "medium" : "low",
+      title: `${unusedSeatCapacity} Vacant Seats Across Active Rides`,
+      description: `Overall vehicle seat occupancy is currently ${avgOccupancyRate}%. Empty seats are mostly observed during early evening return trips.`,
+      impactMetric: `₹${Math.round(unusedSeatCapacity * 120)} Est. Daily Savings`,
+      recommendedAction: "Encourage drivers to list intermediate stops along return routes.",
     },
     {
       id: "ins-rush-hour-concentration",
       category: "timing",
       severity: "high",
-      title: "Morning Commute Traffic Peaks sharply at 08:30 AM – 09:15 AM",
+      title: "Morning Commutes Peak at 08:30 AM – 09:15 AM",
       description:
-        "Over 62% of campus-bound commuters arrive in this 45-minute window. Spreading departure windows by ±15 mins would alleviate gate congestion.",
-      impactMetric: "62% Volume Compression",
-      recommendedAction: "Highlight 08:00 AM and 09:15 AM departure slots in CommuteX to distribute peak volume.",
+        "The majority of inbound campus rides depart in this 45-minute window. Shifting departures slightly helps ease gate arrival queues.",
+      impactMetric: "Peak Morning Window",
+      recommendedAction: "Promote staggered departure times (08:00 AM or 09:15 AM) on team boards.",
     },
     {
       id: "ins-top-corridor-demand",
       category: "corridor",
       severity: "info",
-      title: `${topCorridorName} accounts for ${Math.round((maxCorridorRides / Math.max(1, totalCarpools)) * 100)}% of total rides`,
+      title: `${topCorridorName} is the Most Traveled Route`,
       description:
-        "This corridor exhibits consistent carpool adherence and the lowest single-occupancy vehicle rate in the enterprise.",
-      impactMetric: `${corridorList[0]?.totalSeatsBooked || 22} Seats Filled Weekly`,
-      recommendedAction: "Maintain high visibility of this corridor on campus bulletin boards.",
+        "This corridor maintains steady carpool participation and low single-occupant driving rates.",
+      impactMetric: `${corridorList[0]?.totalSeatsBooked || 0} Seats Filled`,
+      recommendedAction: "Highlight this corridor as a primary carpool route for new employees.",
     },
     {
       id: "ins-carpool-potential",
       category: "opportunity",
       severity: "high",
-      title: "3 Strong Carpool Matching Opportunities Identified",
+      title: "Coworkers Sharing Similar Daily Routes",
       description:
-        "Algorithmic analysis detected 19 commuters with identical origin coordinates and shift schedules currently traveling in single-occupant vehicles or separate rides.",
-      impactMetric: "35.6 kg Daily CO₂ Offset",
-      recommendedAction: "Notify eligible drivers of passenger demand clusters along their scheduled routes.",
+        "Multiple employees travel along matching corridors at similar times with available vehicle seats.",
+      impactMetric: "Vehicle Reduction",
+      recommendedAction: "Suggest route connections to coworkers traveling along these corridors.",
     },
   ];
 
