@@ -25,6 +25,8 @@ import {
   Layers,
   Map,
   Compass,
+  Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -139,69 +141,46 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Navigation specifically for Admins (CommuteHub Mode)
   const commuteHubAdminNavItems = [
     {
-      title: "Dashboard",
+      title: "Overview",
       href: "/admin/hubs",
       icon: LayoutDashboard,
+    },
+    {
+      title: "Corridors",
+      href: "/admin/hubs?tab=corridors",
+      icon: Route,
+    },
+    {
+      title: "Patterns",
+      href: "/admin/hubs?tab=patterns",
+      icon: TrendingUp,
+    },
+    {
+      title: "Demand & Deficit",
+      href: "/admin/hubs?tab=demand",
+      icon: BarChart3,
+    },
+    {
+      title: "Recommendations",
+      href: "/admin/hubs?tab=recommendations",
+      icon: Sparkles,
+    },
+    {
+      title: "Corridor Map",
+      href: "/admin/hubs/map",
+      icon: Map,
     },
     {
       title: "Manage Hubs",
       href: "/admin/hubs/manage",
       icon: Layers,
     },
-    {
-      title: "Create Hub",
-      href: "/admin/hubs/create",
-      icon: PlusCircle,
-    },
-    {
-      title: "Hub Map",
-      href: "/admin/hubs/map",
-      icon: Map,
-    },
-    {
-      title: "Hub Rides",
-      href: "/admin/hubs/rides",
-      icon: Route,
-    },
   ];
 
-  // Navigation specifically for Employees (CommuteHub Mode)
-  const commuteHubEmployeeNavItems = [
-    {
-      title: "Dashboard",
-      href: "/commutehub",
-      icon: LayoutDashboard,
-    },
-    {
-      title: "Available Hubs",
-      href: "/commutehub/hubs",
-      icon: Layers,
-    },
-    {
-      title: "Find a Ride",
-      href: "/commutehub/rides/find",
-      icon: Search,
-    },
-    {
-      title: "Offer a Ride",
-      href: "/commutehub/rides/create",
-      icon: PlusCircle,
-    },
-    {
-      title: "My Hub Rides",
-      href: "/commutehub/my-rides",
-      icon: Clock,
-    },
-    {
-      title: "Hub Map",
-      href: "/commutehub/map",
-      icon: Map,
-    },
-  ];
-
-  const currentNavItems = isCommuteHub
-    ? (isAdmin ? commuteHubAdminNavItems : commuteHubEmployeeNavItems)
-    : (isAdmin ? adminNavItems : employeeNavItems);
+  // Employees ONLY get CommuteX; Admins can switch between CommuteX and CommuteHub
+  const currentNavItems = isAdmin
+    ? (isCommuteHub ? commuteHubAdminNavItems : adminNavItems)
+    : employeeNavItems;
 
   return (
     <>
@@ -222,12 +201,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex flex-1 flex-col overflow-y-auto px-3 py-4">
           <div className="px-3 mb-2.5 flex items-center justify-between gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
-              {isCommuteHub
-                ? isAdmin
-                  ? "CommuteHub"
-                  : "CommuteHub"
-                : isAdmin
-                ? "Admin Console"
+              {isAdmin
+                ? isCommuteHub
+                  ? "CommuteHub Admin"
+                  : "Admin Console"
                 : "Corporate Commute"}
             </span>
             {isSuperAdmin && (

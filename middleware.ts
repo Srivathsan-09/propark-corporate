@@ -18,6 +18,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/parking") ||
     pathname.startsWith("/notifications");
   const isAdminRoute = pathname.startsWith("/admin");
+  const isCommuteHubRoute = pathname.startsWith("/commutehub");
 
   // 1. If user is already logged in and tries to access /login or /register
   if (isAuthRoute && token) {
@@ -34,15 +35,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // 3. If accessing admin route
-  if (isAdminRoute) {
+  // 3. If accessing admin route or commutehub route (CommuteHub is Admin-Only)
+  if (isAdminRoute || isCommuteHubRoute) {
     if (!token) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(loginUrl);
     }
     if (token.role !== "admin" && token.role !== "campus_admin") {
-      // Forbidden: redirect normal employee to employee dashboard
+      // Forbidden: redirect normal employee to CommuteX employee dashboard
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
   }
@@ -59,6 +60,7 @@ export const config = {
     "/parking/:path*",
     "/notifications/:path*",
     "/admin/:path*",
+    "/commutehub/:path*",
     "/login",
     "/register",
   ],

@@ -66,7 +66,7 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
 
         {/* Brand Logo */}
         <Link
-          href={isCommuteHub ? (isAdmin ? "/admin/hubs" : "/commutehub") : (isAdmin ? "/admin" : "/dashboard")}
+          href={isAdmin ? (isCommuteHub ? "/admin/hubs" : "/admin") : "/dashboard"}
           className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
         >
           <img
@@ -76,42 +76,42 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
           />
           <div className="flex flex-col">
             <span className="text-base font-black tracking-tight text-slate-900 leading-tight flex items-center">
-              COMMUTE<span className="text-emerald-600">{isCommuteHub ? "HUB" : "X"}</span>
+              COMMUTE<span className="text-emerald-600">{isAdmin && isCommuteHub ? "HUB" : "X"}</span>
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
-              {isCommuteHub ? "Hub-Based Corridors" : "Corporate Commute"}
+              {isAdmin && isCommuteHub ? "Admin Intelligence" : "Corporate Commute"}
             </span>
           </div>
         </Link>
       </div>
 
-      {/* Dead-Center: Mode Switcher (CommuteX ↔ CommuteHub) */}
-      {session?.user && (
+      {/* Dead-Center: Mode Switcher (CommuteX ↔ CommuteHub) - Admin Only */}
+      {session?.user && isAdmin && (
         <div className="hidden sm:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center rounded-xl bg-slate-100 p-1 text-xs font-semibold border border-slate-200/80 shadow-2xs z-20">
           <button
             type="button"
-            onClick={() => router.push(isAdmin ? "/admin" : "/dashboard")}
+            onClick={() => router.push("/admin")}
             className={cn(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all text-xs cursor-pointer",
               !isCommuteHub
                 ? "bg-white text-slate-900 shadow-xs font-bold"
                 : "text-slate-500 hover:text-slate-900"
             )}
-            title="Switch to CommuteX Standard Mode"
+            title="Switch to CommuteX Admin Mode"
           >
             <Car className="h-3.5 w-3.5 text-emerald-600" />
             <span className="font-semibold">CommuteX</span>
           </button>
           <button
             type="button"
-            onClick={() => router.push(isAdmin ? "/admin/hubs" : "/commutehub")}
+            onClick={() => router.push("/admin/hubs")}
             className={cn(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all text-xs cursor-pointer",
               isCommuteHub
                 ? "bg-emerald-600 text-white shadow-xs font-bold"
                 : "text-slate-500 hover:text-slate-900"
             )}
-            title="Switch to CommuteHub Corridor Mode"
+            title="Switch to CommuteHub Intelligence Mode"
           >
             <Compass className="h-3.5 w-3.5" />
             <span className="font-semibold">CommuteHub</span>
