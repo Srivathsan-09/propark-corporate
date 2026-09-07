@@ -20,6 +20,15 @@ export async function POST(req: NextRequest) {
     const testId = body.testId || "test1";
     const action = body.action;
 
+    // Support explicit cleanup action
+    if (action === "cleanup") {
+      await loadTestRunner.cleanUpAllTestData();
+      return NextResponse.json({
+        success: true,
+        message: "All load test data, rides, vehicles, and accounts purged successfully.",
+      });
+    }
+
     // Support server node simulation toggling (e.g. mark Server 1 offline)
     if (action === "toggle-node") {
       const { nodeId, status } = body;

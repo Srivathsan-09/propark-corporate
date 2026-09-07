@@ -22,6 +22,7 @@ import {
   Terminal,
   Lock,
   Radio,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,35 @@ export default function AdminConcurrencyPage() {
   const [activeTestId, setActiveTestId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<ILoadTestResult | null>(null);
   const [executionLogs, setExecutionLogs] = useState<string[]>([]);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+
+  // Manual purge test data
+  const handleCleanTestData = async () => {
+    setIsCleaningUp(true);
+    try {
+      const res = await fetch("/api/concurrency/load-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cleanup" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setExecutionLogs((prev) => [
+          `[${new Date().toLocaleTimeString()}] ✅ ${data.message || "All load test rides, vehicles, and dummy users purged from database."}`,
+          ...prev,
+        ]);
+        fetchMetrics();
+      }
+    } catch (e: any) {
+      console.error(e);
+      setExecutionLogs((prev) => [
+        `[${new Date().toLocaleTimeString()}] ❌ Failed to purge test data: ${e?.message}`,
+        ...prev,
+      ]);
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
 
   // Fetch initial metrics
   const fetchMetrics = async () => {
@@ -165,6 +195,17 @@ export default function AdminConcurrencyPage() {
             className="rounded-xl text-xs font-semibold gap-1.5 border-slate-300"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Refresh Metrics
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCleanTestData}
+            disabled={isCleaningUp || isRunningTest}
+            className="rounded-xl text-xs font-semibold gap-1.5 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+            title="Purge all load test rides, dummy vehicles, and dummy test accounts from database"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+            {isCleaningUp ? "Purging..." : "Purge Test Data"}
           </Button>
         </div>
       </div>

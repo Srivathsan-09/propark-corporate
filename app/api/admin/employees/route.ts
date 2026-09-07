@@ -21,11 +21,16 @@ export async function GET() {
     await connectToDatabase();
 
     const isSuperAdmin = session.user.role === "admin";
-    const query = isSuperAdmin
-      ? {}
-      : session.user.campusId
-      ? { campusId: new RegExp(`^${session.user.campusId}$`, "i") }
-      : {};
+    const query: Record<string, any> = {
+      email: { $not: /^passenger\.lt\d+@corporate\.com$|^driver\.loadtest@corporate\.com$/ },
+      employeeId: { $not: /^EMP-PASS-|^EMP-DRV-999$/ },
+    };
+
+    if (!isSuperAdmin && session.user.campusId) {
+      query.campusId = new RegExp(`^${session.user.campusId}$`, "i");
+    } else {
+      query.campusId = { $nin: ["CAMP-LOADTEST-01", "CAMP-LOADTEST"] };
+    }
 
     // Fetch registered employees sorted in ascending order (EMP-001, EMP-002...)
     const employees = await User.find(query)

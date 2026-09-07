@@ -21,20 +21,26 @@ export async function GET() {
     await connectToDatabase();
 
     const isSuperAdmin = session.user.role === "admin";
+    const testVehiclesExclusion = {
+      registrationNumber: { $nin: ["TN 07 LT 9999", "TN-07-LT-9999", "TN07LT9999"] },
+    };
 
-    let ownerQuery: Record<string, any> = {};
+    let ownerQuery: Record<string, any> = { ...testVehiclesExclusion };
     if (isSuperAdmin) {
       const adminUsers = await User.find({ role: "admin" }).select("_id");
       const adminIds = adminUsers.map((u) => u._id);
-      ownerQuery = { owner: { $nin: adminIds } };
+      ownerQuery = { owner: { $nin: adminIds }, ...testVehiclesExclusion };
     } else {
       // Campus Admin: only vehicles belonging to employees of their campus
-      const campusQuery = session.user.campusId
-        ? { campusId: new RegExp(`^${session.user.campusId}$`, "i") }
-        : {};
-      const campusUsers = await User.find(campusQuery).select("_id");
+      const userFilter: Record<string, any> = {};
+      if (session.user.campusId) {
+        userFilter.campusId = new RegExp(`^${session.user.campusId}$`, "i");
+      } else {
+        userFilter.campusId = { $nin: ["CAMP-LOADTEST-01", "CAMP-LOADTEST"] };
+      }
+      const campusUsers = await User.find(userFilter).select("_id");
       const campusUserIds = campusUsers.map((u) => u._id);
-      ownerQuery = { owner: { $in: campusUserIds } };
+      ownerQuery = { owner: { $in: campusUserIds }, ...testVehiclesExclusion };
     }
 
     const vehicles = await Vehicle.find(ownerQuery)

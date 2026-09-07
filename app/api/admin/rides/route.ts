@@ -22,25 +22,43 @@ export async function GET() {
     await connectToDatabase();
 
     const isSuperAdmin = session.user.role === "admin";
-    let driverFilter: Record<string, any> = {};
+    const testExclusion = {
+      campusId: { $nin: ["CAMP-LOADTEST-01", "CAMP-LOADTEST"] },
+      notes: { $not: /^TestRunID:/ },
+    };
+
+    let driverFilter: Record<string, any> = { ...testExclusion };
 
     if (!isSuperAdmin) {
-      const campusQuery = session.user.campusId
-        ? { campusId: new RegExp(`^${session.user.campusId}$`, "i") }
-        : {};
-      const campusUsers = await User.find(campusQuery).select("_id");
+      const userFilter: Record<string, any> = {
+        email: { $ne: "driver.loadtest@corporate.com" },
+      };
+      if (session.user.campusId) {
+        userFilter.campusId = new RegExp(`^${session.user.campusId}$`, "i");
+      } else {
+        userFilter.campusId = { $nin: ["CAMP-LOADTEST-01", "CAMP-LOADTEST"] };
+      }
+      const campusUsers = await User.find(userFilter).select("_id");
       const campusUserIds = campusUsers.map((u) => u._id);
-      driverFilter = { driver: { $in: campusUserIds } };
+      driverFilter = { driver: { $in: campusUserIds }, ...testExclusion };
     }
 
     // 1. Fetch rides with populated driver, vehicle, and requests.passenger
-    const rides = await Ride.find(driverFilter)
+    const rawRides = await Ride.find(driverFilter)
       .populate("driver", "name email employeeId department companyName campusId phone profileImage")
       .populate("vehicle", "vehicleModel vehicleType registrationNumber seatingCapacity")
       .populate("acceptedPassengers", "name email employeeId department companyName phone profileImage")
       .populate("requests.passenger", "name email employeeId department companyName phone profileImage")
       .sort({ createdAt: -1 })
       .lean();
+
+    // Exclude any load test rides that might still be executing
+    const rides = rawRides.filter(
+      (r: any) =>
+        r.driver &&
+        r.driver.email !== "driver.loadtest@corporate.com" &&
+        r.campusId !== "CAMP-LOADTEST-01"
+    );
 
     // 2. Attach full requests manifest to each ride
     let totalPassengersJoined = 0;

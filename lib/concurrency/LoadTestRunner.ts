@@ -9,6 +9,8 @@ import { connectToDatabase } from "@/lib/db/mongodb";
 import Ride from "@/models/Ride";
 import User from "@/models/User";
 import Vehicle from "@/models/Vehicle";
+import Notification from "@/models/Notification";
+import EmployeeActivity from "@/models/EmployeeActivity";
 import { workerPool } from "./WorkerPool";
 import { loadBalancer } from "./LoadBalancer";
 import { rideBookingQueue } from "./RideBookingQueue";
@@ -19,6 +21,75 @@ class LoadTestRunnerService {
   private isExecuting: boolean = false;
 
   /**
+   * Purges all load test users, vehicles, test rides, notifications, and activities from MongoDB.
+   * Guarantees that no test artifacts are ever persisted or displayed in admin oversight.
+   */
+  public async cleanUpAllTestData(testRideId?: string, dummyDriverId?: any): Promise<void> {
+    try {
+      await connectToDatabase();
+
+      // 1. Identify all test users (driver and test passengers)
+      const testUsers = await User.find({
+        $or: [
+          { campusId: "CAMP-LOADTEST-01" },
+          { email: "driver.loadtest@corporate.com" },
+          { email: /^passenger\.lt\d+@corporate\.com$/ },
+          { employeeId: "EMP-DRV-999" },
+          { employeeId: /^EMP-PASS-/ },
+          ...(dummyDriverId ? [{ _id: dummyDriverId }] : []),
+        ],
+      }).select("_id");
+
+      const testUserIds = testUsers.map((u) => u._id);
+
+      // 2. Delete test rides
+      if (testRideId) {
+        await Ride.findByIdAndDelete(testRideId);
+      }
+      await Ride.deleteMany({
+        $or: [
+          { campusId: "CAMP-LOADTEST-01" },
+          { notes: /^TestRunID:/ },
+          ...(testUserIds.length > 0 ? [{ driver: { $in: testUserIds } }] : []),
+        ],
+      });
+
+      // 3. Delete test vehicles
+      await Vehicle.deleteMany({
+        $or: [
+          { registrationNumber: { $in: ["TN 07 LT 9999", "TN-07-LT-9999", "TN07LT9999"] } },
+          ...(testUserIds.length > 0 ? [{ owner: { $in: testUserIds } }] : []),
+        ],
+      });
+
+      // 4. Delete notifications & employee activities associated with test users
+      if (testUserIds.length > 0) {
+        try {
+          await Notification.deleteMany({
+            $or: [
+              { recipient: { $in: testUserIds } },
+              { sender: { $in: testUserIds } },
+            ],
+          });
+        } catch (e) {}
+
+        try {
+          await EmployeeActivity.deleteMany({
+            employee: { $in: testUserIds },
+          });
+        } catch (e) {}
+
+        // 5. Delete all test users
+        await User.deleteMany({
+          _id: { $in: testUserIds },
+        });
+      }
+    } catch (err) {
+      console.error("[LoadTestRunner] Teardown error:", err);
+    }
+  }
+
+  /**
    * Runs an automated high-concurrency load test with full test run isolation
    */
   public async runTest(config: ILoadTestConfig): Promise<ILoadTestResult> {
@@ -27,6 +98,8 @@ class LoadTestRunnerService {
     }
 
     this.isExecuting = true;
+    let createdTestRideId: string | undefined;
+    let dummyDriverId: any;
 
     try {
       const { testId, totalSeats, concurrentUsers, useLoadBalancer = true, testIdempotency = false } = config;
@@ -50,6 +123,9 @@ class LoadTestRunnerService {
 
       await connectToDatabase();
 
+      // Guarantee clean baseline by purging any stale test artifacts before execution
+      await this.cleanUpAllTestData();
+
       // 1. SETUP ISOLATED DUMMY RIDE & PASSENGERS FOR THIS TEST RUN
       const testCampusId = "CAMP-LOADTEST-01";
 
@@ -72,14 +148,17 @@ class LoadTestRunnerService {
           { $set: { isApproved: true, verificationStatus: "approved", campusId: testCampusId } }
         );
       }
+      dummyDriverId = dummyDriver._id;
 
-      let dummyVehicle = await Vehicle.findOne({ registrationNumber: "TN-07-LT-9999" });
+      let dummyVehicle = await Vehicle.findOne({
+        registrationNumber: { $in: ["TN 07 LT 9999", "TN-07-LT-9999", "TN07LT9999"] },
+      });
       if (!dummyVehicle) {
         dummyVehicle = await Vehicle.create({
           owner: dummyDriver._id,
           vehicleModel: "Hyundai Verna",
           vehicleType: "Car",
-          registrationNumber: "TN-07-LT-9999",
+          registrationNumber: "TN 07 LT 9999",
           seatingCapacity: 4,
           availableSeats: 4,
           isApproved: true,
@@ -105,6 +184,7 @@ class LoadTestRunnerService {
         campusId: testCampusId,
         notes: `TestRunID:${testRunId}`,
       });
+      createdTestRideId = testRide._id.toString();
 
       log(`Created Fresh Isolated Test Ride ID: ${testRide._id} with ${totalSeats} initial available seats`);
 
@@ -252,10 +332,7 @@ class LoadTestRunnerService {
         log(`CONCURRENCY SAFETY WARNING: Unexpected counts detected.`);
       }
 
-      // 4. CLEAN UP ONLY THIS TEST RUN'S DATA AFTER VERIFICATION IS COMPLETE
-      try {
-        await Ride.findByIdAndDelete(testRide._id);
-      } catch (e) {}
+      log(`Automated post-test teardown: Cleaning up all test data, rides, vehicles, and test users...`);
 
       const testNameMap: Record<string, string> = {
         test1: "Test 1: 50 Seats / 10 Users",
@@ -284,6 +361,7 @@ class LoadTestRunnerService {
       };
     } finally {
       this.isExecuting = false;
+      await this.cleanUpAllTestData(createdTestRideId, dummyDriverId);
     }
   }
 }
