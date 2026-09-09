@@ -163,11 +163,7 @@ export default function AdminDashboardPage() {
               <Route className="h-3.5 w-3.5" /> Rides
             </button>
           </Link>
-          <Link href="/admin/sustainability">
-            <button className="h-8 px-3 text-xs font-semibold rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 flex items-center gap-1.5 transition-colors">
-              <Leaf className="h-3.5 w-3.5 text-emerald-600" /> Sustainability
-            </button>
-          </Link>
+          {/* Sustainability quick-link hidden per admin preferences (route remains intact) */}
         </div>
       </div>
 
