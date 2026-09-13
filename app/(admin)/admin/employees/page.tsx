@@ -26,6 +26,7 @@ import {
   CheckCircle2,
   XCircle,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -101,6 +102,10 @@ export default function AdminEmployeesPage() {
   const [reassignDialogEmployee, setReassignDialogEmployee] = useState<IEmployee | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<string>("");
   const [isUpdatingCompany, setIsUpdatingCompany] = useState(false);
+
+  // Delete employee confirmation dialog
+  const [deleteDialogEmployee, setDeleteDialogEmployee] = useState<IEmployee | null>(null);
+  const [isDeletingEmployee, setIsDeletingEmployee] = useState(false);
 
   // Feedback banner
   const [feedbackMessage, setFeedbackMessage] = useState<{
@@ -230,6 +235,39 @@ export default function AdminEmployeesPage() {
       setFeedbackMessage({ type: "error", text: "Network error while updating company." });
     } finally {
       setIsUpdatingCompany(false);
+    }
+  };
+
+  const handleDeleteEmployee = async () => {
+    if (!deleteDialogEmployee) return;
+    try {
+      setIsDeletingEmployee(true);
+      setFeedbackMessage(null);
+
+      const res = await fetch(`/api/admin/employees/${deleteDialogEmployee._id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setEmployees((prev) => prev.filter((emp) => emp._id !== deleteDialogEmployee._id));
+        setFeedbackMessage({
+          type: "success",
+          text: data.message || `Employee ${deleteDialogEmployee.name} deleted successfully.`,
+        });
+        setDeleteDialogEmployee(null);
+      } else {
+        setFeedbackMessage({
+          type: "error",
+          text: data.error || "Failed to delete employee.",
+        });
+      }
+    } catch (e) {
+      console.error("Failed to delete employee:", e);
+      setFeedbackMessage({ type: "error", text: "Network error while deleting employee." });
+    } finally {
+      setIsDeletingEmployee(false);
     }
   };
 
@@ -773,7 +811,7 @@ export default function AdminEmployeesPage() {
                           </Link>
 
                           {/* Secondary contextual menu (for non-admin employees) */}
-                          {!isAdmin && !isPending && (
+                          {!isAdmin && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
@@ -783,7 +821,7 @@ export default function AdminEmployeesPage() {
                                   <MoreHorizontal className="h-3.5 w-3.5" />
                                 </button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuItem asChild>
                                   <Link
                                     href={`/admin/employees/${emp._id}`}
@@ -807,20 +845,28 @@ export default function AdminEmployeesPage() {
                                 {isApproved ? (
                                   <DropdownMenuItem
                                     onClick={() => setRejectDialogEmployee(emp)}
-                                    className="text-rose-600 focus:text-rose-700 focus:bg-rose-50"
+                                    className="text-amber-700 focus:text-amber-800 focus:bg-amber-50 cursor-pointer"
                                   >
-                                    <XCircle className="h-3.5 w-3.5 text-rose-500" />
-                                    <span>Revoke / Reject</span>
+                                    <XCircle className="h-3.5 w-3.5 text-amber-600" />
+                                    <span>Revoke Verification</span>
                                   </DropdownMenuItem>
                                 ) : (
                                   <DropdownMenuItem
                                     onClick={() => handleVerify(emp._id, "approve")}
-                                    className="text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50"
+                                    className="text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50 cursor-pointer"
                                   >
                                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                                    <span>Re-approve</span>
+                                    <span>Approve Account</span>
                                   </DropdownMenuItem>
                                 )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setDeleteDialogEmployee(emp)}
+                                  className="flex items-center gap-2 cursor-pointer text-rose-600 hover:text-rose-700 hover:bg-rose-50 focus:text-rose-700 focus:bg-rose-50"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                                  <span className="font-semibold">Delete Employee</span>
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           )}
@@ -995,6 +1041,60 @@ export default function AdminEmployeesPage() {
             >
               {isUpdatingCompany && <Loader2 className="h-3 w-3 animate-spin" />}
               Save Assignment
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Employee Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogEmployee !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteDialogEmployee(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-700">
+              <Trash2 className="h-5 w-5" />
+              Delete Employee Account
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to permanently delete{" "}
+              <strong className="text-slate-900">{deleteDialogEmployee?.name}</strong> (
+              {deleteDialogEmployee?.employeeId})? This will remove their corporate account,
+              registered vehicles, and active ride reservations.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-rose-50 border border-rose-200/80 rounded-xl p-3 text-xs text-rose-800 flex items-start gap-2.5">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+            <div>
+              <span className="font-semibold block">Permanent Deletion Warning</span>
+              <span className="text-[11px] text-rose-700">
+                This action is irreversible. All vehicles, commute history, notifications, and scheduled rides owned by this commuter will be cleared from the system.
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              onClick={() => setDeleteDialogEmployee(null)}
+              className="h-9 px-4 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isDeletingEmployee}
+              onClick={handleDeleteEmployee}
+              className="h-9 px-4 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              {isDeletingEmployee && <Loader2 className="h-3 w-3 animate-spin" />}
+              Permanently Delete
             </button>
           </DialogFooter>
         </DialogContent>
