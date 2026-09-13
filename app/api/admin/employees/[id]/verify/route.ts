@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import User from "@/models/User";
-import Vehicle from "@/models/Vehicle";
 
 interface RouteParams {
   params: {
@@ -68,14 +67,6 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const updatedEmployee = targetEmployee.toObject() as Record<string, any>;
     delete updatedEmployee.passwordHash;
-
-    // When an employee is approved, also automatically approve their registered fleet
-    if (isApprove) {
-      await Vehicle.updateMany(
-        { owner: updatedEmployee._id },
-        { $set: { verificationStatus: "approved", isApproved: true } }
-      );
-    }
 
     // Log admin audit action
     const { logAdminActivity } = await import("@/lib/auditLogger");

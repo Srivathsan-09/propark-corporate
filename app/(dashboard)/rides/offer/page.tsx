@@ -26,6 +26,7 @@ import {
   Crosshair,
   Route,
   Navigation2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +85,24 @@ function OfferRideForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [selectedRouteIndex, setSelectedRouteIndex] = useState<number>(0);
+
+  // Auto-dismiss transient route notices and error messages after 6.5 seconds
+  useEffect(() => {
+    if (!errorMessage) return;
+    const timer = setTimeout(() => {
+      setErrorMessage(null);
+    }, 6500);
+    return () => clearTimeout(timer);
+  }, [errorMessage]);
+
+  // Auto-dismiss transient success alerts after 4.5 seconds
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = setTimeout(() => {
+      setSuccessMessage(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [successMessage]);
 
   // Time-of-day smart default (Morning Pickup vs Evening Drop)
   const currentHour = new Date().getHours();
@@ -896,6 +915,26 @@ function OfferRideForm() {
           </div>
         )}
 
+        {errorMessage && (
+          <div className="flex items-start justify-between gap-2.5 bg-rose-500/15 border border-rose-500/40 text-rose-200 p-3 rounded-xl text-xs animate-in fade-in duration-200">
+            <div className="flex items-start gap-2 min-w-0 flex-1">
+              <AlertCircle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5 min-w-0">
+                <span className="font-bold text-white block">Action Required</span>
+                <span className="text-rose-200 text-[11px] leading-relaxed block break-words">{errorMessage}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorMessage(null)}
+              className="text-rose-400 hover:text-white p-0.5 rounded transition-colors shrink-0"
+              title="Dismiss"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
         <div className="border-t border-slate-800 pt-3">
           <Button
             type="submit"
@@ -935,20 +974,6 @@ function OfferRideForm() {
             : "Share your commute with interactive OpenStreetMap routing, custom pickup/drop points, and real-time distance calculations"}
         </p>
       </div>
-
-      {successMessage && (
-        <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800 border border-emerald-200 animate-in fade-in-50">
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
-          <span className="font-medium">{successMessage}</span>
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="flex items-start gap-2.5 rounded-xl bg-rose-50 p-4 text-sm text-rose-800 border border-rose-200 animate-in fade-in-50">
-          <AlertCircle className="h-5 w-5 shrink-0 text-rose-600 mt-0.5" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
 
       {isLoadingVehicles || isLoadingRideForEdit ? (
         <div className="py-20 flex flex-col items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm">
@@ -992,6 +1017,27 @@ function OfferRideForm() {
                   </div>
                 )}
               </CardHeader>
+
+              {/* Contextual In-Place Route Notice directly on Interactive Map */}
+              {errorMessage && (
+                <div className="mx-4 my-2.5 flex items-start justify-between gap-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 animate-in fade-in slide-in-from-top-2 duration-200 shadow-xs">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-rose-950 block">Route Selection Notice</span>
+                      <span className="text-rose-800 text-[11px] leading-relaxed block">{errorMessage}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setErrorMessage(null)}
+                    className="text-rose-400 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-100 transition-colors shrink-0"
+                    title="Dismiss"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
 
               <CardContent className="p-0">
                 {(() => {
@@ -1465,6 +1511,50 @@ function OfferRideForm() {
           </div>
         </form>
       )}
+
+      {/* Floating Viewport Alerts for Instant Mobile & Desktop Visibility */}
+      <div className="fixed bottom-6 left-4 right-4 z-[9999] pointer-events-none flex flex-col items-center space-y-2 sm:max-w-lg sm:mx-auto">
+        {errorMessage && (
+          <div className="pointer-events-auto w-full flex items-start justify-between gap-3 rounded-2xl bg-slate-950/95 text-white p-4 border border-rose-500/70 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-5 duration-200">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div className="p-2 rounded-xl bg-rose-500/20 text-rose-400 shrink-0 mt-0.5">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <p className="text-xs font-bold text-rose-300 uppercase tracking-wide">Route Notice</p>
+                <p className="text-xs text-slate-200 leading-relaxed font-normal break-words">{errorMessage}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorMessage(null)}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors shrink-0"
+              title="Dismiss notice"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="pointer-events-auto w-full flex items-center justify-between gap-3 rounded-2xl bg-slate-950/95 text-white p-3.5 border border-emerald-500/70 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-5 duration-200">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="p-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <p className="text-xs text-emerald-100 font-medium truncate">{successMessage}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSuccessMessage(null)}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors shrink-0"
+              title="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
