@@ -781,7 +781,8 @@ function OfferRideForm() {
       );
       setTimeout(() => {
         router.push("/rides/my-rides");
-      }, 1200);
+        router.refresh();
+      }, 400);
     } catch (err) {
       console.error("Save ride error:", err);
       setErrorMessage("Network error occurred while saving ride.");

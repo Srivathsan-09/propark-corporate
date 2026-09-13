@@ -4,6 +4,7 @@ export type ActivityType =
   | "RIDE_CREATED"
   | "RIDE_UPDATED"
   | "RIDE_CANCELLED"
+  | "RIDE_DELETED"
   | "RIDE_JOINED"
   | "RIDE_LEFT"
   | "RIDE_STARTED"

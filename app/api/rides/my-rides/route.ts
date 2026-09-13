@@ -92,11 +92,20 @@ export async function GET(req: NextRequest) {
       });
     });
 
-    return NextResponse.json({
-      success: true,
-      offeredRides,
-      bookedRides: validBookedRides,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        offeredRides,
+        bookedRides: validBookedRides,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   } catch (error: unknown) {
     console.error(" My Rides GET API Error:", error);
     return NextResponse.json(

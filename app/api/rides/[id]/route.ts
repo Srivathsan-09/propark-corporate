@@ -273,33 +273,31 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
     await Promise.all(notificationPromises);
 
-    // 3. Mark the ride as cancelled instead of deleting to preserve historical integrity
-    const previousStatus = ride.status;
-    ride.status = "cancelled";
-    ride.completedAt = new Date();
-    ride.cancellation = {
-      cancelledBy: new mongoose.Types.ObjectId(session.user.id),
-      cancelledByRole: session.user.role === "admin" ? "admin" : "driver",
-      cancelledAt: new Date(),
-      reason: "Cancelled by driver",
-      previousStatus,
-    };
-    await ride.save();
+    // 3. Clean up associated CarbonEmission records
+    try {
+      const CarbonEmission = (await import("@/models/CarbonEmission")).default;
+      await CarbonEmission.deleteMany({ rideId: ride._id });
+    } catch (e) {
+      console.warn("Clean up carbon emission error on ride deletion:", e);
+    }
 
-    // 4. Log RIDE_CANCELLED activity
+    // 4. Permanently delete the ride document from database
+    await Ride.findByIdAndDelete(id);
+
+    // 5. Log RIDE_DELETED activity
     logEmployeeActivity({
       employeeId: (ride.driver as any)._id || ride.driver,
       campusId: ride.campusId || "CAMP001",
-      activityType: "RIDE_CANCELLED",
+      activityType: "RIDE_DELETED",
       entityType: "RIDE",
-      entityId: ride._id.toString(),
-      description: `Cancelled ride from ${ride.startingLocation} to ${ride.destination}`,
-      metadata: { status: "cancelled", reason: "Cancelled by driver" },
+      entityId: id,
+      description: `Permanently deleted ride from ${ride.startingLocation} to ${ride.destination}`,
+      metadata: { deletedAt: new Date(), previousStatus: ride.status },
     }).catch(() => {});
 
     return NextResponse.json({
       success: true,
-      message: "Ride cancelled successfully and retained in commute history.",
+      message: "Ride deleted successfully.",
     });
   } catch (error: any) {
     console.error("Delete ride error:", error);

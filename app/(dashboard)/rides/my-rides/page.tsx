@@ -183,6 +183,19 @@ export default function MyRidesPage() {
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
 
+  // Auto-dismiss transient action notifications after 4.5 seconds
+  useEffect(() => {
+    if (!actionSuccessMsg) return;
+    const timer = setTimeout(() => setActionSuccessMsg(null), 4500);
+    return () => clearTimeout(timer);
+  }, [actionSuccessMsg]);
+
+  useEffect(() => {
+    if (!actionErrorMsg) return;
+    const timer = setTimeout(() => setActionErrorMsg(null), 5500);
+    return () => clearTimeout(timer);
+  }, [actionErrorMsg]);
+
   // Filter helpers for CommuteX status tabs
   const filterOfferedByStatus = (r: IOfferedRide) => {
     const matchesSubTab = offeredSubTab === "pickup" ? r.rideType !== "drop" : r.rideType === "drop";
@@ -354,7 +367,7 @@ export default function MyRidesPage() {
   const fetchMyRides = async (isSilent = false) => {
     if (!isSilent) setIsLoading(true);
     try {
-      const res = await fetch("/api/rides/my-rides");
+      const res = await fetch("/api/rides/my-rides", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setOfferedRides(data.offeredRides || []);
@@ -555,25 +568,41 @@ export default function MyRidesPage() {
 
   const confirmDeleteRide = async () => {
     if (!deleteConfirmRideId) return;
+    const targetRideId = deleteConfirmRideId;
+
+    // 1. Instant Optimistic UI Update (<1ms responsiveness)
+    // Instantly close modal and remove target ride from state so it vanishes immediately
+    setDeleteConfirmRideId(null);
+    const prevOffered = [...offeredRides];
+    const prevBooked = [...bookedRides];
+
+    setOfferedRides((prev) => prev.filter((r) => r._id !== targetRideId));
+    setBookedRides((prev) => prev.filter((b) => (b.ride?._id || b.ride) !== targetRideId));
+    setActionSuccessMsg("Ride deleted successfully.");
     setIsDeletingRide(true);
-    setActionSuccessMsg(null);
-    setActionErrorMsg(null);
 
     try {
-      const res = await fetch(`/api/rides/${deleteConfirmRideId}`, {
+      const res = await fetch(`/api/rides/${targetRideId}`, {
         method: "DELETE",
+        cache: "no-store",
       });
 
       const data = await res.json();
       if (res.ok) {
-        setActionSuccessMsg("Ride deleted successfully.");
-        setDeleteConfirmRideId(null);
-        fetchMyRides(true);
+        // Silently sync with server to ensure data integrity
+        await fetchMyRides(true);
       } else {
+        // Rollback optimistic update on server error
+        setOfferedRides(prevOffered);
+        setBookedRides(prevBooked);
+        setActionSuccessMsg(null);
         setActionErrorMsg(data.error || "Failed to delete ride.");
       }
     } catch (err) {
       console.error("Delete ride error:", err);
+      setOfferedRides(prevOffered);
+      setBookedRides(prevBooked);
+      setActionSuccessMsg(null);
       setActionErrorMsg("Failed to delete ride. Please try again.");
     } finally {
       setIsDeletingRide(false);
@@ -793,6 +822,17 @@ export default function MyRidesPage() {
     setActionSuccessMsg(null);
     setActionErrorMsg(null);
 
+    // Instant optimistic update for passenger request status
+    const prevOffered = [...offeredRides];
+    setOfferedRides((prev) =>
+      prev.map((ride) => ({
+        ...ride,
+        requests: (ride.requests || []).map((req) =>
+          req._id === requestId ? { ...req, status: action === "accept" ? "accepted" : "rejected" } : req
+        ),
+      }))
+    );
+
     try {
       const res = await fetch(`/api/rides/requests/${requestId}`, {
         method: "PATCH",
@@ -803,6 +843,7 @@ export default function MyRidesPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        setOfferedRides(prevOffered);
         setActionErrorMsg(data.error || "Failed to update request.");
         setActionLoadingId(null);
         return;
