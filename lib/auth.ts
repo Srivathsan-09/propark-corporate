@@ -60,7 +60,7 @@ export const authOptions: NextAuthOptions = {
           employeeId: user.employeeId,
           department: user.department,
           phone: user.phone,
-          companyName: user.companyName || "ABC Technologies",
+          companyName: user.companyName || "Tech Mahindra",
           campusId: user.campusId || "CAMP001",
             campusName: user.campusName || "Tech Park Chennai",
             role: user.role,
@@ -100,14 +100,20 @@ export const authOptions: NextAuthOptions = {
               ? `ADM-${managedCampus?.campusId}`
               : await getNextEmployeeId();
 
+            // Determine campus and a valid operating company for that campus
+            const targetCampus = managedCampus || (await Campus.findOne({ campusId: "CAMP001", status: "active" })) || (await Campus.findOne({ status: "active" }));
+            const validCompany = isCampusAdmin && managedCampus?.companies?.[0]
+              ? managedCampus.companies[0]
+              : targetCampus?.companies?.[0] || "Tech Mahindra";
+
             dbUser = await User.create({
               name: isAdminUser ? "Vathsan" : user.name || "Corporate User",
               email: normalizedEmail,
               employeeId,
               department: isAdminUser ? "Executive Management" : isCampusAdmin ? "Campus Administration" : "Engineering",
-              companyName: isCampusAdmin && managedCampus?.companies[0] ? managedCampus.companies[0] : "ABC Technologies",
-              campusId: managedCampus?.campusId || "CAMP001",
-              campusName: managedCampus?.name || "Tech Park Chennai",
+              companyName: validCompany,
+              campusId: targetCampus?.campusId || "CAMP001",
+              campusName: targetCampus?.name || "Tech Park Chennai",
               phone: "",
               role: isAdminUser ? "admin" : isCampusAdmin ? "campus_admin" : "employee",
               verificationStatus: isAdminUser || isCampusAdmin ? "approved" : "pending",

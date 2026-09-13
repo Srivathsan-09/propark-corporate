@@ -76,6 +76,7 @@ interface IEmployee {
 interface ICampus {
   campusId: string;
   name: string;
+  companies?: string[];
 }
 
 export default function AdminEmployeesPage() {
@@ -95,6 +96,11 @@ export default function AdminEmployeesPage() {
   // Reject confirmation dialog
   const [rejectDialogEmployee, setRejectDialogEmployee] = useState<IEmployee | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+
+  // Reassign operating company dialog
+  const [reassignDialogEmployee, setReassignDialogEmployee] = useState<IEmployee | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<string>("");
+  const [isUpdatingCompany, setIsUpdatingCompany] = useState(false);
 
   // Feedback banner
   const [feedbackMessage, setFeedbackMessage] = useState<{
@@ -183,6 +189,47 @@ export default function AdminEmployeesPage() {
       setActionLoadingId(null);
       setRejectDialogEmployee(null);
       setRejectionReason("");
+    }
+  };
+
+  const handleUpdateCompany = async () => {
+    if (!reassignDialogEmployee || !selectedCompany) return;
+    try {
+      setIsUpdatingCompany(true);
+      setFeedbackMessage(null);
+
+      const res = await fetch(`/api/admin/employees/${reassignDialogEmployee._id}/company`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName: selectedCompany }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setEmployees((prev) =>
+          prev.map((emp) =>
+            emp._id === reassignDialogEmployee._id
+              ? { ...emp, companyName: selectedCompany }
+              : emp
+          )
+        );
+        setFeedbackMessage({
+          type: "success",
+          text: data.message || `Assigned ${reassignDialogEmployee.name} to ${selectedCompany}.`,
+        });
+        setReassignDialogEmployee(null);
+      } else {
+        setFeedbackMessage({
+          type: "error",
+          text: data.error || "Failed to update company.",
+        });
+      }
+    } catch (e) {
+      console.error("Failed to update employee company:", e);
+      setFeedbackMessage({ type: "error", text: "Network error while updating company." });
+    } finally {
+      setIsUpdatingCompany(false);
     }
   };
 
@@ -746,6 +793,16 @@ export default function AdminEmployeesPage() {
                                     <span>View Audit History</span>
                                   </Link>
                                 </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setReassignDialogEmployee(emp);
+                                    setSelectedCompany(emp.companyName || "");
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-slate-700 hover:text-purple-700"
+                                >
+                                  <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                                  <span>Reassign Company</span>
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 {isApproved ? (
                                   <DropdownMenuItem
@@ -842,6 +899,102 @@ export default function AdminEmployeesPage() {
             >
               {actionLoadingId !== null && <Loader2 className="h-3 w-3 animate-spin" />}
               Confirm Rejection
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reassign Operating Company Dialog */}
+      <Dialog
+        open={reassignDialogEmployee !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setReassignDialogEmployee(null);
+            setSelectedCompany("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-900">
+              <Building2 className="h-5 w-5 text-purple-600" />
+              Reassign Operating Company
+            </DialogTitle>
+            <DialogDescription className="pt-1.5 text-xs text-slate-500 leading-relaxed">
+              Update the affiliated operating company for{" "}
+              <strong className="text-slate-900">{reassignDialogEmployee?.name}</strong> (
+              {reassignDialogEmployee?.employeeId}) at{" "}
+              <strong className="text-slate-900">
+                {reassignDialogEmployee?.campusName || reassignDialogEmployee?.campusId || "Assigned Campus"}
+              </strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">
+                Current Affiliation
+              </label>
+              <div className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl">
+                {reassignDialogEmployee?.companyName || "Unassigned"}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">
+                Select Registered Operating Company
+              </label>
+              {(() => {
+                const empCampus = campuses.find(
+                  (c) => c.campusId === reassignDialogEmployee?.campusId
+                );
+                const availableCompanies = empCampus?.companies || [];
+
+                if (availableCompanies.length === 0) {
+                  return (
+                    <div className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                      No operating companies found for campus {reassignDialogEmployee?.campusId}. Please add companies under Campuses management first.
+                    </div>
+                  );
+                }
+
+                return (
+                  <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                    <SelectTrigger className="w-full text-xs h-9 rounded-xl border-slate-200 bg-white">
+                      <SelectValue placeholder="Choose a registered company..." />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-slate-200 bg-white shadow-lg">
+                      {availableCompanies.map((comp) => (
+                        <SelectItem key={comp} value={comp} className="text-xs font-medium cursor-pointer">
+                          {comp}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              })()}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              onClick={() => {
+                setReassignDialogEmployee(null);
+                setSelectedCompany("");
+              }}
+              className="h-9 px-4 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isUpdatingCompany || !selectedCompany || selectedCompany === reassignDialogEmployee?.companyName}
+              onClick={handleUpdateCompany}
+              className="h-9 px-4 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              {isUpdatingCompany && <Loader2 className="h-3 w-3 animate-spin" />}
+              Save Assignment
             </button>
           </DialogFooter>
         </DialogContent>

@@ -1161,7 +1161,7 @@ export default function AdminCampusesPage() {
                 <Input
                   value={newCampus.companiesInput}
                   onChange={(e) => setNewCampus({ ...newCampus, companiesInput: e.target.value })}
-                  placeholder="e.g. ABC Technologies, TCS, Infosys, Wipro"
+                  placeholder="e.g. Tech Mahindra, TCS, Infosys, Wipro"
                   className="h-9 text-xs rounded-lg"
                 />
               </div>

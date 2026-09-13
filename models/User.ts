@@ -70,7 +70,7 @@ const UserSchema = new Schema<IUser>(
     },
     companyName: {
       type: String,
-      default: "ABC Technologies",
+      default: "Tech Mahindra",
       trim: true,
       index: true,
     },
