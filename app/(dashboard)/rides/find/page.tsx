@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Search,
@@ -123,7 +124,15 @@ interface IRide {
 }
 
 export default function FindRidePage() {
+  const router = useRouter();
   const { data: session } = useSession();
+
+  // Administrators do not participate in commuter booking; redirect to admin ride operations
+  useEffect(() => {
+    if (session?.user?.role === "admin" || session?.user?.role === "campus_admin") {
+      router.replace("/admin/rides");
+    }
+  }, [session, router]);
 
   const [rides, setRides] = useState<IRide[]>([]);
   const [isLoading, setIsLoading] = useState(true);

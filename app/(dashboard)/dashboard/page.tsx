@@ -17,6 +17,8 @@ import {
   Sparkles,
   AlertTriangle,
   Lock,
+  Shield,
+  Route,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,6 +133,11 @@ export default function DashboardPage() {
     session?.user?.verificationStatus ??
     (isApproved ? "approved" : "pending");
 
+  const isAdmin =
+    session?.user?.role === "admin" ||
+    session?.user?.role === "campus_admin" ||
+    userProfile?.role === "admin";
+
   const getGreetingTime = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -182,7 +189,15 @@ export default function DashboardPage() {
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:16px_16px] opacity-15" />
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300 mb-3 border border-emerald-500/30">
-            <Building2 className="h-3.5 w-3.5" /> Corporate Commute Portal
+            {isAdmin ? (
+              <>
+                <Shield className="h-3.5 w-3.5 text-purple-300" /> Administrator Portal
+              </>
+            ) : (
+              <>
+                <Building2 className="h-3.5 w-3.5" /> Corporate Commute Portal
+              </>
+            )}
           </div>
 
           {status === "loading" ? (
@@ -194,26 +209,54 @@ export default function DashboardPage() {
           )}
 
           <p className="mt-2 text-sm sm:text-base text-slate-300 leading-relaxed">
-            Ready for your campus commute? Connect with verified coworkers, share daily rides, cut commute expenses, and travel sustainably.
+            {isAdmin
+              ? "Welcome to the administrator portal. Manage corporate campus carpools, review verified employees, and track fleet operations in real time."
+              : "Ready for your campus commute? Connect with verified coworkers, share daily rides, cut commute expenses, and travel sustainably."}
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <Link href="/rides/find" onClick={handleRestrictedAction}>
-              <Button className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold gap-2 shadow-sm">
-                <Search className="h-4 w-4" /> Find a Ride
-                {!isApproved && <Lock className="h-3.5 w-3.5 ml-1 text-slate-900 opacity-70" />}
-              </Button>
-            </Link>
-            <Link href="/rides/offer" onClick={handleRestrictedAction}>
-              <Button
-                variant="outline"
-                className="border-slate-700 bg-slate-800/80 text-white hover:bg-slate-700 hover:text-white gap-2"
-              >
-                <PlusCircle className="h-4 w-4" /> Offer a Ride
-                {!isApproved && <Lock className="h-3.5 w-3.5 ml-1 text-slate-400" />}
-              </Button>
-            </Link>
-          </div>
+          {isAdmin ? (
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Link href="/admin">
+                <Button className="bg-purple-600 hover:bg-purple-700 text-white font-semibold gap-2 shadow-sm">
+                  <Shield className="h-4 w-4" /> Admin Console
+                </Button>
+              </Link>
+              <Link href="/admin/rides">
+                <Button
+                  variant="outline"
+                  className="border-slate-700 bg-slate-800/80 text-white hover:bg-slate-700 hover:text-white gap-2"
+                >
+                  <Route className="h-4 w-4" /> Manage Campus Rides
+                </Button>
+              </Link>
+              <Link href="/admin/employees">
+                <Button
+                  variant="outline"
+                  className="border-slate-700 bg-slate-800/80 text-white hover:bg-slate-700 hover:text-white gap-2"
+                >
+                  <Users className="h-4 w-4" /> Manage Employees
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Link href="/rides/find" onClick={handleRestrictedAction}>
+                <Button className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold gap-2 shadow-sm">
+                  <Search className="h-4 w-4" /> Find a Ride
+                  {!isApproved && <Lock className="h-3.5 w-3.5 ml-1 text-slate-900 opacity-70" />}
+                </Button>
+              </Link>
+              <Link href="/rides/offer" onClick={handleRestrictedAction}>
+                <Button
+                  variant="outline"
+                  className="border-slate-700 bg-slate-800/80 text-white hover:bg-slate-700 hover:text-white gap-2"
+                >
+                  <PlusCircle className="h-4 w-4" /> Offer a Ride
+                  {!isApproved && <Lock className="h-3.5 w-3.5 ml-1 text-slate-400" />}
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 

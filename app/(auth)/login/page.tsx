@@ -103,8 +103,22 @@ function LoginForm() {
         return;
       }
 
-      // Success -> navigate to target or dashboard
-      router.push(callbackUrl);
+      // Success -> navigate to target or role-based default (/admin for administrators, /dashboard for employees)
+      let targetUrl = callbackUrl;
+      if (!searchParams.get("callbackUrl")) {
+        try {
+          const sessionRes = await fetch("/api/auth/session");
+          if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            const role = sessionData?.user?.role;
+            if (role === "admin" || role === "campus_admin") {
+              targetUrl = "/admin";
+            }
+          }
+        } catch {}
+      }
+
+      router.push(targetUrl);
       router.refresh();
     } catch (err: unknown) {
       console.error("Sign in error:", err);

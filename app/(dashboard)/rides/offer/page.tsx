@@ -77,6 +77,13 @@ function OfferRideForm() {
   const isEditMode = Boolean(editRideId);
   const { data: session } = useSession();
 
+  // Administrators do not participate in offering rides; redirect to admin ride operations
+  useEffect(() => {
+    if (session?.user?.role === "admin" || session?.user?.role === "campus_admin") {
+      router.replace("/admin/rides");
+    }
+  }, [session, router]);
+
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(true);
   const [isLoadingRideForEdit, setIsLoadingRideForEdit] = useState(isEditMode);
