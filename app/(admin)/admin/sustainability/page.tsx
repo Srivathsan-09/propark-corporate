@@ -368,15 +368,15 @@ export default function AdminSustainabilityPage() {
               <h2 className="text-2xl font-black tracking-tight text-white mt-1">
                 {isLoading ? (
                   <Skeleton className="h-8 w-48 bg-slate-700" />
-                ) : grossDiff < 0 ? (
+                ) : co2Avoided < 0 ? (
                   <span>
-                    0 kg CO₂ Avoided{" "}
+                    {co2Avoided.toLocaleString()} kg CO₂ Avoided{" "}
                     <span className="text-sm font-semibold text-rose-300">
-                      ({Math.abs(grossDiff).toLocaleString()} kg Net Increase)
+                      (+{Math.abs(co2Avoided).toLocaleString()} kg Net Increase)
                     </span>
                   </span>
                 ) : (
-                  `${co2Avoided.toLocaleString()} kg CO₂ Avoided`
+                  `${co2Avoided > 0 ? "+" : ""}${co2Avoided.toLocaleString()} kg CO₂ Avoided`
                 )}
               </h2>
               <p className="text-xs text-slate-300 mt-1 max-w-xl">
@@ -419,32 +419,74 @@ export default function AdminSustainabilityPage() {
             </div>
 
             {/* 3. Estimated CO2 Avoided */}
-            <div className="p-3.5 rounded-xl bg-emerald-900/30 border border-emerald-500/40">
-              <span className="text-[11px] font-semibold text-emerald-300 block uppercase tracking-wider">
+            <div
+              className={`p-3.5 rounded-xl border ${
+                co2Avoided < 0
+                  ? "bg-rose-950/40 border-rose-500/40"
+                  : "bg-emerald-900/30 border-emerald-500/40"
+              }`}
+            >
+              <span
+                className={`text-[11px] font-semibold block uppercase tracking-wider ${
+                  co2Avoided < 0 ? "text-rose-300" : "text-emerald-300"
+                }`}
+              >
                 Estimated CO₂ Avoided
               </span>
-              <div className="text-xl font-black text-emerald-400 mt-1">
-                {isLoading ? <Skeleton className="h-6 w-20 bg-slate-700" /> : `${co2Avoided.toLocaleString()} kg`}
+              <div
+                className={`text-xl font-black mt-1 ${
+                  co2Avoided < 0 ? "text-rose-400" : "text-emerald-400"
+                }`}
+              >
+                {isLoading ? (
+                  <Skeleton className="h-6 w-20 bg-slate-700" />
+                ) : (
+                  `${co2Avoided.toLocaleString()} kg`
+                )}
               </div>
-              <span className="text-[10px] text-emerald-300 block mt-0.5">
-                {grossDiff < 0 ? `Net: ${grossDiff.toLocaleString()} kg` : "Baseline − Actual Carpool"}
+              <span
+                className={`text-[10px] block mt-0.5 ${
+                  co2Avoided < 0 ? "text-rose-300 font-medium" : "text-emerald-300"
+                }`}
+              >
+                {co2Avoided < 0
+                  ? `Net Increase: +${Math.abs(co2Avoided).toLocaleString()} kg`
+                  : "Baseline − Actual Carpool"}
               </span>
             </div>
 
             {/* 4. CO2 Reduction Percentage */}
-            <div className="p-3.5 rounded-xl bg-emerald-900/30 border border-emerald-500/40">
-              <span className="text-[11px] font-semibold text-emerald-300 block uppercase tracking-wider">
+            <div
+              className={`p-3.5 rounded-xl border ${
+                reductionPct < 0
+                  ? "bg-rose-950/40 border-rose-500/40"
+                  : "bg-emerald-900/30 border-emerald-500/40"
+              }`}
+            >
+              <span
+                className={`text-[11px] font-semibold block uppercase tracking-wider ${
+                  reductionPct < 0 ? "text-rose-300" : "text-emerald-300"
+                }`}
+              >
                 CO₂ Reduction Percentage
               </span>
-              <div className="text-xl font-black text-emerald-400 mt-1">
+              <div
+                className={`text-xl font-black mt-1 ${
+                  reductionPct < 0 ? "text-rose-400" : "text-emerald-400"
+                }`}
+              >
                 {isLoading ? (
                   <Skeleton className="h-6 w-16 bg-slate-700" />
                 ) : (
                   `${reductionPct > 0 ? "+" : ""}${reductionPct}%`
                 )}
               </div>
-              <span className="text-[10px] text-emerald-300 block mt-0.5">
-                {reductionPct < 0 ? "Emissions exceeded solo baseline" : "Net carbon reduction ratio"}
+              <span
+                className={`text-[10px] block mt-0.5 ${
+                  reductionPct < 0 ? "text-rose-300 font-medium" : "text-emerald-300"
+                }`}
+              >
+                {reductionPct < 0 ? "Net emissions increase" : "Net carbon reduction ratio"}
               </span>
             </div>
           </div>

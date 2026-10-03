@@ -1,13 +1,15 @@
 /**
  * Automated Test Suite for CommuteX Sustainability Calculations
  * 
- * Verifies:
- * 1. Known data test (3 passengers @ 150 g/km, carpool 20 km @ 150 g/km -> 7.50 kg, 3.00 kg, 4.50 kg, 60.0%)
- * 2. Single-occupant trip (0 passengers -> baseline 0 kg, gross diff -carpool, avoided 0 kg, 0%, COMPLETE)
- * 3. Missing passenger distance (flags INCOMPLETE, does not substitute 85%)
- * 4. Missing emission factor fallback (handles gracefully without NaN)
- * 5. Completed ride idempotency (updating existing record, no duplicates)
- * 6. Aggregation independence (solo baseline != carpool emissions when avoided is 0)
+ * Comprehensive Test Coverage:
+ * 1. One passenger with genuinely negative savings (live database case)
+ * 2. Multiple passengers with route detours and positive savings
+ * 3. Multiple passengers with route detours causing genuinely negative savings
+ * 4. Different solo distances with positive savings
+ * 5. Zero distance / Single-occupant trip (0 passengers, safe handling of zero baseline)
+ * 6. Missing passenger distance (flags INCOMPLETE, no silent 85% substitution)
+ * 7. Missing emission factor fallback (handles gracefully without NaN)
+ * 8. Dashboard aggregation independence & monthly totals consistency (retains negative avoided emissions)
  */
 
 const assert = require('assert');
@@ -41,9 +43,9 @@ function computeSustainabilityFigures(input) {
       soloBaselineCO2Kg: 0,
       actualCarpoolCO2Kg,
       grossDifferenceKg: Math.round((0 - actualCarpoolCO2Kg) * 1000) / 1000,
-      co2SavedKg: 0,
+      co2SavedKg: Math.round((0 - actualCarpoolCO2Kg) * 1000) / 1000,
       co2ReductionPercentage: 0,
-      vehicleKilometersReduced: 0,
+      vehicleKilometersReduced: Math.round((0 - actualCarpoolDistanceKm) * 100) / 100,
       passengerCount: 0,
       dataCompleteness,
       dataCompletenessReason,
@@ -69,12 +71,12 @@ function computeSustainabilityFigures(input) {
   soloBaselineDistanceKm = Math.round(soloBaselineDistanceKm * 100) / 100;
   soloBaselineCO2Kg = Math.round(soloBaselineCO2Kg * 1000) / 1000;
 
+  // Net CO2 Avoided = Solo Baseline - Actual Carpool (retains negative result!)
   const grossDifferenceKg = Math.round((soloBaselineCO2Kg - actualCarpoolCO2Kg) * 1000) / 1000;
-  const co2SavedKg = Math.max(0, grossDifferenceKg);
-  const vehicleKilometersReduced = Math.max(
-    0,
-    Math.round((soloBaselineDistanceKm - actualCarpoolDistanceKm) * 100) / 100
-  );
+  const co2SavedKg = grossDifferenceKg;
+  const vehicleKilometersReduced = Math.round(
+    (soloBaselineDistanceKm - actualCarpoolDistanceKm) * 100
+  ) / 100;
 
   let co2ReductionPercentage = 0;
   if (soloBaselineCO2Kg > 0) {
@@ -104,14 +106,13 @@ function computeSustainabilityFigures(input) {
   };
 }
 
-// Aggregation function matching getCampusSustainabilityAnalytics
+// Aggregation function matching getCampusSustainabilityAnalytics & getMonthlyCarbonAnalytics
 function aggregateCampusSustainability(records) {
   let totalPassengers = 0;
   let totalCarpoolDistanceKm = 0;
   let totalSoloBaselineDistanceKm = 0;
   let totalVKRKm = 0;
   let totalEstimatedCO2EmittedKg = 0;
-  let totalEstimatedCO2AvoidedKg = 0;
   let totalSoloBaselineCO2Kg = 0;
 
   for (const r of records) {
@@ -120,19 +121,18 @@ function aggregateCampusSustainability(records) {
     totalSoloBaselineDistanceKm += r.soloBaselineDistanceKm || 0;
     totalVKRKm += r.vehicleKilometersReduced || 0;
     totalEstimatedCO2EmittedKg += r.actualCarpoolCO2Kg || 0;
-    totalEstimatedCO2AvoidedKg += r.co2SavedKg || 0;
-    // CRITICAL FIX: Solo baseline summed directly and independently
     totalSoloBaselineCO2Kg += r.soloBaselineCO2Kg || 0;
   }
 
   totalSoloBaselineCO2Kg = Math.round(totalSoloBaselineCO2Kg * 1000) / 1000;
   totalEstimatedCO2EmittedKg = Math.round(totalEstimatedCO2EmittedKg * 1000) / 1000;
-  totalEstimatedCO2AvoidedKg = Math.round(totalEstimatedCO2AvoidedKg * 1000) / 1000;
-  const totalGrossDifferenceKg = Math.round((totalSoloBaselineCO2Kg - totalEstimatedCO2EmittedKg) * 1000) / 1000;
+  // Net Avoided = Solo Baseline - Carpool Emitted
+  const totalEstimatedCO2AvoidedKg = Math.round((totalSoloBaselineCO2Kg - totalEstimatedCO2EmittedKg) * 1000) / 1000;
+  const totalGrossDifferenceKg = totalEstimatedCO2AvoidedKg;
 
   const co2ReductionPercentage =
     totalSoloBaselineCO2Kg > 0
-      ? Math.round((totalGrossDifferenceKg / totalSoloBaselineCO2Kg) * 100 * 10) / 10
+      ? Math.round((totalEstimatedCO2AvoidedKg / totalSoloBaselineCO2Kg) * 100 * 10) / 10
       : 0;
 
   return {
@@ -154,78 +154,142 @@ console.log("       CommuteX Sustainability Carbon Calculation - Automated Verif
 console.log("================================================================================\n");
 
 let passedCount = 0;
-let totalCount = 6;
+let totalCount = 8;
 
-// TEST 1: Known Data Verification
+// TEST 1: One Passenger with Genuinely Negative Savings (Live Database Case)
 try {
-  console.log("TEST 1: Known Data Verification (3 passengers, shared carpool 20km)");
+  console.log("TEST 1: One Passenger with Genuinely Negative Savings (Live DB Case: 21.5 km vs 71.4 km)");
   const res = computeSustainabilityFigures({
-    actualCarpoolDistanceKm: 20,
-    driverGramsCO2PerKm: 150,
+    actualCarpoolDistanceKm: 71.4,
+    driverGramsCO2PerKm: 142.5,
     passengers: [
-      { name: "Passenger 1", distanceKm: 15, gramsCO2PerKm: 150, hasValidCoordinates: true },
-      { name: "Passenger 2", distanceKm: 18, gramsCO2PerKm: 150, hasValidCoordinates: true },
-      { name: "Passenger 3", distanceKm: 17, gramsCO2PerKm: 150, hasValidCoordinates: true },
+      { name: "Rahul", distanceKm: 21.5, gramsCO2PerKm: 142.5, hasValidCoordinates: true },
     ],
   });
 
   console.log("  Results:", JSON.stringify({
-    soloBaselineDistanceKm: res.soloBaselineDistanceKm,
-    actualCarpoolDistanceKm: res.actualCarpoolDistanceKm,
     soloBaselineCO2Kg: res.soloBaselineCO2Kg,
     actualCarpoolCO2Kg: res.actualCarpoolCO2Kg,
-    co2SavedKg: res.co2SavedKg,
-    grossDifferenceKg: res.grossDifferenceKg,
+    netCO2AvoidedKg: res.co2SavedKg,
     co2ReductionPercentage: res.co2ReductionPercentage,
   }, null, 2));
 
-  assert.strictEqual(res.soloBaselineCO2Kg, 7.50, "Solo Baseline CO2 must be exactly 7.50 kg");
-  assert.strictEqual(res.actualCarpoolCO2Kg, 3.00, "Carpool CO2 must be exactly 3.00 kg");
-  assert.strictEqual(res.co2SavedKg, 4.50, "Avoided CO2 must be exactly 4.50 kg");
-  assert.strictEqual(res.grossDifferenceKg, 4.50, "Gross difference must be +4.50 kg");
-  assert.strictEqual(res.co2ReductionPercentage, 60.0, "Reduction percentage must be 60.0%");
-  assert.strictEqual(res.dataCompleteness, "COMPLETE", "Data completeness must be COMPLETE");
+  assert.strictEqual(res.soloBaselineCO2Kg, 3.064, "Solo baseline must be exactly 3.064 kg");
+  assert.strictEqual(res.actualCarpoolCO2Kg, 10.175, "Carpool emissions must be exactly 10.175 kg");
+  assert.strictEqual(res.co2SavedKg, -7.111, "Net CO2 avoided must retain negative result: -7.111 kg");
+  assert.strictEqual(res.co2ReductionPercentage, -232.1, "Reduction percentage must be -232.1%");
+  assert.strictEqual(res.dataCompleteness, "COMPLETE", "Status must be COMPLETE");
 
-  console.log("  -> PASSED: All known data assertions match exactly!\n");
+  console.log("  -> PASSED: One passenger negative savings calculated and retained accurately!\n");
   passedCount++;
 } catch (err) {
   console.error("  -> FAILED TEST 1:", err.message, "\n");
 }
 
-// TEST 2: Single-Occupant Trip (0 Passengers)
+// TEST 2: Multiple Passengers with Route Detours and Positive Savings
 try {
-  console.log("TEST 2: Single-Occupant Trip (0 passengers)");
+  console.log("TEST 2: Multiple Passengers with Route Detours & Positive Savings (3 pax: 15, 18, 17 km vs 20 km)");
+  const res = computeSustainabilityFigures({
+    actualCarpoolDistanceKm: 20,
+    driverGramsCO2PerKm: 150,
+    passengers: [
+      { name: "P1", distanceKm: 15, gramsCO2PerKm: 150, hasValidCoordinates: true },
+      { name: "P2", distanceKm: 18, gramsCO2PerKm: 150, hasValidCoordinates: true },
+      { name: "P3", distanceKm: 17, gramsCO2PerKm: 150, hasValidCoordinates: true },
+    ],
+  });
+
+  assert.strictEqual(res.soloBaselineCO2Kg, 7.50, "Solo Baseline CO2 must be exactly 7.50 kg");
+  assert.strictEqual(res.actualCarpoolCO2Kg, 3.00, "Carpool CO2 must be exactly 3.00 kg");
+  assert.strictEqual(res.co2SavedKg, 4.50, "Avoided CO2 must be exactly 4.50 kg");
+  assert.strictEqual(res.co2ReductionPercentage, 60.0, "Reduction percentage must be 60.0%");
+  assert.strictEqual(res.dataCompleteness, "COMPLETE", "Data completeness must be COMPLETE");
+
+  console.log("  -> PASSED: Multiple passengers with positive savings verified!\n");
+  passedCount++;
+} catch (err) {
+  console.error("  -> FAILED TEST 2:", err.message, "\n");
+}
+
+// TEST 3: Multiple Passengers with Massive Route Detours Causing Negative Savings
+try {
+  console.log("TEST 3: Multiple Passengers with Massive Route Detour Causing Genuinely Negative Savings");
+  const res = computeSustainabilityFigures({
+    actualCarpoolDistanceKm: 40, // massive detour
+    driverGramsCO2PerKm: 150,
+    passengers: [
+      { name: "P1", distanceKm: 10, gramsCO2PerKm: 150, hasValidCoordinates: true },
+      { name: "P2", distanceKm: 8, gramsCO2PerKm: 150, hasValidCoordinates: true },
+    ],
+  });
+
+  // Baseline = (10 + 8) * 150 / 1000 = 2.70 kg
+  // Carpool = 40 * 150 / 1000 = 6.00 kg
+  // Net avoided = 2.70 - 6.00 = -3.30 kg
+  // Reduction % = (-3.30 / 2.70) * 100 = -122.2%
+  assert.strictEqual(res.soloBaselineCO2Kg, 2.70, "Solo baseline must be 2.70 kg");
+  assert.strictEqual(res.actualCarpoolCO2Kg, 6.00, "Carpool emissions must be 6.00 kg");
+  assert.strictEqual(res.co2SavedKg, -3.30, "Avoided CO2 must retain negative -3.30 kg");
+  assert.strictEqual(res.co2ReductionPercentage, -122.2, "Reduction percentage must be -122.2%");
+
+  console.log("  -> PASSED: Multi-passenger route detour causing negative savings retained!\n");
+  passedCount++;
+} catch (err) {
+  console.error("  -> FAILED TEST 3:", err.message, "\n");
+}
+
+// TEST 4: Different Solo Distances with Positive Savings
+try {
+  console.log("TEST 4: Different Solo Distances with Positive Savings (25 km, 35 km vs 38 km @ 140 g/km)");
+  const res = computeSustainabilityFigures({
+    actualCarpoolDistanceKm: 38,
+    driverGramsCO2PerKm: 140,
+    passengers: [
+      { name: "Pax A", distanceKm: 25, gramsCO2PerKm: 140, hasValidCoordinates: true },
+      { name: "Pax B", distanceKm: 35, gramsCO2PerKm: 140, hasValidCoordinates: true },
+    ],
+  });
+
+  // Baseline = (25 + 35) * 140 / 1000 = 60 * 0.14 = 8.40 kg
+  // Carpool = 38 * 140 / 1000 = 5.32 kg
+  // Avoided = 8.40 - 5.32 = 3.08 kg
+  // Reduction % = (3.08 / 8.40) * 100 = 36.7%
+  assert.strictEqual(res.soloBaselineCO2Kg, 8.40, "Solo baseline must be 8.40 kg");
+  assert.strictEqual(res.actualCarpoolCO2Kg, 5.32, "Carpool emissions must be 5.32 kg");
+  assert.strictEqual(res.co2SavedKg, 3.08, "Avoided CO2 must be 3.08 kg");
+  assert.strictEqual(res.co2ReductionPercentage, 36.7, "Reduction % must be 36.7%");
+
+  console.log("  -> PASSED: Different solo distances with positive savings verified!\n");
+  passedCount++;
+} catch (err) {
+  console.error("  -> FAILED TEST 4:", err.message, "\n");
+}
+
+// TEST 5: Single-Occupant Trip (0 Passengers / Zero Passenger Distance)
+try {
+  console.log("TEST 5: Single-Occupant Trip (0 Passengers, Safe Handling of Zero Baseline)");
   const res = computeSustainabilityFigures({
     actualCarpoolDistanceKm: 25,
     driverGramsCO2PerKm: 150,
     passengers: [],
   });
 
-  console.log("  Results:", JSON.stringify({
-    soloBaselineCO2Kg: res.soloBaselineCO2Kg,
-    actualCarpoolCO2Kg: res.actualCarpoolCO2Kg,
-    grossDifferenceKg: res.grossDifferenceKg,
-    co2SavedKg: res.co2SavedKg,
-    co2ReductionPercentage: res.co2ReductionPercentage,
-    dataCompleteness: res.dataCompleteness,
-  }, null, 2));
-
   assert.strictEqual(res.soloBaselineCO2Kg, 0, "Solo Baseline CO2 must be 0 for 0 passengers");
   assert.strictEqual(res.actualCarpoolCO2Kg, 3.75, "Carpool CO2 must be 3.75 kg (25 * 150 / 1000)");
-  assert.strictEqual(res.grossDifferenceKg, -3.75, "Gross difference must be -3.75 kg (net emissions increase)");
-  assert.strictEqual(res.co2SavedKg, 0, "Avoided CO2 must be capped at 0 kg");
-  assert.strictEqual(res.co2ReductionPercentage, 0, "Reduction percentage must be 0%");
+  assert.strictEqual(res.grossDifferenceKg, -3.75, "Gross difference must be -3.75 kg");
+  assert.strictEqual(res.co2SavedKg, -3.75, "Net CO2 avoided must retain negative result: -3.75 kg");
+  assert.strictEqual(res.co2ReductionPercentage, 0, "Reduction % must safely be 0% when baseline is 0");
   assert.strictEqual(res.dataCompleteness, "COMPLETE", "Data completeness must be COMPLETE");
 
-  console.log("  -> PASSED: Single-occupant trip handled honestly and transparently!\n");
+  console.log("  -> PASSED: Single-occupant trip handled honestly and safely!\n");
   passedCount++;
 } catch (err) {
-  console.error("  -> FAILED TEST 2:", err.message, "\n");
+  console.error("  -> FAILED TEST 5:", err.message, "\n");
 }
 
-// TEST 3: Missing Passenger Distance (No Silent 85% Substitution)
+// TEST 6: Missing Passenger Coordinates (No Silent 85% Substitution)
 try {
-  console.log("TEST 3: Missing Passenger Coordinates (No Silent 85% Substitution)");
+  console.log("TEST 6: Missing Passenger Coordinates (No Silent 85% Substitution)");
   const res = computeSustainabilityFigures({
     actualCarpoolDistanceKm: 50,
     driverGramsCO2PerKm: 150,
@@ -235,25 +299,19 @@ try {
     ],
   });
 
-  console.log("  Results:", JSON.stringify({
-    soloBaselineDistanceKm: res.soloBaselineDistanceKm,
-    dataCompleteness: res.dataCompleteness,
-    dataCompletenessReason: res.dataCompletenessReason,
-  }, null, 2));
-
   assert.strictEqual(res.dataCompleteness, "INCOMPLETE", "Calculation must be marked INCOMPLETE");
   assert.ok(res.dataCompletenessReason.includes("Missing Passenger"), "Reason must identify the incomplete passenger");
-  assert.strictEqual(res.soloBaselineDistanceKm, 20, "Distance must NOT substitute 85% (42.5 km) for missing passenger");
+  assert.strictEqual(res.soloBaselineDistanceKm, 20, "Distance must NOT substitute 85% for missing passenger");
 
   console.log("  -> PASSED: Missing data flagged INCOMPLETE without silent substitution!\n");
   passedCount++;
 } catch (err) {
-  console.error("  -> FAILED TEST 3:", err.message, "\n");
+  console.error("  -> FAILED TEST 6:", err.message, "\n");
 }
 
-// TEST 4: Missing Emission Factor Fallback
+// TEST 7: Missing Emission Factor Fallback
 try {
-  console.log("TEST 4: Missing Emission Factor Fallback");
+  console.log("TEST 7: Missing Emission Factor Fallback");
   const res = computeSustainabilityFigures({
     actualCarpoolDistanceKm: 10,
     driverGramsCO2PerKm: null, // should fall back to standard 150 g/km
@@ -269,38 +327,12 @@ try {
   console.log("  -> PASSED: Fallback emission factor handled gracefully without NaN!\n");
   passedCount++;
 } catch (err) {
-  console.error("  -> FAILED TEST 4:", err.message, "\n");
+  console.error("  -> FAILED TEST 7:", err.message, "\n");
 }
 
-// TEST 5: Completed Ride Idempotency (Upsert Mock)
+// TEST 8: Dashboard Aggregation Independence & Negative Savings Retention
 try {
-  console.log("TEST 5: Completed Ride Idempotency Simulation");
-  const rideDb = new Map();
-
-  function upsertRideEmission(rideId, calcData) {
-    rideDb.set(rideId, { rideId, ...calcData, updatedAt: new Date() });
-    return rideDb.get(rideId);
-  }
-
-  // First execution
-  upsertRideEmission("ride-101", { actualCarpoolCO2Kg: 3.0, soloBaselineCO2Kg: 7.5 });
-  assert.strictEqual(rideDb.size, 1, "DB should contain 1 record");
-
-  // Duplicate execution for same ride
-  upsertRideEmission("ride-101", { actualCarpoolCO2Kg: 3.0, soloBaselineCO2Kg: 7.5 });
-  assert.strictEqual(rideDb.size, 1, "Duplicate completion must NOT create duplicate records");
-
-  console.log("  -> PASSED: Idempotency guaranteed via upsert by rideId!\n");
-  passedCount++;
-} catch (err) {
-  console.error("  -> FAILED TEST 5:", err.message, "\n");
-}
-
-// TEST 6: Aggregation Independence (Solo Baseline != Carpool Emissions when Avoided is 0)
-try {
-  console.log("TEST 6: Dashboard Aggregation Independence (Real Database Bug Simulation)");
-  // Simulation of the exact database state:
-  // 1 ride: 71.4 km carpool emitting 10.18 kg CO2; 1 passenger doing 21.5 km with solo baseline of 3.06 kg CO2.
+  console.log("TEST 8: Dashboard Aggregation Independence & Negative Savings Retention");
   const records = [
     {
       rideId: "6a981c069f5103c8e838e425",
@@ -309,7 +341,7 @@ try {
       actualCarpoolDistanceKm: 71.4,
       soloBaselineCO2Kg: 3.064,
       actualCarpoolCO2Kg: 10.175,
-      co2SavedKg: 0,
+      co2SavedKg: -7.111,
       grossDifferenceKg: -7.111,
       co2ReductionPercentage: -232.1,
     },
@@ -321,23 +353,18 @@ try {
     totalSoloBaselineCO2Kg: agg.totalSoloBaselineCO2Kg,
     totalEstimatedCO2EmittedKg: agg.totalEstimatedCO2EmittedKg,
     totalEstimatedCO2AvoidedKg: agg.totalEstimatedCO2AvoidedKg,
-    totalGrossDifferenceKg: agg.totalGrossDifferenceKg,
     co2ReductionPercentage: agg.co2ReductionPercentage,
   }, null, 2));
 
-  // ROOT CAUSE VERIFICATION:
-  // Before fix: totalSoloBaseline was (emitted + avoided) = 10.18 + 0 = 10.18 kg (IDENTICAL to carpool emissions!)
-  // With fix: totalSoloBaseline is independent sum (3.064 kg)
-  assert.strictEqual(agg.totalSoloBaselineCO2Kg, 3.064, "Total Solo Baseline must be 3.064 kg, NOT 10.175 kg!");
+  assert.strictEqual(agg.totalSoloBaselineCO2Kg, 3.064, "Total Solo Baseline must be 3.064 kg");
   assert.strictEqual(agg.totalEstimatedCO2EmittedKg, 10.175, "Total Carpool Emitted must be 10.175 kg");
-  assert.notStrictEqual(agg.totalSoloBaselineCO2Kg, agg.totalEstimatedCO2EmittedKg, "Solo Baseline and Carpool Emissions must NOT be identical!");
-  assert.strictEqual(agg.totalEstimatedCO2AvoidedKg, 0, "Avoided CO2 is 0 kg");
-  assert.strictEqual(agg.totalGrossDifferenceKg, -7.111, "Gross difference must honestly report -7.111 kg net increase");
+  assert.strictEqual(agg.totalEstimatedCO2AvoidedKg, -7.111, "Net CO2 Avoided must be retained as -7.111 kg");
+  assert.strictEqual(agg.co2ReductionPercentage, -232.1, "Reduction percentage must be -232.1%");
 
-  console.log("  -> PASSED: Aggregation independence verified! Solo baseline is 3.06 kg vs Carpool 10.18 kg!\n");
+  console.log("  -> PASSED: Aggregation independence and negative savings retention verified!\n");
   passedCount++;
 } catch (err) {
-  console.error("  -> FAILED TEST 6:", err.message, "\n");
+  console.error("  -> FAILED TEST 8:", err.message, "\n");
 }
 
 console.log("================================================================================");

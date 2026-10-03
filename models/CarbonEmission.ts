@@ -139,7 +139,6 @@ const CarbonEmissionSchema = new Schema<ICarbonEmission>(
     co2SavedKg: {
       type: Number,
       required: true,
-      min: 0,
       default: 0,
     },
     grossDifferenceKg: {
