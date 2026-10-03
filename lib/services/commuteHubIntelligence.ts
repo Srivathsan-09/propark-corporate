@@ -36,6 +36,8 @@ export interface ICorridorMetric {
   uniquePassengers: number;
   avgDistanceKm: number;
   avgPrice: number;
+  originName?: string;
+  destinationName?: string;
   frequentStops: { name: string; count: number }[];
   status: "high_demand" | "balanced" | "underserved";
 }
@@ -586,10 +588,20 @@ export async function getCommuteHubIntelligence(options: {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
+    const firstRide = data.rides[0];
+    const originSample = firstRide?.startingLocation ? cleanLocationName(firstRide.startingLocation) : "";
+    const destSample = firstRide?.destination ? cleanLocationName(firstRide.destination) : "";
+
+    const simpleDesc = originSample && destSample
+      ? `Direct commute route from ${originSample} to ${destSample}`
+      : `Main commute route connecting ${sortedStops[0]?.name || "campus gates"} with tech facilities`;
+
     corridorList.push({
       id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
       name,
-      description: `Arterial link connecting ${sortedStops[0]?.name || "campus gates"} with primary tech centers`,
+      originName: originSample,
+      destinationName: destSample,
+      description: simpleDesc,
       totalRides: ridesCount,
       scheduledRides: data.rides.filter((r) => r.status === "scheduled" || r.status === "in_progress").length,
       completedRides: data.rides.filter((r) => r.status === "completed").length,
@@ -611,7 +623,9 @@ export async function getCommuteHubIntelligence(options: {
       {
         id: "omr-it-expressway",
         name: "OMR IT Expressway Corridor",
-        description: "Primary arterial corridor connecting Velachery, Sholinganallur, and Siruseri IT parks",
+        originName: "Velachery",
+        destinationName: "Siruseri IT Park",
+        description: "Popular route connecting Velachery with OMR Siruseri tech campuses",
         totalRides: 8,
         scheduledRides: 3,
         completedRides: 5,
@@ -631,8 +645,10 @@ export async function getCommuteHubIntelligence(options: {
       },
       {
         id: "gst-road-arterial",
-        name: "GST Road Arterial Corridor",
-        description: "Southern transport link connecting Tambaram, Chromepet, Guindy, and Airport",
+        name: "GST Road Corridor",
+        originName: "Tambaram",
+        destinationName: "Guindy Tech Park",
+        description: "Direct commute route from Tambaram & Chromepet to Guindy offices",
         totalRides: 4,
         scheduledRides: 1,
         completedRides: 3,

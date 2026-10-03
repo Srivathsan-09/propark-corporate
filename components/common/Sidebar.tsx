@@ -77,9 +77,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       icon: Route,
     },
     {
-      title: "CommuteHub",
+      title: "CommuteX Analytics",
       href: "/admin/commutehub",
-      icon: Compass,
+      icon: BarChart3,
     },
     {
       title: "Sustainability",
