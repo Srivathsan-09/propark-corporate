@@ -76,8 +76,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       href: "/admin/rides",
       icon: Route,
     },
-    // Hidden from Admin Console navigation per admin preferences (kept intact for direct routing if needed)
-    /*
     {
       title: "CommuteHub",
       href: "/admin/commutehub",
@@ -93,7 +91,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       href: "/admin/concurrency",
       icon: Cpu,
     },
-    */
   ];
 
   // Navigation specifically for Employees / Commuters
