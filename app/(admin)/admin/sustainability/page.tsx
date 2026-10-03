@@ -16,7 +16,6 @@ import {
   Sparkles,
   Plus,
   Edit2,
-  Trash2,
   CheckCircle2,
   AlertCircle,
   HelpCircle,
@@ -24,13 +23,12 @@ import {
   ChevronUp,
   RefreshCw,
   Loader2,
+  BarChart3,
 } from "lucide-react";
 import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  AreaChart,
-  Area,
   LineChart,
   Line,
   XAxis,
@@ -61,6 +59,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CarLoader } from "@/components/common/CarLoader";
+import { cn } from "@/lib/utils";
 
 interface ISustainabilityAnalytics {
   totalCompletedRides: number;
@@ -117,6 +116,9 @@ export default function AdminSustainabilityPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+
+  // Expandable secondary insights section
+  const [isInsightsExpanded, setIsInsightsExpanded] = useState(false);
 
   // Calculation transparency toggle
   const [showCalculationModal, setShowCalculationModal] = useState(false);
@@ -224,7 +226,6 @@ export default function AdminSustainabilityPage() {
 
     try {
       if (editingFactor) {
-        // PUT update
         const res = await fetch(`/api/carbon/emission-factors/${editingFactor._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -233,7 +234,6 @@ export default function AdminSustainabilityPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to update emission factor");
       } else {
-        // POST create
         const res = await fetch("/api/carbon/emission-factors", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -267,16 +267,20 @@ export default function AdminSustainabilityPage() {
     }
   };
 
-  // Pre-calculate solo vs carpool comparison for the primary display
-  const soloBaselineCO2 = (analytics?.totalEstimatedCO2EmittedKg || 0) + (analytics?.totalEstimatedCO2AvoidedKg || 0);
+  // Solo baseline vs Carpool emissions calculations (safe division & rounding)
+  const soloBaselineCO2 =
+    (analytics?.totalEstimatedCO2EmittedKg || 0) + (analytics?.totalEstimatedCO2AvoidedKg || 0);
   const actualCarpoolCO2 = analytics?.totalEstimatedCO2EmittedKg || 0;
   const co2Avoided = analytics?.totalEstimatedCO2AvoidedKg || 0;
-  const reductionPct = analytics?.co2ReductionPercentage || 0;
+  const reductionPct =
+    soloBaselineCO2 > 0 && co2Avoided > 0
+      ? Math.round((co2Avoided / soloBaselineCO2) * 100 * 10) / 10
+      : analytics?.co2ReductionPercentage || 0;
 
-  // Comparison chart data for Solo vs Carpool
+  // Comparison Bar Chart Data (Chart 1)
   const comparisonBarData = [
     {
-      name: "Commute Scenarios",
+      name: "Total Emissions",
       "Solo Driving (Baseline)": Math.round(soloBaselineCO2 * 10) / 10,
       "CommuteX Shared Carpool": Math.round(actualCarpoolCO2 * 10) / 10,
     },
@@ -284,22 +288,22 @@ export default function AdminSustainabilityPage() {
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in-50 duration-300">
-      {/* Header */}
+      {/* 1. Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold px-2 py-0.5">
               <Leaf className="h-2.5 w-2.5 mr-1 text-emerald-600" /> Sustainability & Environmental Impact
             </Badge>
             <Badge variant="outline" className="text-[10px] font-medium text-slate-500 border-slate-300">
-              Academic Research Grade
+              IPCC 2006 / India GHG Standard
             </Badge>
           </div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900">
             Sustainability Analytics & Carbon Accounting
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Quantitative analysis of CO₂ emissions, vehicle-km reductions, and commuter sustainability metrics.
+            Quantitative analysis of CO₂ emissions avoided, vehicle-km reductions, and commuter sustainability metrics.
           </p>
         </div>
 
@@ -312,7 +316,7 @@ export default function AdminSustainabilityPage() {
               loadAllSustainabilityData();
             }}
             disabled={isRefreshing}
-            className="h-8 gap-1.5 text-xs text-slate-600"
+            className="h-8 gap-1.5 text-xs text-slate-600 rounded-lg"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh Data
@@ -320,15 +324,15 @@ export default function AdminSustainabilityPage() {
           <Button
             size="sm"
             onClick={handleOpenAddFactor}
-            className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+            className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-xs"
           >
             <Plus className="h-3.5 w-3.5" /> Add Emission Factor
           </Button>
         </div>
       </div>
 
-      {/* SOLO VS CARPOOL COMPARISON BANNER */}
-      <Card className="border-emerald-300 bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 text-white shadow-md overflow-hidden relative">
+      {/* 2. Main Sustainability Summary Banner (Dark-Themed Environmental Impact Card) */}
+      <Card className="border-emerald-300 bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 text-white shadow-md overflow-hidden relative rounded-2xl">
         <div className="p-5 md:p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
@@ -339,10 +343,14 @@ export default function AdminSustainabilityPage() {
                 </span>
               </div>
               <h2 className="text-2xl font-black tracking-tight text-white mt-1">
-                {isLoading ? <Skeleton className="h-8 w-48 bg-slate-700" /> : `${co2Avoided.toLocaleString()} kg CO₂ Avoided`}
+                {isLoading ? (
+                  <Skeleton className="h-8 w-48 bg-slate-700" />
+                ) : (
+                  `${co2Avoided.toLocaleString()} kg CO₂ Avoided`
+                )}
               </h2>
               <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                Cumulative carbon emissions saved across all completed campus carpool rides compared to if each passenger had driven an individual solo vehicle.
+                Cumulative carbon emissions saved across completed campus carpool rides compared to if each passenger had driven an individual solo vehicle.
               </p>
             </div>
 
@@ -350,259 +358,158 @@ export default function AdminSustainabilityPage() {
               variant="outline"
               size="sm"
               onClick={() => setShowCalculationModal(true)}
-              className="border-emerald-500/50 bg-emerald-900/30 text-emerald-200 hover:bg-emerald-900/50 hover:text-white h-8 text-xs gap-1.5 w-fit"
+              className="border-emerald-500/50 bg-emerald-900/30 text-emerald-200 hover:bg-emerald-900/50 hover:text-white h-8 text-xs gap-1.5 w-fit rounded-lg"
             >
               <HelpCircle className="h-3.5 w-3.5 text-emerald-400" /> View Calculation Formula
             </Button>
           </div>
 
-          {/* Side-by-Side Comparison Grid */}
+          {/* 4 Key Metrics in Main Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 pt-5 border-t border-slate-800">
-            <div className="p-3 rounded-lg bg-slate-800/60 border border-slate-700">
-              <span className="text-[11px] font-medium text-slate-400 block uppercase tracking-wider">
+            {/* 1. Solo Commuting Baseline */}
+            <div className="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700">
+              <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">
                 Solo Commuting Baseline
               </span>
               <div className="text-xl font-black text-rose-400 mt-1">
                 {isLoading ? <Skeleton className="h-6 w-20 bg-slate-700" /> : `${soloBaselineCO2.toLocaleString()} kg`}
               </div>
-              <span className="text-[10px] text-slate-400">If all rode individually</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">If all commuters drove solo</span>
             </div>
 
-            <div className="p-3 rounded-lg bg-slate-800/60 border border-slate-700">
-              <span className="text-[11px] font-medium text-slate-400 block uppercase tracking-wider">
-                CommuteX Carpool Actual
+            {/* 2. CommuteX Carpool Emissions */}
+            <div className="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700">
+              <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">
+                CommuteX Carpool Emissions
               </span>
               <div className="text-xl font-black text-blue-300 mt-1">
                 {isLoading ? <Skeleton className="h-6 w-20 bg-slate-700" /> : `${actualCarpoolCO2.toLocaleString()} kg`}
               </div>
-              <span className="text-[10px] text-slate-400">Actual physical vehicle emissions</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Actual vehicle emissions</span>
             </div>
 
-            <div className="p-3 rounded-lg bg-emerald-900/30 border border-emerald-500/40">
-              <span className="text-[11px] font-medium text-emerald-300 block uppercase tracking-wider">
-                Estimated Net Savings
+            {/* 3. Estimated CO2 Avoided */}
+            <div className="p-3.5 rounded-xl bg-emerald-900/30 border border-emerald-500/40">
+              <span className="text-[11px] font-semibold text-emerald-300 block uppercase tracking-wider">
+                Estimated CO₂ Avoided
               </span>
               <div className="text-xl font-black text-emerald-400 mt-1">
                 {isLoading ? <Skeleton className="h-6 w-20 bg-slate-700" /> : `${co2Avoided.toLocaleString()} kg`}
               </div>
-              <span className="text-[10px] text-emerald-300">Baseline − Actual Carpool</span>
+              <span className="text-[10px] text-emerald-300 block mt-0.5">Baseline − Actual Carpool</span>
             </div>
 
-            <div className="p-3 rounded-lg bg-emerald-900/30 border border-emerald-500/40">
-              <span className="text-[11px] font-medium text-emerald-300 block uppercase tracking-wider">
-                CO₂ Reduction %
+            {/* 4. CO2 Reduction Percentage */}
+            <div className="p-3.5 rounded-xl bg-emerald-900/30 border border-emerald-500/40">
+              <span className="text-[11px] font-semibold text-emerald-300 block uppercase tracking-wider">
+                CO₂ Reduction Percentage
               </span>
               <div className="text-xl font-black text-emerald-400 mt-1">
                 {isLoading ? <Skeleton className="h-6 w-16 bg-slate-700" /> : `${reductionPct}%`}
               </div>
-              <span className="text-[10px] text-emerald-300">Net reduction efficiency</span>
+              <span className="text-[10px] text-emerald-300 block mt-0.5">Net carbon reduction ratio</span>
             </div>
           </div>
         </div>
       </Card>
 
-      {/* 12 RESEARCH METRIC CARDS (4x3 GRID) */}
-      <div>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-          Comprehensive Campus Transportation & Carbon Indicators
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {/* 1. Total Completed Rides */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">Completed Carpools</CardTitle>
-              <Route className="h-3.5 w-3.5 text-emerald-600" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xl font-bold text-slate-900">
-                {isLoading ? <Skeleton className="h-6 w-12" /> : (analytics?.totalCompletedRides ?? 0)}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Trips verified & completed</p>
-            </CardContent>
-          </Card>
+      {/* 3. Four Primary Supporting KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* KPI 1: Completed Carpools */}
+        <Card className="border-slate-200/90 shadow-2xs rounded-xl bg-white">
+          <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-xs font-semibold text-slate-500">Completed Carpools</CardTitle>
+            <div className="p-1 rounded-md bg-emerald-50 text-emerald-600">
+              <Route className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-3.5 pb-3.5">
+            <div className="text-2xl font-black text-slate-900">
+              {isLoading ? <Skeleton className="h-7 w-12" /> : (analytics?.totalCompletedRides ?? 0)}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">Verified completed trips</p>
+          </CardContent>
+        </Card>
 
-          {/* 2. Total Passengers Carpooled */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">Total Shared Passengers</CardTitle>
-              <Users className="h-3.5 w-3.5 text-blue-600" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xl font-bold text-slate-900">
-                {isLoading ? <Skeleton className="h-6 w-12" /> : (analytics?.totalPassengers ?? 0)}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Accepted commuter seats</p>
-            </CardContent>
-          </Card>
+        {/* KPI 2: Total Shared Passengers */}
+        <Card className="border-slate-200/90 shadow-2xs rounded-xl bg-white">
+          <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-xs font-semibold text-slate-500">Total Shared Passengers</CardTitle>
+            <div className="p-1 rounded-md bg-blue-50 text-blue-600">
+              <Users className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-3.5 pb-3.5">
+            <div className="text-2xl font-black text-slate-900">
+              {isLoading ? <Skeleton className="h-7 w-12" /> : (analytics?.totalPassengers ?? 0)}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">Accepted commuter passengers</p>
+          </CardContent>
+        </Card>
 
-          {/* 3. Total Carpool Distance */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">Actual Carpool Distance</CardTitle>
-              <Car className="h-3.5 w-3.5 text-purple-600" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xl font-bold text-slate-900">
-                {isLoading ? <Skeleton className="h-6 w-16" /> : `${analytics?.totalCarpoolDistanceKm ?? 0} km`}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Physical vehicle route sum</p>
-            </CardContent>
-          </Card>
+        {/* KPI 3: Actual Carpool Distance */}
+        <Card className="border-slate-200/90 shadow-2xs rounded-xl bg-white">
+          <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-xs font-semibold text-slate-500">Actual Carpool Distance</CardTitle>
+            <div className="p-1 rounded-md bg-purple-50 text-purple-600">
+              <Car className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-3.5 pb-3.5">
+            <div className="text-2xl font-black text-slate-900">
+              {isLoading ? <Skeleton className="h-7 w-16" /> : `${analytics?.totalCarpoolDistanceKm ?? 0} km`}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">Total vehicle travel distance</p>
+          </CardContent>
+        </Card>
 
-          {/* 4. Total Solo Baseline Distance */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">Solo Baseline Distance</CardTitle>
-              <TrendingDown className="h-3.5 w-3.5 text-amber-600" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xl font-bold text-slate-900">
-                {isLoading ? <Skeleton className="h-6 w-16" /> : `${analytics?.totalSoloBaselineDistanceKm ?? 0} km`}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Sum of individual trips</p>
-            </CardContent>
-          </Card>
-
-          {/* 5. Vehicle-Km Reduced (VKR) */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">Vehicle-Km Reduced (VKR)</CardTitle>
-              <Route className="h-3.5 w-3.5 text-emerald-600" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xl font-bold text-emerald-700">
-                {isLoading ? <Skeleton className="h-6 w-16" /> : `${analytics?.vehicleKilometersReducedKm ?? 0} km`}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Traffic congestion eliminated</p>
-            </CardContent>
-          </Card>
-
-          {/* 6. Total Estimated CO2 Emitted */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">Est. Carpool CO₂ Emitted</CardTitle>
-              <Info className="h-3.5 w-3.5 text-slate-500" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xl font-bold text-slate-800">
-                {isLoading ? <Skeleton className="h-6 w-16" /> : `${analytics?.totalEstimatedCO2EmittedKg ?? 0} kg`}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Actual fleet tailpipe output</p>
-            </CardContent>
-          </Card>
-
-          {/* 7. Average Occupancy */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">Average Occupancy</CardTitle>
-              <Users className="h-3.5 w-3.5 text-blue-600" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xl font-bold text-slate-900">
-                {isLoading ? <Skeleton className="h-6 w-12" /> : (analytics?.averageOccupancy ? `${analytics.averageOccupancy}` : "1.0")}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Persons per active vehicle</p>
-            </CardContent>
-          </Card>
-
-          {/* 8. Average CO2 Saving per Ride */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">Avg CO₂ Saved / Ride</CardTitle>
-              <Leaf className="h-3.5 w-3.5 text-emerald-600" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xl font-bold text-emerald-700">
-                {isLoading ? <Skeleton className="h-6 w-16" /> : `${analytics?.averageCO2SavingPerRideKg ?? 0} kg`}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Per trip environmental benefit</p>
-            </CardContent>
-          </Card>
-
-          {/* 9. Average CO2 Saving per Passenger */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">Avg CO₂ Saved / Passenger</CardTitle>
-              <Users className="h-3.5 w-3.5 text-indigo-600" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xl font-bold text-slate-900">
-                {isLoading ? <Skeleton className="h-6 w-16" /> : `${analytics?.averageCO2SavingPerPassengerKg ?? 0} kg`}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Per commuter emission savings</p>
-            </CardContent>
-          </Card>
-
-          {/* 10. Tree Equivalent */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">Mature Tree Equivalent</CardTitle>
-              <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xl font-bold text-emerald-700">
-                {isLoading ? <Skeleton className="h-6 w-16" /> : `~${analytics?.equivalentTreesPlanted ?? 0}`}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Annual CO₂ absorption basis</p>
-            </CardContent>
-          </Card>
-
-          {/* 11. Fleet Reduction Percentage */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">CO₂ Reduction %</CardTitle>
-              <TrendingDown className="h-3.5 w-3.5 text-emerald-600" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xl font-bold text-emerald-700">
-                {isLoading ? <Skeleton className="h-6 w-12" /> : `${analytics?.co2ReductionPercentage ?? 0}%`}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5">Emission reduction ratio</p>
-            </CardContent>
-          </Card>
-
-          {/* 12. Active Factor Source */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-[11px] font-semibold text-slate-500">Active Baseline Model</CardTitle>
-              <Shield className="h-3.5 w-3.5 text-slate-600" />
-            </CardHeader>
-            <CardContent className="px-3.5 pb-3">
-              <div className="text-xs font-bold text-slate-900 truncate" title={analytics?.activeEmissionFactorSource}>
-                {isLoading ? <Skeleton className="h-6 w-24" /> : (analytics?.activeEmissionFactorSource || "IPCC / MoEFCC")}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-0.5 truncate" title={analytics?.activeSourceReference}>
-                Configured emission factor
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* KPI 4: Vehicle-Kilometres Reduced (VKR) */}
+        <Card className="border-slate-200/90 shadow-2xs rounded-xl bg-white">
+          <CardHeader className="pb-1 pt-3.5 px-3.5 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-xs font-semibold text-slate-500">Vehicle-Kilometres Reduced (VKR)</CardTitle>
+            <div className="p-1 rounded-md bg-teal-50 text-teal-600">
+              <TrendingDown className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent className="px-3.5 pb-3.5">
+            <div className="text-2xl font-black text-emerald-700">
+              {isLoading ? <Skeleton className="h-7 w-16" /> : `${analytics?.vehicleKilometersReducedKm ?? 0} km`}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">Road congestion miles eliminated</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* 5 RESEARCH CHARTS */}
+      {/* 4. Two Primary Essential Charts */}
       {isMounted && (
-        <div className="space-y-6">
-          {/* ROW 1: Solo vs Carpool Emissions (Chart 1) & Monthly CO2 Savings (Chart 2) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Chart 1: Solo vs Carpool Comparison */}
-            <Card className="border-slate-200 shadow-2xs">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-sm font-bold text-slate-900">
-                      Chart 1: Solo Baseline vs CommuteX Carpool Emissions
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500">
-                      Direct comparison of aggregate carbon emitted (kg CO₂)
-                    </CardDescription>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] text-emerald-800 border-emerald-300">
-                    Comparative Model
-                  </Badge>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Chart 1: Solo vs Carpool Emissions (Bar Chart) */}
+          <Card className="border-slate-200 shadow-2xs rounded-xl bg-white">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-emerald-600" />
+                    Solo vs. Carpool Emissions
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Comparing solo-travel baseline emissions against actual carpool emissions (kg CO₂)
+                  </CardDescription>
                 </div>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className="h-64 w-full">
+                <Badge variant="outline" className="text-[10px] text-emerald-800 border-emerald-300 font-semibold">
+                  Comparative Model
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-2">
+              <div className="h-64 w-full">
+                {soloBaselineCO2 === 0 && actualCarpoolCO2 === 0 && !isLoading ? (
+                  <div className="h-full flex flex-col items-center justify-center text-xs text-slate-400 space-y-1">
+                    <Leaf className="h-6 w-6 text-slate-300" />
+                    <p className="font-medium text-slate-600">No completed trip emissions recorded yet</p>
+                    <p className="text-[11px] text-slate-400">Emissions will populate as completed rides accumulate.</p>
+                  </div>
+                ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={comparisonBarData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -611,7 +518,7 @@ export default function AdminSustainabilityPage() {
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "#ffffff",
-                          borderRadius: "12px",
+                          borderRadius: "10px",
                           border: "1px solid #e2e8f0",
                           fontSize: "12px",
                         }}
@@ -621,145 +528,47 @@ export default function AdminSustainabilityPage() {
                       <Bar dataKey="CommuteX Shared Carpool" fill="#10b981" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Chart 2: Monthly CO2 Savings */}
-            <Card className="border-slate-200 shadow-2xs">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-sm font-bold text-slate-900">
-                      Chart 2: Monthly Estimated CO₂ Avoided
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500">
-                      Time-series trend of avoided emissions over time (kg CO₂)
-                    </CardDescription>
+          {/* Chart 2: CO2 Emissions Avoided Over Time (Line Chart) */}
+          <Card className="border-slate-200 shadow-2xs rounded-xl bg-white">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Leaf className="h-4 w-4 text-emerald-600" />
+                    CO₂ Emissions Avoided Over Time
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    Monthly estimated CO₂ savings from completed carpool trips (kg CO₂)
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="text-[10px] text-emerald-800 border-emerald-300 font-semibold">
+                  Monthly Trend
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-2">
+              <div className="h-64 w-full">
+                {monthlyData.length === 0 && !isLoading ? (
+                  <div className="h-full flex flex-col items-center justify-center text-xs text-slate-400 space-y-1">
+                    <Clock className="h-6 w-6 text-slate-300" />
+                    <p className="font-medium text-slate-600">No monthly historical data yet</p>
+                    <p className="text-[11px] text-slate-400">Monthly savings will display as trips are verified and completed.</p>
                   </div>
-                  <Badge variant="outline" className="text-[10px] text-emerald-800 border-emerald-300">
-                    Time Series
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className="h-64 w-full">
-                  {monthlyData.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                      No monthly historical data yet. Trips will accumulate here as they complete.
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={monthlyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                        <defs>
-                          <linearGradient id="co2AvoidedGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} />
-                        <YAxis stroke="#94a3b8" fontSize={11} unit=" kg" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#ffffff",
-                            borderRadius: "12px",
-                            border: "1px solid #e2e8f0",
-                            fontSize: "12px",
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="co2AvoidedKg"
-                          name="CO₂ Avoided (kg)"
-                          stroke="#10b981"
-                          strokeWidth={2}
-                          fillOpacity={1}
-                          fill="url(#co2AvoidedGrad)"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* ROW 2: Monthly VKR (Chart 3) & Occupancy vs CO2 (Chart 4) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Chart 3: Monthly VKR */}
-            <Card className="border-slate-200 shadow-2xs">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-sm font-bold text-slate-900">
-                      Chart 3: Vehicle-Kilometers Reduced (VKR) Over Time
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500">
-                      Cumulative reduction in urban road mileage (km)
-                    </CardDescription>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] text-blue-800 border-blue-300">
-                    Congestion Index
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className="h-64 w-full">
-                  {monthlyData.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                      No VKR time series data available yet.
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} />
-                        <YAxis stroke="#94a3b8" fontSize={11} unit=" km" />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#ffffff",
-                            borderRadius: "12px",
-                            border: "1px solid #e2e8f0",
-                            fontSize: "12px",
-                          }}
-                        />
-                        <Bar dataKey="vkrKm" name="VKR (km)" fill="#3b82f6" radius={[6, 6, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Chart 4: Occupancy vs CO2 per Passenger (Research Core) */}
-            <Card className="border-slate-200 shadow-2xs">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-sm font-bold text-slate-900">
-                      Chart 4: Vehicle Occupancy vs CO₂ per Occupant
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500">
-                      Demonstrates that increasing vehicle occupancy reduces per-person emissions
-                    </CardDescription>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] text-purple-800 border-purple-300">
-                    Research Core
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className="h-64 w-full">
+                ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={occupancyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                    <LineChart data={monthlyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} />
                       <YAxis stroke="#94a3b8" fontSize={11} unit=" kg" />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "#ffffff",
-                          borderRadius: "12px",
+                          borderRadius: "10px",
                           border: "1px solid #e2e8f0",
                           fontSize: "12px",
                         }}
@@ -767,60 +576,14 @@ export default function AdminSustainabilityPage() {
                       <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
                       <Line
                         type="monotone"
-                        dataKey="avgCO2PerOccupantKg"
-                        name="Avg CO₂ / Person (kg)"
-                        stroke="#8b5cf6"
+                        dataKey="co2AvoidedKg"
+                        name="CO₂ Avoided (kg)"
+                        stroke="#10b981"
                         strokeWidth={2.5}
-                        dot={{ r: 4, fill: "#8b5cf6" }}
+                        dot={{ r: 4, fill: "#10b981" }}
+                        activeDot={{ r: 6 }}
                       />
                     </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* ROW 3: Carpool Trips & Passenger Volume (Chart 5) */}
-          <Card className="border-slate-200 shadow-2xs">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-bold text-slate-900">
-                    Chart 5: Carpool Trips Completed & Passenger Volume Over Time
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-500">
-                    Correlating ride volume growth with platform adoption
-                  </CardDescription>
-                </div>
-                <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300">
-                  Adoption Growth
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="h-64 w-full">
-                {monthlyData.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                    No trip adoption data recorded yet.
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} />
-                      <YAxis stroke="#94a3b8" fontSize={11} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#ffffff",
-                          borderRadius: "12px",
-                          border: "1px solid #e2e8f0",
-                          fontSize: "12px",
-                        }}
-                      />
-                      <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
-                      <Bar dataKey="ridesCount" name="Completed Carpool Rides" fill="#0f172a" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="passengersCount" name="Carpool Passengers Carried" fill="#10b981" radius={[6, 6, 0, 0]} />
-                    </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
@@ -829,8 +592,232 @@ export default function AdminSustainabilityPage() {
         </div>
       )}
 
-      {/* METHODOLOGY & RESEARCH TRANSPARENCY SECTION */}
-      <Card className="border-slate-200 bg-slate-50/80 shadow-2xs">
+      {/* 5. Optional Expandable Section: Additional Environmental Insights */}
+      <div className="space-y-4 pt-1">
+        <button
+          type="button"
+          onClick={() => setIsInsightsExpanded((prev) => !prev)}
+          className="w-full flex items-center justify-between p-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all shadow-2xs group text-left cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
+              <Layers className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                Additional Environmental Insights
+              </span>
+              <p className="text-xs text-slate-500">
+                Secondary indicators, vehicle fleet occupancy curves, and multi-variable research charts.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+            <span>{isInsightsExpanded ? "Hide Secondary Data" : "View Secondary Data"}</span>
+            {isInsightsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </div>
+        </button>
+
+        {isInsightsExpanded && (
+          <div className="space-y-5 animate-in fade-in-50 duration-300">
+            {/* Secondary KPI Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {/* Secondary 1: Average Occupancy */}
+              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Average Occupancy</span>
+                <div className="text-lg font-black text-slate-900 mt-1">
+                  {analytics?.averageOccupancy ? `${analytics.averageOccupancy}` : "1.0"}
+                </div>
+                <span className="text-[10px] text-slate-400 block mt-0.5">Persons per active vehicle</span>
+              </div>
+
+              {/* Secondary 2: Estimated Carpool CO2 Emitted */}
+              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Carpool CO₂ Emitted</span>
+                <div className="text-lg font-black text-slate-800 mt-1">
+                  {analytics?.totalEstimatedCO2EmittedKg ?? 0} kg
+                </div>
+                <span className="text-[10px] text-slate-400 block mt-0.5">Actual fleet tailpipe output</span>
+              </div>
+
+              {/* Secondary 3: Mature Tree Equivalent */}
+              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Mature Tree Equivalent</span>
+                <div className="text-lg font-black text-emerald-700 mt-1 flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  ~{analytics?.equivalentTreesPlanted ?? 0}
+                </div>
+                <span className="text-[10px] text-slate-400 block mt-0.5">Annual absorption basis</span>
+              </div>
+
+              {/* Secondary 4: Solo Baseline Distance */}
+              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Solo Baseline Distance</span>
+                <div className="text-lg font-black text-slate-900 mt-1">
+                  {analytics?.totalSoloBaselineDistanceKm ?? 0} km
+                </div>
+                <span className="text-[10px] text-slate-400 block mt-0.5">Sum of individual solo routes</span>
+              </div>
+
+              {/* Secondary 5: Active Model */}
+              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs col-span-2 sm:col-span-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Active Baseline Model</span>
+                <div className="text-xs font-bold text-slate-800 mt-1 truncate" title={analytics?.activeEmissionFactorSource}>
+                  {analytics?.activeEmissionFactorSource || "IPCC / MoEFCC"}
+                </div>
+                <span className="text-[10px] text-slate-400 block mt-0.5 truncate" title={analytics?.activeSourceReference}>
+                  Configured factor registry
+                </span>
+              </div>
+            </div>
+
+            {/* Secondary Research Charts (Moved here from primary view) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Secondary Chart 1: Vehicle-Kilometers Reduced Over Time */}
+              <Card className="border-slate-200 shadow-2xs rounded-xl bg-white">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm font-bold text-slate-900">
+                        Vehicle-Kilometres Reduced (VKR) Over Time
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500">
+                        Cumulative reduction in urban road mileage (km)
+                      </CardDescription>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] text-blue-800 border-blue-300">
+                      Congestion Index
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="h-60 w-full">
+                    {monthlyData.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                        No VKR time series data available yet.
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} />
+                          <YAxis stroke="#94a3b8" fontSize={11} unit=" km" />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "#ffffff",
+                              borderRadius: "10px",
+                              border: "1px solid #e2e8f0",
+                              fontSize: "12px",
+                            }}
+                          />
+                          <Bar dataKey="vkrKm" name="VKR (km)" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Secondary Chart 2: Vehicle Occupancy vs CO2 per Occupant */}
+              <Card className="border-slate-200 shadow-2xs rounded-xl bg-white">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm font-bold text-slate-900">
+                        Vehicle Occupancy vs. CO₂ per Occupant
+                      </CardTitle>
+                      <CardDescription className="text-xs text-slate-500">
+                        Demonstrates that increasing vehicle occupancy reduces per-person emissions
+                      </CardDescription>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] text-purple-800 border-purple-300">
+                      Research Curve
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="h-60 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={occupancyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} />
+                        <YAxis stroke="#94a3b8" fontSize={11} unit=" kg" />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "#ffffff",
+                            borderRadius: "10px",
+                            border: "1px solid #e2e8f0",
+                            fontSize: "12px",
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+                        <Line
+                          type="monotone"
+                          dataKey="avgCO2PerOccupantKg"
+                          name="Avg CO₂ / Person (kg)"
+                          stroke="#8b5cf6"
+                          strokeWidth={2.5}
+                          dot={{ r: 4, fill: "#8b5cf6" }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Secondary Chart 3: Carpool Trips Completed and Passenger Volume Over Time */}
+            <Card className="border-slate-200 shadow-2xs rounded-xl bg-white">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm font-bold text-slate-900">
+                      Carpool Trips Completed and Passenger Volume Over Time
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      Correlating completed ride growth with commuter passenger volume
+                    </CardDescription>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300">
+                    Adoption Scale
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="h-60 w-full">
+                  {monthlyData.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                      No trip adoption data recorded yet.
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} />
+                        <YAxis stroke="#94a3b8" fontSize={11} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "#ffffff",
+                            borderRadius: "10px",
+                            border: "1px solid #e2e8f0",
+                            fontSize: "12px",
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+                        <Bar dataKey="ridesCount" name="Completed Carpool Rides" fill="#0f172a" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="passengersCount" name="Carpool Passengers Carried" fill="#10b981" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      {/* 6. Academic Research Methodology & Scientific Assumptions Card */}
+      <Card className="border-slate-200 bg-slate-50/80 shadow-2xs rounded-xl">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             <Info className="h-4 w-4 text-emerald-700" />
@@ -839,21 +826,22 @@ export default function AdminSustainabilityPage() {
             </CardTitle>
           </div>
           <CardDescription className="text-xs text-slate-500">
-            Formal disclosure for publication and thesis validation
+            Mathematical model for thesis and scientific publication validation
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-xs text-slate-600 leading-relaxed">
           <p>
-            <strong>Estimation Notice:</strong> CommuteX estimates CO₂ emissions using travel distance and an emission factor expressed in grams of CO₂ per kilometre:
+            <strong>Estimation Notice:</strong> CommuteX calculates CO₂ emissions using verified travel distance and vehicle-specific emission factors expressed in grams of CO₂ per kilometre:
           </p>
           <div className="p-3 bg-white rounded-xl border border-slate-200 font-mono text-slate-800 text-[11px] space-y-1">
             <div>CO₂ Emissions (g) = Travel Distance (km) × Emission Factor (g CO₂/km)</div>
             <div>CO₂ Emissions (kg) = CO₂ Emissions (g) / 1000</div>
-            <div>CO₂ Avoided (kg) = Total Passenger Solo Baseline CO₂ − Actual Carpool Vehicle CO₂</div>
-            <div>Vehicle-Km Reduced (VKR) = Total Solo Distance − Actual Carpool Distance</div>
+            <div>CO₂ Avoided (kg) = Solo Baseline Emissions (kg) − Actual Carpool Emissions (kg)</div>
+            <div>Vehicle-Kilometres Reduced (VKR) = Solo Baseline Distance (km) − Actual Carpool Distance (km)</div>
+            <div>CO₂ Reduction % = (CO₂ Avoided / Solo Baseline Emissions) × 100</div>
           </div>
           <p>
-            The calculated values represent <strong>computational estimates rather than direct tailpipe measurements</strong>. Actual vehicle emissions may vary based on vehicle mechanical condition, route traffic congestion, individual driving behaviour, ambient temperature, air conditioning usage, fuel efficiency, and vehicle passenger load.
+            The calculated values represent <strong>rigorous computational estimates</strong> based on IPCC 2006 guidelines and the India GHG Platform. Actual vehicle emissions may vary based on vehicle maintenance condition, traffic congestion, driver habits, air conditioning load, and passenger weight.
           </p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-[11px] text-slate-500 pt-1 border-t border-slate-200">
             <div>
@@ -871,8 +859,8 @@ export default function AdminSustainabilityPage() {
         </CardContent>
       </Card>
 
-      {/* CONFIGURABLE EMISSION FACTORS MANAGEMENT TABLE */}
-      <Card className="border-slate-200 shadow-2xs">
+      {/* 7. Configurable Emission Factors Registry Table */}
+      <Card className="border-slate-200 shadow-2xs rounded-xl bg-white">
         <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <CardTitle className="text-sm font-bold text-slate-900">
@@ -886,7 +874,7 @@ export default function AdminSustainabilityPage() {
             size="sm"
             variant="outline"
             onClick={handleOpenAddFactor}
-            className="h-8 gap-1.5 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+            className="h-8 gap-1.5 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 rounded-lg"
           >
             <Plus className="h-3.5 w-3.5" /> Add New Factor
           </Button>
@@ -939,7 +927,7 @@ export default function AdminSustainabilityPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => handleOpenEditFactor(f)}
-                        className="h-7 px-2 text-[11px] text-slate-600 hover:text-slate-900"
+                        className="h-7 px-2 text-[11px] text-slate-600 hover:text-slate-900 rounded-md"
                       >
                         <Edit2 className="h-3 w-3 mr-1" /> Edit
                       </Button>
@@ -947,7 +935,7 @@ export default function AdminSustainabilityPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => handleToggleActive(f)}
-                        className={`h-7 px-2 text-[11px] ${
+                        className={`h-7 px-2 text-[11px] rounded-md ${
                           f.isActive ? "text-amber-600 hover:text-amber-700" : "text-emerald-600 hover:text-emerald-700"
                         }`}
                       >
@@ -962,7 +950,7 @@ export default function AdminSustainabilityPage() {
         </CardContent>
       </Card>
 
-      {/* CALCULATION TRANSPARENCY DIALOG */}
+      {/* 8. Calculation Transparency Dialog */}
       <Dialog open={showCalculationModal} onOpenChange={setShowCalculationModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -971,7 +959,7 @@ export default function AdminSustainabilityPage() {
               Carbon Emission Calculation Methodology
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Complete mathematical model used across CommuteX research analysis
+              Complete mathematical model used across CommuteX sustainability analysis
             </DialogDescription>
           </DialogHeader>
 
@@ -979,39 +967,39 @@ export default function AdminSustainabilityPage() {
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <span className="font-bold text-slate-900 block">1. Solo Commuting Baseline Formula</span>
               <p className="text-[11px] text-slate-600">
-                For each accepted passenger, the system evaluates individual travel distance (origin to destination) if they had driven solo:
+                For each accepted passenger, the system evaluates their individual route distance if they had driven a solo personal vehicle:
               </p>
               <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Solo Passenger CO₂ (kg) = Solo Distance (km) × Factor (g/km) / 1000
+                Solo Passenger CO₂ (kg) = Solo Distance (km) × Baseline Factor (g/km) / 1000
               </div>
               <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Total Solo Baseline = ∑(All Passenger Solo CO₂)
+                Total Solo Baseline CO₂ = ∑(All Passenger Solo CO₂)
               </div>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <span className="font-bold text-slate-900 block">2. Actual Physical Carpool Emissions</span>
               <p className="text-[11px] text-slate-600">
-                The carpool vehicle physically drives its actual route distance (sourced from GPS telemetry when available, or OSRM route calculation):
+                The carpool vehicle travels its physical route distance (sourced from GPS telemetry when available, or OSRM route calculation):
               </p>
               <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
                 Actual Carpool CO₂ (kg) = Actual Vehicle Distance (km) × Vehicle Factor (g/km) / 1000
               </div>
               <p className="text-[10px] text-amber-700 font-medium">
-                Note: Total vehicle emissions are never artificially divided by passenger count; the car travels its physical route.
+                Note: Total vehicle emissions are never artificially divided by passenger count; the car physically emits its actual route total.
               </p>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <span className="font-bold text-slate-900 block">3. Net Environmental Savings</span>
               <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                CO₂ Avoided (kg) = Total Solo Baseline − Actual Carpool CO₂
+                CO₂ Avoided (kg) = Total Solo Baseline CO₂ − Actual Carpool CO₂
               </div>
               <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Vehicle-Km Reduced (VKR) = Total Solo Distance − Actual Vehicle Distance
+                Vehicle-Kilometres Reduced (VKR) = Total Solo Distance − Actual Carpool Distance
               </div>
               <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                CO₂ Reduction % = (CO₂ Avoided / Total Solo Baseline) × 100
+                CO₂ Reduction % = (CO₂ Avoided / Total Solo Baseline CO₂) × 100
               </div>
             </div>
           </div>
@@ -1020,7 +1008,7 @@ export default function AdminSustainabilityPage() {
             <Button
               size="sm"
               onClick={() => setShowCalculationModal(false)}
-              className="bg-slate-900 text-white text-xs"
+              className="bg-slate-900 text-white text-xs rounded-lg"
             >
               Close
             </Button>
@@ -1028,7 +1016,7 @@ export default function AdminSustainabilityPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ADD / EDIT EMISSION FACTOR DIALOG */}
+      {/* 9. Add / Edit Emission Factor Dialog */}
       <Dialog open={isFactorDialogOpen} onOpenChange={setIsFactorDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleFactorSubmit}>
@@ -1183,7 +1171,7 @@ export default function AdminSustainabilityPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsFactorDialogOpen(false)}
-                className="text-xs"
+                className="text-xs rounded-lg"
               >
                 Cancel
               </Button>
@@ -1191,7 +1179,7 @@ export default function AdminSustainabilityPage() {
                 type="submit"
                 size="sm"
                 disabled={factorSubmitting}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5 rounded-lg"
               >
                 {factorSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {editingFactor ? "Save Changes" : "Create Factor"}
