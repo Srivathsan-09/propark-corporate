@@ -71,6 +71,7 @@ export interface IDiagnosticRideItem {
   carpoolEmissionsKg: number;
   grossDifferenceKg: number;
   avoidedEmissionsKg: number;
+  netEmissionsIncreaseKg?: number;
   reductionPercentage: number;
   dataCompleteness: "COMPLETE" | "INCOMPLETE";
   dataCompletenessReason: string;
@@ -87,6 +88,7 @@ interface ISustainabilityAnalytics {
   totalEstimatedCO2EmittedKg: number;
   totalEstimatedCO2AvoidedKg: number;
   grossDifferenceKg?: number;
+  netEmissionsIncreaseKg?: number;
   averageOccupancy: number;
   averageCO2SavingPerRideKg: number;
   averageCO2SavingPerPassengerKg: number;
@@ -289,22 +291,42 @@ export default function AdminSustainabilityPage() {
   // Solo baseline vs Carpool emissions calculations (safe independent aggregation & honest reporting)
   const soloBaselineCO2 =
     analytics?.totalSoloBaselineCO2Kg !== undefined
-      ? analytics.totalSoloBaselineCO2Kg
-      : (analytics?.totalEstimatedCO2EmittedKg || 0) + (analytics?.totalEstimatedCO2AvoidedKg || 0);
-  const actualCarpoolCO2 = analytics?.totalEstimatedCO2EmittedKg || 0;
-  const co2Avoided = analytics?.totalEstimatedCO2AvoidedKg || 0;
-  const grossDiff =
-    analytics?.grossDifferenceKg !== undefined
-      ? analytics.grossDifferenceKg
+      ? Math.round(analytics.totalSoloBaselineCO2Kg * 100) / 100
+      : 0;
+  const actualCarpoolCO2 =
+    analytics?.totalEstimatedCO2EmittedKg !== undefined
+      ? Math.round(analytics.totalEstimatedCO2EmittedKg * 100) / 100
+      : 0;
+
+  // Net CO₂ avoided = Solo baseline emissions - Actual carpool emissions
+  const co2Avoided =
+    analytics?.totalEstimatedCO2AvoidedKg !== undefined
+      ? analytics.totalEstimatedCO2AvoidedKg
       : Math.round((soloBaselineCO2 - actualCarpoolCO2) * 100) / 100;
-  const reductionPct = analytics?.co2ReductionPercentage ?? 0;
+
+  // Net emissions increase = Actual carpool emissions - Solo baseline emissions (when positive)
+  const netEmissionsIncrease =
+    analytics?.netEmissionsIncreaseKg !== undefined
+      ? analytics.netEmissionsIncreaseKg
+      : Math.max(0, Math.round((actualCarpoolCO2 - soloBaselineCO2) * 100) / 100);
+
+  const isNetIncrease = actualCarpoolCO2 > soloBaselineCO2;
+  const isEqual = actualCarpoolCO2 === soloBaselineCO2;
+
+  // Reduction % = (Net CO₂ avoided / Solo baseline emissions) * 100
+  const reductionPct =
+    analytics?.co2ReductionPercentage !== undefined
+      ? analytics.co2ReductionPercentage
+      : soloBaselineCO2 > 0
+      ? Math.round((co2Avoided / soloBaselineCO2) * 100 * 100) / 100
+      : 0;
 
   // Comparison Bar Chart Data (Chart 1)
   const comparisonBarData = [
     {
       name: "Total Emissions",
-      "Solo Driving (Baseline)": Math.round(soloBaselineCO2 * 10) / 10,
-      "CommuteX Shared Carpool": Math.round(actualCarpoolCO2 * 10) / 10,
+      "Solo Driving (Baseline)": soloBaselineCO2,
+      "CommuteX Shared Carpool": actualCarpoolCO2,
     },
   ];
 
@@ -360,27 +382,31 @@ export default function AdminSustainabilityPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <Leaf className="h-5 w-5 text-emerald-400" />
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                <Leaf className={`h-5 w-5 ${isNetIncrease ? "text-rose-400" : "text-emerald-400"}`} />
+                <span className={`text-xs font-bold uppercase tracking-wider ${isNetIncrease ? "text-rose-300" : "text-emerald-400"}`}>
                   Quantitative Environmental Impact Summary
                 </span>
               </div>
               <h2 className="text-2xl font-black tracking-tight text-white mt-1">
                 {isLoading ? (
                   <Skeleton className="h-8 w-48 bg-slate-700" />
-                ) : co2Avoided < 0 ? (
+                ) : isNetIncrease ? (
                   <span>
-                    {co2Avoided.toLocaleString()} kg CO₂ Avoided{" "}
+                    +{netEmissionsIncrease.toLocaleString()} kg Net Emissions Increase{" "}
                     <span className="text-sm font-semibold text-rose-300">
-                      (+{Math.abs(co2Avoided).toLocaleString()} kg Net Increase)
+                      ({co2Avoided.toLocaleString()} kg CO₂ Avoided)
                     </span>
                   </span>
+                ) : isEqual ? (
+                  <span>No Net Emissions Change (0 kg)</span>
                 ) : (
-                  `${co2Avoided > 0 ? "+" : ""}${co2Avoided.toLocaleString()} kg CO₂ Avoided`
+                  `+${co2Avoided.toLocaleString()} kg CO₂ Avoided`
                 )}
               </h2>
               <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                Cumulative carbon emissions saved across completed campus carpool rides compared to if each passenger had driven an individual solo vehicle.
+                {isNetIncrease
+                  ? `Actual carpool emissions (${actualCarpoolCO2.toLocaleString()} kg) exceed the solo commuting baseline (${soloBaselineCO2.toLocaleString()} kg) by ${netEmissionsIncrease.toLocaleString()} kg CO₂ due to vehicle route distance exceeding passenger solo travel.`
+                  : "Cumulative carbon emissions saved across completed campus carpool rides compared to if each passenger had driven an individual solo vehicle."}
               </p>
             </div>
 
@@ -418,40 +444,52 @@ export default function AdminSustainabilityPage() {
               <span className="text-[10px] text-slate-400 block mt-0.5">Actual vehicle emissions</span>
             </div>
 
-            {/* 3. Estimated CO2 Avoided */}
+            {/* 3. CO2 Avoided / Net Emissions Increase / No Net Emissions Change */}
             <div
               className={`p-3.5 rounded-xl border ${
-                co2Avoided < 0
+                isNetIncrease
                   ? "bg-rose-950/40 border-rose-500/40"
+                  : isEqual
+                  ? "bg-slate-800/60 border-slate-700"
                   : "bg-emerald-900/30 border-emerald-500/40"
               }`}
             >
               <span
                 className={`text-[11px] font-semibold block uppercase tracking-wider ${
-                  co2Avoided < 0 ? "text-rose-300" : "text-emerald-300"
+                  isNetIncrease ? "text-rose-300" : isEqual ? "text-slate-400" : "text-emerald-300"
                 }`}
               >
-                Estimated CO₂ Avoided
+                {co2Avoided > 0
+                  ? "CO₂ Avoided"
+                  : isNetIncrease
+                  ? "Net Emissions Increase"
+                  : "No Net Emissions Change"}
               </span>
               <div
                 className={`text-xl font-black mt-1 ${
-                  co2Avoided < 0 ? "text-rose-400" : "text-emerald-400"
+                  isNetIncrease ? "text-rose-400" : isEqual ? "text-slate-300" : "text-emerald-400"
                 }`}
               >
                 {isLoading ? (
                   <Skeleton className="h-6 w-20 bg-slate-700" />
+                ) : isNetIncrease ? (
+                  `+${netEmissionsIncrease.toLocaleString()} kg`
+                ) : isEqual ? (
+                  "0.00 kg"
                 ) : (
-                  `${co2Avoided.toLocaleString()} kg`
+                  `+${co2Avoided.toLocaleString()} kg`
                 )}
               </div>
               <span
                 className={`text-[10px] block mt-0.5 ${
-                  co2Avoided < 0 ? "text-rose-300 font-medium" : "text-emerald-300"
+                  isNetIncrease ? "text-rose-300 font-medium" : isEqual ? "text-slate-400" : "text-emerald-300"
                 }`}
               >
-                {co2Avoided < 0
-                  ? `Net Increase: +${Math.abs(co2Avoided).toLocaleString()} kg`
-                  : "Baseline − Actual Carpool"}
+                {isNetIncrease
+                  ? `CO₂ Avoided: ${co2Avoided.toLocaleString()} kg`
+                  : isEqual
+                  ? "Carpool equals baseline"
+                  : "Solo Baseline − Carpool"}
               </span>
             </div>
 
@@ -460,19 +498,21 @@ export default function AdminSustainabilityPage() {
               className={`p-3.5 rounded-xl border ${
                 reductionPct < 0
                   ? "bg-rose-950/40 border-rose-500/40"
+                  : isEqual
+                  ? "bg-slate-800/60 border-slate-700"
                   : "bg-emerald-900/30 border-emerald-500/40"
               }`}
             >
               <span
                 className={`text-[11px] font-semibold block uppercase tracking-wider ${
-                  reductionPct < 0 ? "text-rose-300" : "text-emerald-300"
+                  reductionPct < 0 ? "text-rose-300" : isEqual ? "text-slate-400" : "text-emerald-300"
                 }`}
               >
                 CO₂ Reduction Percentage
               </span>
               <div
                 className={`text-xl font-black mt-1 ${
-                  reductionPct < 0 ? "text-rose-400" : "text-emerald-400"
+                  reductionPct < 0 ? "text-rose-400" : isEqual ? "text-slate-300" : "text-emerald-400"
                 }`}
               >
                 {isLoading ? (
@@ -483,10 +523,14 @@ export default function AdminSustainabilityPage() {
               </div>
               <span
                 className={`text-[10px] block mt-0.5 ${
-                  reductionPct < 0 ? "text-rose-300 font-medium" : "text-emerald-300"
+                  reductionPct < 0 ? "text-rose-300 font-medium" : isEqual ? "text-slate-400" : "text-emerald-300"
                 }`}
               >
-                {reductionPct < 0 ? "Net emissions increase" : "Net carbon reduction ratio"}
+                {reductionPct < 0
+                  ? `Net emissions increase (+${netEmissionsIncrease.toLocaleString()} kg)`
+                  : isEqual
+                  ? "Zero net change"
+                  : "Net carbon reduction ratio"}
               </span>
             </div>
           </div>
@@ -973,7 +1017,7 @@ export default function AdminSustainabilityPage() {
                     <th className="py-2.5 px-3">Shared Vehicle Dist</th>
                     <th className="py-2.5 px-3">Carpool CO₂</th>
                     <th className="py-2.5 px-3">Gross Diff</th>
-                    <th className="py-2.5 px-3">Avoided CO₂</th>
+                    <th className="py-2.5 px-3">Net Avoided / Increase</th>
                     <th className="py-2.5 px-3">Reduction %</th>
                     <th className="py-2.5 px-3">Data Completeness</th>
                   </tr>
@@ -1006,8 +1050,19 @@ export default function AdminSustainabilityPage() {
                           {d.grossDifferenceKg >= 0 ? `+${d.grossDifferenceKg}` : d.grossDifferenceKg} kg
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">
-                        {d.avoidedEmissionsKg} kg
+                      <td className="py-2.5 px-3 font-mono font-bold">
+                        {d.avoidedEmissionsKg > 0 ? (
+                          <span className="text-emerald-700">+{d.avoidedEmissionsKg} kg</span>
+                        ) : d.avoidedEmissionsKg < 0 ? (
+                          <span className="text-rose-600">
+                            {d.avoidedEmissionsKg} kg{" "}
+                            <span className="text-[10px] font-normal text-rose-500">
+                              (+{Math.abs(d.avoidedEmissionsKg)} kg Increase)
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">0.00 kg</span>
+                        )}
                       </td>
                       <td className="py-2.5 px-3 font-mono">
                         <span className={d.reductionPercentage >= 0 ? "text-emerald-700 font-bold" : "text-rose-600 font-bold"}>
@@ -1173,16 +1228,22 @@ export default function AdminSustainabilityPage() {
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <span className="font-bold text-slate-900 block">3. Net Environmental Savings</span>
+              <span className="font-bold text-slate-900 block">3. Net Environmental Savings & Reporting Formulas</span>
               <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                CO₂ Avoided (kg) = Total Solo Baseline CO₂ − Actual Carpool CO₂
+                Net CO₂ Avoided (kg) = Total Solo Baseline CO₂ − Actual Carpool CO₂
+              </div>
+              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
+                CO₂ Reduction % = (Net CO₂ Avoided / Total Solo Baseline CO₂) × 100
+              </div>
+              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
+                Net Emissions Increase (kg) = Actual Carpool CO₂ − Total Solo Baseline CO₂ (when carpool &gt; solo)
               </div>
               <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
                 Vehicle-Kilometres Reduced (VKR) = Total Solo Distance − Actual Carpool Distance
               </div>
-              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                CO₂ Reduction % = (CO₂ Avoided / Total Solo Baseline CO₂) × 100
-              </div>
+              <p className="text-[10px] text-slate-600">
+                Dashboard wording follows physical reality: positive savings are reported as <strong>CO₂ Avoided</strong>, emissions increases are reported as <strong>Net Emissions Increase</strong>, and equal values are labeled <strong>No Net Emissions Change</strong>.
+              </p>
             </div>
           </div>
 

@@ -232,8 +232,9 @@ export async function calculateRideCarbonEmissions(
 
   // Actual carpool emissions: Physical distance travelled by vehicle × factor / 1000
   // Note: We do NOT divide by passenger count. The car physically drives its route!
-  const actualCarpoolCO2Kg =
-    Math.round(((actualCarpoolDistanceKm * driverFactor.gramsCO2PerKm) / 1000) * 1000) / 1000;
+  const carpoolGrams = actualCarpoolDistanceKm * driverFactor.gramsCO2PerKm;
+  const rawCarpoolKg = Math.round(carpoolGrams) / 1000;
+  const actualCarpoolCO2Kg = Math.round(rawCarpoolKg * 100) / 100;
 
   // 3. Calculate Solo Commute Baseline for Accepted Passengers
   const acceptedRequests = (ride.requests || []).filter((r: any) => r.status === "accepted");
@@ -265,7 +266,7 @@ export async function calculateRideCarbonEmissions(
 
   const passengerRecords: any[] = [];
   let soloBaselineDistanceKm = 0;
-  let soloBaselineCO2Kg = 0;
+  let rawSoloBaselineKg = 0;
   let dataCompleteness: "COMPLETE" | "INCOMPLETE" = "COMPLETE";
   const missingReasons: string[] = [];
   let dataCompletenessReason = "";
@@ -310,18 +311,19 @@ export async function calculateRideCarbonEmissions(
         pSoloDist = 0;
       }
 
-      const pSoloCO2 =
-        Math.round(((pSoloDist * passengerBaselineFactor.gramsCO2PerKm) / 1000) * 1000) / 1000;
+      const pGrams = pSoloDist * passengerBaselineFactor.gramsCO2PerKm;
+      const pSoloCO2 = Math.round(pGrams) / 1000;
+      const pSoloCO2Display = Math.round(pSoloCO2 * 100) / 100;
 
       soloBaselineDistanceKm += pSoloDist;
-      soloBaselineCO2Kg += pSoloCO2;
+      rawSoloBaselineKg += pSoloCO2;
 
       passengerRecords.push({
         userId: req.passenger?._id || req.passenger,
         pickupStop: req.pickupStop,
         dropStop: req.dropStop,
         soloDistanceKm: pSoloDist,
-        soloEmissionKg: pSoloCO2,
+        soloEmissionKg: pSoloCO2Display,
         emissionFactorUsed: {
           gramsCO2PerKm: passengerBaselineFactor.gramsCO2PerKm,
           source: passengerBaselineFactor.source,
@@ -332,14 +334,13 @@ export async function calculateRideCarbonEmissions(
   }
 
   soloBaselineDistanceKm = Math.round(soloBaselineDistanceKm * 100) / 100;
-  soloBaselineCO2Kg = Math.round(soloBaselineCO2Kg * 1000) / 1000;
+  const soloBaselineCO2Kg = Math.round(rawSoloBaselineKg * 100) / 100;
 
   // 4. Calculate Environmental Savings
-  // Raw difference (negative when carpool emissions exceed solo baseline)
-  const grossDifferenceKg = Math.round((soloBaselineCO2Kg - actualCarpoolCO2Kg) * 1000) / 1000;
-
-  // Net CO2 Avoided (solo baseline - actual carpool). Retains negative result when carpool emissions exceed solo baseline!
+  // Net CO2 Avoided = Solo Baseline - Actual Carpool (negative when carpool emissions exceed solo baseline)
+  const grossDifferenceKg = Math.round((soloBaselineCO2Kg - actualCarpoolCO2Kg) * 100) / 100;
   const co2SavedKg = grossDifferenceKg;
+  const netEmissionsIncreaseKg = Math.max(0, Math.round((actualCarpoolCO2Kg - soloBaselineCO2Kg) * 100) / 100);
 
   // Vehicle-Kilometers Reduced (VKR)
   const vehicleKilometersReduced = Math.round(
@@ -350,7 +351,7 @@ export async function calculateRideCarbonEmissions(
   let co2ReductionPercentage = 0;
   if (soloBaselineCO2Kg > 0) {
     co2ReductionPercentage =
-      Math.round((grossDifferenceKg / soloBaselineCO2Kg) * 100 * 10) / 10;
+      Math.round((grossDifferenceKg / soloBaselineCO2Kg) * 100 * 100) / 100;
   }
 
   if (dataCompleteness === "INCOMPLETE") {
@@ -377,6 +378,7 @@ export async function calculateRideCarbonEmissions(
         actualCarpoolCO2Kg,
         co2SavedKg,
         grossDifferenceKg,
+        netEmissionsIncreaseKg,
         co2ReductionPercentage,
         vehicleKilometersReduced,
         occupancy,
@@ -455,30 +457,34 @@ export async function getUserCarbonStats(userId: string) {
     totalSoloBaselineCO2Kg += r.soloBaselineCO2Kg || 0;
   }
 
+  const roundedSolo = Math.round(totalSoloBaselineCO2Kg * 100) / 100;
+  const roundedEmitted = Math.round(totalActualCarpoolCO2Kg * 100) / 100;
+  const totalNetCO2AvoidedKg = Math.round((roundedSolo - roundedEmitted) * 100) / 100;
+  const netEmissionsIncreaseKg = Math.max(0, Math.round((roundedEmitted - roundedSolo) * 100) / 100);
+
   const averageOccupancy = Math.round((sumOccupancy / carpoolRidesCount) * 10) / 10;
-  const averageCO2SavedPerRideKg = Math.round((totalCO2SavedKg / carpoolRidesCount) * 100) / 100;
+  const averageCO2SavedPerRideKg = Math.round((totalNetCO2AvoidedKg / carpoolRidesCount) * 100) / 100;
   const averageCO2SavedPerPassengerKg =
-    totalPassengers > 0 ? Math.round((totalCO2SavedKg / totalPassengers) * 100) / 100 : 0;
+    totalPassengers > 0 ? Math.round((totalNetCO2AvoidedKg / totalPassengers) * 100) / 100 : 0;
 
   const overallReductionPercentage =
-    totalSoloBaselineCO2Kg > 0
-      ? Math.round(
-          ((totalSoloBaselineCO2Kg - totalActualCarpoolCO2Kg) / totalSoloBaselineCO2Kg) * 100 * 10
-        ) / 10
+    roundedSolo > 0
+      ? Math.round(((totalNetCO2AvoidedKg) / roundedSolo) * 100 * 100) / 100
       : 0;
 
   // 1 mature tree absorbs ~21.77 kg CO2 per year (US EPA standard benchmark, applicable when avoided > 0)
-  const equivalentTreesPlanted = totalCO2SavedKg > 0 ? Math.round((totalCO2SavedKg / 21.77) * 10) / 10 : 0;
+  const equivalentTreesPlanted = totalNetCO2AvoidedKg > 0 ? Math.round((totalNetCO2AvoidedKg / 21.77) * 10) / 10 : 0;
 
   return {
-    totalCO2SavedKg: Math.round(totalCO2SavedKg * 100) / 100,
+    totalCO2SavedKg: totalNetCO2AvoidedKg,
+    netEmissionsIncreaseKg,
     totalVKRKm: Math.round(totalVKRKm * 100) / 100,
     carpoolRidesCount,
     averageOccupancy,
     averageCO2SavedPerRideKg,
     averageCO2SavedPerPassengerKg,
-    totalActualCarpoolCO2Kg: Math.round(totalActualCarpoolCO2Kg * 100) / 100,
-    totalSoloBaselineCO2Kg: Math.round(totalSoloBaselineCO2Kg * 100) / 100,
+    totalActualCarpoolCO2Kg: roundedEmitted,
+    totalSoloBaselineCO2Kg: roundedSolo,
     overallReductionPercentage,
     equivalentTreesPlanted,
   };
@@ -494,6 +500,7 @@ export interface DiagnosticRideItem {
   carpoolEmissionsKg: number;
   grossDifferenceKg: number;
   avoidedEmissionsKg: number;
+  netEmissionsIncreaseKg: number;
   reductionPercentage: number;
   dataCompleteness: "COMPLETE" | "INCOMPLETE";
   dataCompletenessReason: string;
@@ -519,6 +526,7 @@ export interface CalculationResult {
   actualCarpoolCO2Kg: number;
   grossDifferenceKg: number;
   co2SavedKg: number;
+  netEmissionsIncreaseKg: number;
   co2ReductionPercentage: number;
   vehicleKilometersReduced: number;
   passengerCount: number;
@@ -532,13 +540,15 @@ export interface CalculationResult {
 export function computeSustainabilityFigures(input: CalculationInput): CalculationResult {
   const actualCarpoolDistanceKm = Math.max(0, input.actualCarpoolDistanceKm || 0);
   const driverFactor = input.driverGramsCO2PerKm || 150;
-  const actualCarpoolCO2Kg =
-    Math.round(((actualCarpoolDistanceKm * driverFactor) / 1000) * 1000) / 1000;
+  // Calculate to nearest gram (0.001 kg), then round to 2 decimal places for consistent display
+  const carpoolGrams = actualCarpoolDistanceKm * driverFactor;
+  const rawCarpoolKg = Math.round(carpoolGrams) / 1000;
+  const actualCarpoolCO2Kg = Math.round(rawCarpoolKg * 100) / 100;
 
   const passengers = input.passengers || [];
   const passengerCount = passengers.length;
   let soloBaselineDistanceKm = 0;
-  let soloBaselineCO2Kg = 0;
+  let rawSoloBaselineKg = 0;
   let dataCompleteness: "COMPLETE" | "INCOMPLETE" = "COMPLETE";
   const missingReasons: string[] = [];
 
@@ -551,13 +561,15 @@ export function computeSustainabilityFigures(input: CalculationInput): Calculati
     dataCompleteness = "COMPLETE";
     const dataCompletenessReason =
       "Single-occupant trip (0 passengers). Baseline emissions are 0 kg.";
+    const netDiff = Math.round((0 - actualCarpoolCO2Kg) * 100) / 100;
     return {
       soloBaselineDistanceKm: 0,
       actualCarpoolDistanceKm,
       soloBaselineCO2Kg: 0,
       actualCarpoolCO2Kg,
-      grossDifferenceKg: Math.round((0 - actualCarpoolCO2Kg) * 1000) / 1000,
-      co2SavedKg: Math.round((0 - actualCarpoolCO2Kg) * 1000) / 1000,
+      grossDifferenceKg: netDiff,
+      co2SavedKg: netDiff,
+      netEmissionsIncreaseKg: actualCarpoolCO2Kg,
       co2ReductionPercentage: 0,
       vehicleKilometersReduced: Math.round((0 - actualCarpoolDistanceKm) * 100) / 100,
       passengerCount: 0,
@@ -577,16 +589,18 @@ export function computeSustainabilityFigures(input: CalculationInput): Calculati
     }
 
     const factor = p.gramsCO2PerKm || 150;
-    const pCO2 = Math.round(((pDist * factor) / 1000) * 1000) / 1000;
+    const pGrams = pDist * factor;
+    const pCO2 = Math.round(pGrams) / 1000;
     soloBaselineDistanceKm += pDist;
-    soloBaselineCO2Kg += pCO2;
+    rawSoloBaselineKg += pCO2;
   }
 
   soloBaselineDistanceKm = Math.round(soloBaselineDistanceKm * 100) / 100;
-  soloBaselineCO2Kg = Math.round(soloBaselineCO2Kg * 1000) / 1000;
+  const soloBaselineCO2Kg = Math.round(rawSoloBaselineKg * 100) / 100;
 
-  const grossDifferenceKg = Math.round((soloBaselineCO2Kg - actualCarpoolCO2Kg) * 1000) / 1000;
+  const grossDifferenceKg = Math.round((soloBaselineCO2Kg - actualCarpoolCO2Kg) * 100) / 100;
   const co2SavedKg = grossDifferenceKg;
+  const netEmissionsIncreaseKg = Math.max(0, Math.round((actualCarpoolCO2Kg - soloBaselineCO2Kg) * 100) / 100);
   const vehicleKilometersReduced = Math.round(
     (soloBaselineDistanceKm - actualCarpoolDistanceKm) * 100
   ) / 100;
@@ -594,7 +608,7 @@ export function computeSustainabilityFigures(input: CalculationInput): Calculati
   let co2ReductionPercentage = 0;
   if (soloBaselineCO2Kg > 0) {
     co2ReductionPercentage =
-      Math.round((grossDifferenceKg / soloBaselineCO2Kg) * 100 * 10) / 10;
+      Math.round((grossDifferenceKg / soloBaselineCO2Kg) * 100 * 100) / 100;
   }
 
   let dataCompletenessReason = "";
@@ -611,6 +625,7 @@ export function computeSustainabilityFigures(input: CalculationInput): Calculati
     actualCarpoolCO2Kg,
     grossDifferenceKg,
     co2SavedKg,
+    netEmissionsIncreaseKg,
     co2ReductionPercentage,
     vehicleKilometersReduced,
     passengerCount,
@@ -676,14 +691,14 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
       }
     }
 
-    const rideGrossDiff =
-      r.grossDifferenceKg !== undefined
-        ? r.grossDifferenceKg
-        : Math.round(((r.soloBaselineCO2Kg || 0) - (r.actualCarpoolCO2Kg || 0)) * 1000) / 1000;
+    const rideSoloBaseline = Math.round((r.soloBaselineCO2Kg || 0) * 100) / 100;
+    const rideCarpoolEmissions = Math.round((r.actualCarpoolCO2Kg || 0) * 100) / 100;
+    const rideGrossDiff = Math.round((rideSoloBaseline - rideCarpoolEmissions) * 100) / 100;
+    const rideNetIncrease = Math.max(0, Math.round((rideCarpoolEmissions - rideSoloBaseline) * 100) / 100);
 
     const rideReductionPct =
-      (r.soloBaselineCO2Kg || 0) > 0
-        ? Math.round((rideGrossDiff / (r.soloBaselineCO2Kg || 1)) * 100 * 10) / 10
+      rideSoloBaseline > 0
+        ? Math.round((rideGrossDiff / rideSoloBaseline) * 100 * 100) / 100
         : 0;
 
     diagnostics.push({
@@ -691,11 +706,12 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
       passengerCount: r.passengerCount || 0,
       soloDistancePerPassenger: soloDistancesStr,
       soloDistances,
-      soloBaselineCO2Kg: Math.round((r.soloBaselineCO2Kg || 0) * 1000) / 1000,
+      soloBaselineCO2Kg: rideSoloBaseline,
       actualSharedVehicleDistanceKm: Math.round((r.actualCarpoolDistanceKm || 0) * 100) / 100,
-      carpoolEmissionsKg: Math.round((r.actualCarpoolCO2Kg || 0) * 1000) / 1000,
-      grossDifferenceKg: Math.round(rideGrossDiff * 1000) / 1000,
-      avoidedEmissionsKg: Math.round(rideGrossDiff * 1000) / 1000,
+      carpoolEmissionsKg: rideCarpoolEmissions,
+      grossDifferenceKg: rideGrossDiff,
+      avoidedEmissionsKg: rideGrossDiff,
+      netEmissionsIncreaseKg: rideNetIncrease,
       reductionPercentage: rideReductionPct,
       dataCompleteness: completeness,
       dataCompletenessReason: completenessReason,
@@ -703,15 +719,17 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
     });
   }
 
-  totalSoloBaselineCO2Kg = Math.round(totalSoloBaselineCO2Kg * 1000) / 1000;
-  totalEstimatedCO2EmittedKg = Math.round(totalEstimatedCO2EmittedKg * 1000) / 1000;
+  const totalSoloBaseline = Math.round(totalSoloBaselineCO2Kg * 100) / 100;
+  const totalCarpoolEmissions = Math.round(totalEstimatedCO2EmittedKg * 100) / 100;
   // Net CO2 Avoided = Solo Baseline - Actual Carpool. Retains negative result when carpool exceeds baseline!
   const totalNetCO2AvoidedKg =
-    Math.round((totalSoloBaselineCO2Kg - totalEstimatedCO2EmittedKg) * 1000) / 1000;
+    Math.round((totalSoloBaseline - totalCarpoolEmissions) * 100) / 100;
+  // Net Emissions Increase = Actual Carpool - Solo Baseline (when positive, else 0)
+  const netEmissionsIncreaseKg = Math.max(0, Math.round((totalCarpoolEmissions - totalSoloBaseline) * 100) / 100);
 
   const co2ReductionPercentage =
-    totalSoloBaselineCO2Kg > 0
-      ? Math.round((totalNetCO2AvoidedKg / totalSoloBaselineCO2Kg) * 100 * 10) / 10
+    totalSoloBaseline > 0
+      ? Math.round((totalNetCO2AvoidedKg / totalSoloBaseline) * 100 * 100) / 100
       : 0;
 
   const averageOccupancy =
@@ -734,10 +752,11 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
     totalCarpoolDistanceKm: Math.round(totalCarpoolDistanceKm * 100) / 100,
     totalSoloBaselineDistanceKm: Math.round(totalSoloBaselineDistanceKm * 100) / 100,
     vehicleKilometersReducedKm: Math.round(totalVKRKm * 100) / 100,
-    totalSoloBaselineCO2Kg: Math.round(totalSoloBaselineCO2Kg * 100) / 100,
-    totalEstimatedCO2EmittedKg: Math.round(totalEstimatedCO2EmittedKg * 100) / 100,
-    totalEstimatedCO2AvoidedKg: Math.round(totalNetCO2AvoidedKg * 100) / 100,
-    grossDifferenceKg: Math.round(totalNetCO2AvoidedKg * 100) / 100,
+    totalSoloBaselineCO2Kg: totalSoloBaseline,
+    totalEstimatedCO2EmittedKg: totalCarpoolEmissions,
+    totalEstimatedCO2AvoidedKg: totalNetCO2AvoidedKg,
+    grossDifferenceKg: totalNetCO2AvoidedKg,
+    netEmissionsIncreaseKg,
     averageOccupancy,
     averageCO2SavingPerRideKg,
     averageCO2SavingPerPassengerKg,
@@ -823,13 +842,20 @@ export async function getMonthlyCarbonAnalytics(campusId?: string) {
     monthlyMap.set(key, existing);
   }
 
-  const result = Array.from(monthlyMap.values()).map((item) => ({
-    ...item,
-    co2AvoidedKg: Math.round(item.co2AvoidedKg * 100) / 100,
-    co2EmittedKg: Math.round(item.co2EmittedKg * 100) / 100,
-    soloCO2Kg: Math.round(item.soloCO2Kg * 100) / 100,
-    vkrKm: Math.round(item.vkrKm * 100) / 100,
-  }));
+  const result = Array.from(monthlyMap.values()).map((item) => {
+    const soloCO2Kg = Math.round(item.soloCO2Kg * 100) / 100;
+    const co2EmittedKg = Math.round(item.co2EmittedKg * 100) / 100;
+    const co2AvoidedKg = Math.round((soloCO2Kg - co2EmittedKg) * 100) / 100;
+    const netEmissionsIncreaseKg = Math.max(0, Math.round((co2EmittedKg - soloCO2Kg) * 100) / 100);
+    return {
+      ...item,
+      co2AvoidedKg,
+      co2EmittedKg,
+      soloCO2Kg,
+      netEmissionsIncreaseKg,
+      vkrKm: Math.round(item.vkrKm * 100) / 100,
+    };
+  });
 
   return result;
 }

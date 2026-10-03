@@ -27,6 +27,7 @@ export interface ICarbonEmission extends Document {
   co2SavedKg: number;
   grossDifferenceKg: number;
   co2ReductionPercentage: number;
+  netEmissionsIncreaseKg?: number;
   vehicleKilometersReduced: number;
   occupancy: number;
   passengerCount: number;
@@ -151,10 +152,13 @@ const CarbonEmissionSchema = new Schema<ICarbonEmission>(
       required: true,
       default: 0,
     },
+    netEmissionsIncreaseKg: {
+      type: Number,
+      default: 0,
+    },
     vehicleKilometersReduced: {
       type: Number,
       required: true,
-      min: 0,
       default: 0,
     },
     occupancy: {
