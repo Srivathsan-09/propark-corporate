@@ -5,6 +5,8 @@ export interface LocationResult {
   longitude: number;
   city?: string;
   state?: string;
+  name?: string;
+  address?: string;
 }
 
 interface CorridorPlace {
@@ -387,6 +389,189 @@ const CORRIDOR_DIRECTORY: CorridorPlace[] = [
     state: "Tamil Nadu",
     keywords: ["sriperumbudur", "sriperumbudur toll", "hyundai factory", "sipcot sriperumbudur"],
   },
+  // Additional Premier IT Parks & Tech Corridors in Chennai
+  {
+    shortName: "Ramanujan IT City",
+    displayName: "Ramanujan IT City (TRIL Infopark), Rajiv Gandhi Salai, Taramani, Chennai",
+    latitude: 12.9880,
+    longitude: 80.2450,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["ramanujan", "ramanujan it city", "ramanujan it park", "tril", "tril infopark", "taramani ramanujan", "ramanujam"],
+  },
+  {
+    shortName: "Olympia Tech Park",
+    displayName: "Olympia Tech Park, 100 Feet Road, Guindy, Chennai",
+    latitude: 13.0135,
+    longitude: 80.2050,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["olympia", "olympia tech park", "olympia guindy", "ekkatuthangal", "ekatuthangal", "olympia park"],
+  },
+  {
+    shortName: "Prince Info City",
+    displayName: "Prince Info City, Rajiv Gandhi Salai (OMR), Kandanchavadi, Chennai",
+    latitude: 12.9640,
+    longitude: 80.2460,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["prince info city", "prince infocity", "kandanchavadi prince", "prince park"],
+  },
+  {
+    shortName: "RMZ Millenia",
+    displayName: "RMZ Millenia Business Park, MGR Main Road, Perungudi, Chennai",
+    latitude: 12.9680,
+    longitude: 80.2470,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["rmz", "rmz millenia", "millenia", "rmz perungudi", "millenia business park"],
+  },
+  {
+    shortName: "One Indiabulls Park",
+    displayName: "One Indiabulls Park, Ambattur Industrial Estate, Chennai",
+    latitude: 13.1020,
+    longitude: 80.1620,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["indiabulls", "one indiabulls", "indiabulls park", "ambattur it park"],
+  },
+  {
+    shortName: "MEPZ SEZ",
+    displayName: "MEPZ Special Economic Zone, GST Road, Tambaram, Chennai",
+    latitude: 12.9360,
+    longitude: 80.1380,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["mepz", "mepz sez", "mepz tambaram", "madras export processing zone"],
+  },
+  {
+    shortName: "Chennai International Airport",
+    displayName: "Chennai International Airport (MAA), Meenambakkam, GST Road, Chennai",
+    latitude: 12.9941,
+    longitude: 80.1709,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["chennai airport", "airport", "meenambakkam", "maa airport", "domestic terminal", "international terminal"],
+  },
+  {
+    shortName: "Chennai Central Station",
+    displayName: "Puratchi Thalaivar Dr. M.G. Ramachandran Central Railway Station, Chennai",
+    latitude: 13.0827,
+    longitude: 80.2755,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["chennai central", "central station", "mgr central", "central metro"],
+  },
+  {
+    shortName: "Chennai Egmore Station",
+    displayName: "Chennai Egmore Railway Station, Gandhi-Irwin Road, Egmore, Chennai",
+    latitude: 13.0780,
+    longitude: 80.2610,
+    city: "Chennai",
+    state: "Tamil Nadu",
+    keywords: ["chennai egmore", "egmore station", "egmore metro", "egmore"],
+  },
+  {
+    shortName: "TIDEL Park Coimbatore",
+    displayName: "TIDEL Park Coimbatore, Civil Aerodrome Post, Avinashi Road, Coimbatore",
+    latitude: 11.0280,
+    longitude: 77.0320,
+    city: "Coimbatore",
+    state: "Tamil Nadu",
+    keywords: ["tidel coimbatore", "tidel park coimbatore", "cbe tidel", "avinashi road tidel"],
+  },
+  // Bangalore Tech Corridors
+  {
+    shortName: "Electronic City",
+    displayName: "Electronic City (Phase 1 & 2), Hosur Road, Bangalore",
+    latitude: 12.8452,
+    longitude: 77.6602,
+    city: "Bangalore",
+    state: "Karnataka",
+    keywords: ["electronic city", "elctronic city", "electronicity", "ecity", "infosys electronic city", "wipro electronic city"],
+  },
+  {
+    shortName: "Whitefield (ITPB)",
+    displayName: "International Tech Park Bangalore (ITPB), Whitefield, Bangalore",
+    latitude: 12.9860,
+    longitude: 77.7340,
+    city: "Bangalore",
+    state: "Karnataka",
+    keywords: ["whitefield", "witefield", "itpb", "international tech park bangalore", "white field", "kadugodi"],
+  },
+  {
+    shortName: "Manyata Tech Park",
+    displayName: "Manyata Embassy Business Park, Outer Ring Road, Hebbal, Bangalore",
+    latitude: 13.0470,
+    longitude: 77.6200,
+    city: "Bangalore",
+    state: "Karnataka",
+    keywords: ["manyata", "manyata tech park", "maniata", "hebbal tech park", "manyata business park"],
+  },
+  {
+    shortName: "Bagmane Tech Park",
+    displayName: "Bagmane Tech Park, CV Raman Nagar, Bangalore",
+    latitude: 12.9810,
+    longitude: 77.6620,
+    city: "Bangalore",
+    state: "Karnataka",
+    keywords: ["bagmane", "bagmane tech park", "cv raman nagar"],
+  },
+  {
+    shortName: "RMZ Ecospace / Ecoworld",
+    displayName: "RMZ Ecospace & Ecoworld, Outer Ring Road, Bellandur, Bangalore",
+    latitude: 12.9260,
+    longitude: 77.6840,
+    city: "Bangalore",
+    state: "Karnataka",
+    keywords: ["ecospace", "ecoworld", "rmz ecospace", "rmz ecoworld", "bellandur tech park", "outer ring road"],
+  },
+  {
+    shortName: "Prestige Tech Park",
+    displayName: "Prestige Tech Park, Marathahalli - Sarjapur Outer Ring Road, Bangalore",
+    latitude: 12.9370,
+    longitude: 77.6930,
+    city: "Bangalore",
+    state: "Karnataka",
+    keywords: ["prestige tech park", "prestige park", "marathahalli tech park"],
+  },
+  {
+    shortName: "Embassy TechVillage",
+    displayName: "Embassy TechVillage (ETV), Outer Ring Road, Devarabisanahalli, Bangalore",
+    latitude: 12.9280,
+    longitude: 77.6880,
+    city: "Bangalore",
+    state: "Karnataka",
+    keywords: ["embassy tech village", "etv", "embassy techvillage", "devarabisanahalli"],
+  },
+  // Hyderabad Tech Corridors
+  {
+    shortName: "HITEC City",
+    displayName: "HITEC City / Cyber Towers, Madhapur, Hyderabad",
+    latitude: 17.4474,
+    longitude: 78.3762,
+    city: "Hyderabad",
+    state: "Telangana",
+    keywords: ["hitec city", "hitech city", "cyber towers", "madhapur", "cyberabad", "hitec"],
+  },
+  {
+    shortName: "Mindspace IT Park",
+    displayName: "Mindspace Madhapur IT Park, Hitec City, Hyderabad",
+    latitude: 17.4400,
+    longitude: 78.3810,
+    city: "Hyderabad",
+    state: "Telangana",
+    keywords: ["mindspace", "mindspace it park", "mindspace hyderabad", "raheja mindspace"],
+  },
+  {
+    shortName: "Financial District",
+    displayName: "Financial District, Nanakramguda, Gachibowli, Hyderabad",
+    latitude: 17.4160,
+    longitude: 78.3440,
+    city: "Hyderabad",
+    state: "Telangana",
+    keywords: ["financial district", "gachibowli", "nanakramguda", "waverock"],
+  },
 ];
 
 function escapeRegex(str: string): string {
@@ -473,6 +658,30 @@ export function jaroWinkler(s1: string, s2: string): number {
 }
 
 /**
+ * Fast phonetic skeleton / Soundex-like consonant skeleton
+ * Strips vowels (except at the start), collapses doubles, maps phonetics:
+ * ph->f, th->t, sh/ch->s, ee/ea/y->i, oo/ou->u, w->v, etc.
+ */
+export function phoneticSkeleton(word: string): string {
+  if (!word) return "";
+  let s = word.toLowerCase().trim();
+  s = s.replace(/ph/g, "f")
+       .replace(/th/g, "t")
+       .replace(/sh/g, "s")
+       .replace(/ch/g, "c")
+       .replace(/zh/g, "l")
+       .replace(/ee|ea|y/g, "i")
+       .replace(/oo|ou/g, "u")
+       .replace(/w/g, "v")
+       .replace(/ck/g, "k");
+  s = s.replace(/([a-z])\1+/g, "$1");
+  if (s.length <= 1) return s;
+  const first = s[0];
+  const rest = s.slice(1).replace(/[aeiou]/g, "");
+  return first + rest;
+}
+
+/**
  * Generates normalized query variations without hardcoding place names
  * Handles multi-word spaces, common suffixes, and phonetic transliterations
  */
@@ -480,13 +689,13 @@ export function getQueryVariations(query: string): string[] {
   const q = query.trim().toLowerCase();
   const variations = new Set<string>([q]);
 
-  // 1. Remove space variations ("karayan chavadi" -> "karayanchavadi")
+  // 1. Remove space variations ("karayan chavadi" -> "karayanchavadi", "tidel park" -> "tidelpark")
   if (q.includes(" ")) {
     variations.add(q.replace(/\s+/g, ""));
   }
 
-  // 2. Strip common city/state suffixes ("guindy chennai" -> "guindy")
-  const stripped = q.replace(/\b(chennai|tamil\s*nadu|india|madras)\b/gi, "").trim();
+  // 2. Strip common city/state suffixes ("guindy chennai" -> "guindy", "whitefield bangalore" -> "whitefield")
+  const stripped = q.replace(/\b(chennai|tamil\s*nadu|bangalore|bengaluru|karnataka|hyderabad|telangana|india|madras)\b/gi, "").trim();
   if (stripped && stripped !== q) {
     variations.add(stripped);
     if (stripped.includes(" ")) {
@@ -494,12 +703,18 @@ export function getQueryVariations(query: string): string[] {
     }
   }
 
-  // 3. Common generic transliteration / vowel alternates
+  // 3. Common transliteration / typo alternates
   if (q.startsWith("th")) variations.add("t" + q.slice(2));
+  if (q.startsWith("t") && !q.startsWith("th")) variations.add("th" + q.slice(1));
   if (q.includes("oo")) variations.add(q.replace(/oo/g, "u"));
   if (q.includes("u") && !q.includes("oo")) variations.add(q.replace(/u/g, "oo"));
   if (q.includes("ee")) variations.add(q.replace(/ee/g, "i"));
   if (q.endsWith("y")) variations.add(q.slice(0, -1) + "ee");
+  if (q.endsWith("i")) variations.add(q.slice(0, -1) + "y");
+  if (q.includes("sh")) variations.add(q.replace(/sh/g, "s"));
+  if (q.includes("s") && !q.includes("sh")) variations.add(q.replace(/s/g, "sh"));
+  if (q.includes("tidl")) variations.add(q.replace(/tidl/g, "tidel"));
+  if (q.includes("tidal")) variations.add(q.replace(/tidal/g, "tidel"));
 
   return Array.from(variations).filter((v) => v.length >= 2);
 }
@@ -512,78 +727,112 @@ export function calculateRelevanceScore(query: string, item: LocationResult): nu
   const lon = item.longitude;
 
   let textScore = 0;
+  const qTokens = q.split(/\s+/).filter(Boolean);
+  const nameTokens = name.split(/[\s,()/-]+/).filter(Boolean);
+  const qSkel = phoneticSkeleton(q);
+  const nameSkel = phoneticSkeleton(name);
+
+  // Exact full match
   if (name === q) {
-    textScore += 120;
+    textScore += 160;
+  } else if (nameSkel === qSkel && q.length >= 3) {
+    textScore += 140; // Full phonetic match (e.g. "tidl park" === "tidel park")
   } else if (name.startsWith(q)) {
-    textScore += 90;
-  } else if (new RegExp("(^|\\s)" + escapeRegex(q), "i").test(name)) {
-    textScore += 75;
-  } else if (name.includes(q)) {
-    textScore += 45;
+    textScore += 120;
   } else if (display.startsWith(q)) {
-    textScore += 35;
-  } else if (new RegExp("(^|\\s)" + escapeRegex(q), "i").test(display)) {
-    textScore += 25;
+    textScore += 95;
+  } else if (new RegExp("(^|\\s)" + escapeRegex(q), "i").test(name)) {
+    textScore += 90;
+  } else if (name.includes(q)) {
+    textScore += 60;
   } else if (display.includes(q)) {
-    textScore += 10;
+    textScore += 25;
   }
 
-  // Length difference bonus for tighter matches
-  if (name.startsWith(q)) {
-    const diff = name.length - q.length;
-    if (diff <= 3) textScore += 20;
-    else if (diff <= 8) textScore += 10;
+  // Token-level matching (multi-word queries)
+  if (qTokens.length > 0) {
+    let tokenMatches = 0;
+    for (const qTok of qTokens) {
+      const qTokSkel = phoneticSkeleton(qTok);
+      let matchedThisToken = false;
+
+      for (const nTok of nameTokens) {
+        if (nTok === qTok) {
+          tokenMatches += 1.5;
+          matchedThisToken = true;
+          break;
+        }
+        if (nTok.startsWith(qTok)) {
+          tokenMatches += 1.2;
+          matchedThisToken = true;
+          break;
+        }
+        if (qTokSkel.length >= 2 && phoneticSkeleton(nTok) === qTokSkel) {
+          tokenMatches += 1.2;
+          matchedThisToken = true;
+          break;
+        }
+        if (qTok.length >= 4 && damerauLevenshtein(qTok, nTok) <= 1) {
+          tokenMatches += 1.0;
+          matchedThisToken = true;
+          break;
+        }
+        if (jaroWinkler(qTok, nTok) >= 0.85) {
+          tokenMatches += 0.9;
+          matchedThisToken = true;
+          break;
+        }
+      }
+
+      if (!matchedThisToken && qTok.length >= 3 && display.includes(qTok)) {
+        tokenMatches += 0.5;
+      }
+    }
+
+    textScore += tokenMatches * 25;
   }
 
-  // Typo & Fuzzy Similarity Check (Damerau-Levenshtein & Jaro-Winkler)
+  // Typo & Fuzzy Similarity Check
   const jaroName = jaroWinkler(q, name);
   const distName = damerauLevenshtein(q, name);
+  let bestJaro = jaroName;
+  let bestDist = distName;
 
   const variations = getQueryVariations(q);
-  let bestVariationJaro = jaroName;
-  let bestVariationDist = distName;
-
   for (const v of variations) {
-    if (v === q) continue;
     const vJaro = jaroWinkler(v, name);
     const vDist = damerauLevenshtein(v, name);
-    if (vJaro > bestVariationJaro) bestVariationJaro = vJaro;
-    if (vDist < bestVariationDist) bestVariationDist = vDist;
+    if (vJaro > bestJaro) bestJaro = vJaro;
+    if (vDist < bestDist) bestDist = vDist;
   }
 
-  // Boost textScore if a strong fuzzy match or typo similarity is detected
-  if (textScore < 85) {
-    if (bestVariationJaro >= 0.92 || (name.length >= 4 && bestVariationDist <= 1)) {
-      textScore = Math.max(textScore, 85);
-    } else if (bestVariationJaro >= 0.85 || (name.length >= 5 && bestVariationDist <= 2)) {
-      textScore = Math.max(textScore, 70);
-    } else if (bestVariationJaro >= 0.80) {
-      textScore = Math.max(textScore, 55);
-    } else if (bestVariationJaro >= 0.74) {
-      textScore = Math.max(textScore, 35);
-    }
+  if (bestJaro >= 0.90 || (q.length >= 4 && bestDist <= 1)) {
+    textScore = Math.max(textScore, 95);
+  } else if (bestJaro >= 0.84 || (q.length >= 5 && bestDist <= 2)) {
+    textScore = Math.max(textScore, 75);
+  } else if (bestJaro >= 0.78) {
+    textScore = Math.max(textScore, 55);
   }
 
-  // Geographic Relevance Bias
+  // Geographic Relevance Bias (soft bias so local corridor ranks high, but other cities still match)
   let geoScore = 0;
   const isChennaiCore = lat >= 12.80 && lat <= 13.35 && lon >= 79.80 && lon <= 80.40;
   const isGreaterChennai = lat >= 12.50 && lat <= 13.55 && lon >= 79.50 && lon <= 80.45;
   const isTamilNadu = lat >= 8.0 && lat <= 13.6 && lon >= 76.2 && lon <= 80.5;
+  const isSouthIndia = lat >= 8.0 && lat <= 18.0 && lon >= 74.0 && lon <= 82.0;
 
   if (isChennaiCore) {
-    geoScore += 50;
+    geoScore += 45;
   } else if (isGreaterChennai) {
-    geoScore += 35;
+    geoScore += 30;
   } else if (isTamilNadu) {
     geoScore += 20;
-  } else {
-    // Non-Tamil Nadu: soft bias (-25 penalty) so local results rank first,
-    // but users can still search for other cities
-    geoScore -= 25;
+  } else if (isSouthIndia) {
+    geoScore += 10;
   }
 
   let qualityScore = 0;
-  if (/junction|metro|bus terminus|depot|station|park|bypass|roundana/i.test(name)) qualityScore += 12;
+  if (/junction|metro|bus terminus|depot|station|park|campus|tech|it city|tower|bypass/i.test(name)) qualityScore += 15;
   if (/shop|briyani|biriyani|hotel|mess|store|tiffin|bakery/i.test(name)) qualityScore -= 20;
   if (/^(ward|zone)\s*\d+/i.test(name)) qualityScore -= 40;
 
@@ -603,47 +852,117 @@ class GeocodingService {
   private reverseCache = new Map<string, LocationResult | null>();
 
   /**
-   * Search local corridor directory for instant zero-latency match
+   * Synchronous Zero-Latency Local Prediction (Public)
+   * Delivers sub-millisecond local autocomplete with typo tolerance and phonetic matching.
    */
-  private searchLocalDirectory(query: string, limit: number): LocationResult[] {
+  public searchLocalSync(query: string, limit: number = 6): LocationResult[] {
     const q = query.toLowerCase().trim();
-    if (q.length < 2) return [];
+    if (q.length < 1) return [];
 
+    const qTokens = q.split(/\s+/).filter(Boolean);
+    const qSkel = phoneticSkeleton(q);
     const variations = getQueryVariations(q);
-    const matches: LocationResult[] = [];
+    const matchedItems: { item: LocationResult; score: number }[] = [];
 
     for (const place of CORRIDOR_DIRECTORY) {
       const placeName = place.shortName.toLowerCase();
-      const exactMatch = place.keywords.some((k) => k === q);
-      const prefixMatch = place.keywords.some((k) => k.startsWith(q));
-      const containsMatch = place.keywords.some((k) => k.includes(q));
+      const placeTokens = placeName.split(/[\s,()/-]+/).filter(Boolean);
+      const placeSkel = phoneticSkeleton(placeName);
 
-      // Typo & variation match
-      const typoMatch =
-        jaroWinkler(q, placeName) >= 0.85 ||
-        (q.length >= 4 && damerauLevenshtein(q, placeName) <= 2) ||
-        variations.some(
-          (v) =>
-            place.keywords.some((k) => k === v || k.startsWith(v) || k.includes(v)) ||
-            jaroWinkler(v, placeName) >= 0.85 ||
-            (v.length >= 4 && damerauLevenshtein(v, placeName) <= 2)
-        );
+      let isMatch = false;
+      let matchScore = 0;
 
-      if (exactMatch || prefixMatch || containsMatch || typoMatch) {
-        matches.push({
-          shortName: place.shortName,
-          displayName: place.displayName,
-          latitude: place.latitude,
-          longitude: place.longitude,
-          city: place.city,
-          state: place.state,
+      // 1. Exact match on placeName or keywords
+      if (placeName === q || place.keywords.some((k) => k === q)) {
+        isMatch = true;
+        matchScore = 200;
+      }
+      // 2. Prefix match
+      else if (placeName.startsWith(q) || place.keywords.some((k) => k.startsWith(q))) {
+        isMatch = true;
+        matchScore = 160;
+      }
+      // 3. Substring match
+      else if (placeName.includes(q) || place.keywords.some((k) => k.includes(q))) {
+        isMatch = true;
+        matchScore = 120;
+      }
+      // 4. Phonetic skeleton match (e.g. "tidl" -> "tdl" matches "tidel" -> "tdl")
+      else if (
+        q.length >= 3 &&
+        (placeSkel === qSkel ||
+          placeSkel.startsWith(qSkel) ||
+          place.keywords.some((k) => phoneticSkeleton(k) === qSkel))
+      ) {
+        isMatch = true;
+        matchScore = 140;
+      }
+      // 5. Token-level fuzzy match (e.g., "tidl park" vs "tidel park")
+      else {
+        let tokenHits = 0;
+        for (const qTok of qTokens) {
+          const qTokSkel = phoneticSkeleton(qTok);
+          const matchedToken =
+            placeTokens.some((pTok) => {
+              if (pTok === qTok || pTok.startsWith(qTok)) return true;
+              if (qTokSkel.length >= 2 && phoneticSkeleton(pTok) === qTokSkel) return true;
+              if (qTok.length >= 4 && damerauLevenshtein(qTok, pTok) <= 1) return true;
+              if (jaroWinkler(qTok, pTok) >= 0.85) return true;
+              return false;
+            }) ||
+            place.keywords.some((k) => {
+              if (k === qTok || k.startsWith(qTok)) return true;
+              if (qTokSkel.length >= 2 && phoneticSkeleton(k) === qTokSkel) return true;
+              if (qTok.length >= 4 && damerauLevenshtein(qTok, k) <= 1) return true;
+              if (jaroWinkler(qTok, k) >= 0.85) return true;
+              return false;
+            });
+
+          if (matchedToken) tokenHits++;
+        }
+
+        if (tokenHits > 0 && tokenHits >= Math.ceil(qTokens.length / 2)) {
+          isMatch = true;
+          matchScore = 100 + (tokenHits / qTokens.length) * 40;
+        } else {
+          // 6. Typo & variation match via Jaro-Winkler or Damerau-Levenshtein
+          const maxJaro = Math.max(
+            jaroWinkler(q, placeName),
+            ...place.keywords.map((k) => jaroWinkler(q, k)),
+            ...variations.map((v) => jaroWinkler(v, placeName))
+          );
+          const minLev = Math.min(
+            damerauLevenshtein(q, placeName),
+            ...place.keywords.map((k) => damerauLevenshtein(q, k)),
+            ...variations.map((v) => damerauLevenshtein(v, placeName))
+          );
+
+          if (maxJaro >= 0.82 || (q.length >= 4 && minLev <= 2)) {
+            isMatch = true;
+            matchScore = 80 + maxJaro * 30;
+          }
+        }
+      }
+
+      if (isMatch) {
+        matchedItems.push({
+          item: {
+            shortName: place.shortName,
+            displayName: place.displayName,
+            name: place.shortName,
+            address: place.displayName,
+            latitude: place.latitude,
+            longitude: place.longitude,
+            city: place.city,
+            state: place.state,
+          },
+          score: matchScore,
         });
-
-        if (matches.length >= limit * 2) break;
       }
     }
 
-    return matches;
+    matchedItems.sort((a, b) => b.score - a.score);
+    return matchedItems.slice(0, limit).map((m) => m.item);
   }
 
   /**
@@ -664,7 +983,7 @@ class GeocodingService {
     const candidatePool: LocationResult[] = [];
 
     // 1. Gather local corridor directory matches (instant <1ms)
-    const localMatches = this.searchLocalDirectory(cleanQuery, limit);
+    const localMatches = this.searchLocalSync(cleanQuery, limit * 2);
     candidatePool.push(...localMatches);
 
     // 2. Query Photon Forward Geocoding API with primary query and normalized variations
@@ -682,7 +1001,7 @@ class GeocodingService {
         queriesToFetch.map(async (qStr) => {
           const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
             qStr
-          )}&lat=13.04&lon=80.17&limit=${Math.max(limit * 2, 16)}`;
+          )}&lat=12.98&lon=80.24&limit=${Math.max(limit * 2, 16)}`;
 
           const res = await fetch(photonUrl, {
             headers: { "User-Agent": "CommuteX-Corporate-App/1.0 (contact@commutex.com)" },
@@ -735,7 +1054,7 @@ class GeocodingService {
       try {
         const url = `${this.nominatimUrl}/search?format=json&q=${encodeURIComponent(
           cleanQuery
-        )}&limit=${Math.max(limit * 2, 12)}&addressdetails=1&countrycodes=in&viewbox=79.6,13.4,80.4,12.7`;
+        )}&limit=${Math.max(limit * 2, 12)}&addressdetails=1&countrycodes=in&viewbox=77.0,13.8,80.5,12.5`;
 
         const headers: Record<string, string> = { "Accept-Language": "en" };
         if (typeof window === "undefined") {
@@ -1102,18 +1421,45 @@ export function resolvePlaceCoordinates(
       return { latitude: 12.9249, longitude: 80.1332 }; // GST Road / Tambaram Sanatorium Main Road
     }
 
+    if (str.includes("tidel")) {
+      return { latitude: 12.9892, longitude: 80.2510 }; // TIDEL Park / OMR Taramani
+    }
+
+    if (str.includes("ramanujan")) {
+      return { latitude: 12.9880, longitude: 80.2450 }; // Ramanujan IT City / Taramani
+    }
+
+    if (str.includes("olympia")) {
+      return { latitude: 13.0135, longitude: 80.2050 }; // Olympia Tech Park / Guindy
+    }
+
     if (
       str.includes("taramani") ||
       str.includes("tech park") ||
       str.includes("campus") ||
-      str.includes("ascendas") ||
-      str.includes("tidel")
+      str.includes("ascendas")
     ) {
       return { latitude: 12.9852, longitude: 80.2461 }; // OMR / Taramani Main Road
     }
 
     if (str.includes("velachery")) {
       return { latitude: 12.9815, longitude: 80.218 }; // Velachery Main Road / Bypass
+    }
+
+    if (str.includes("electronic city") || str.includes("electronicity") || str.includes("ecity")) {
+      return { latitude: 12.8452, longitude: 77.6602 }; // Electronic City Hosur Road
+    }
+
+    if (str.includes("whitefield") || str.includes("itpb")) {
+      return { latitude: 12.9860, longitude: 77.7340 }; // Whitefield ITPB
+    }
+
+    if (str.includes("manyata")) {
+      return { latitude: 13.0470, longitude: 77.6200 }; // Manyata Tech Park Hebbal
+    }
+
+    if (str.includes("hitec") || str.includes("cyber towers") || str.includes("mindspace")) {
+      return { latitude: 17.4474, longitude: 78.3762 }; // HITEC City Madhapur
     }
 
     if (str.includes("t. nagar") || str.includes("tnagar")) {

@@ -1242,6 +1242,19 @@ export default function AdminCampusesPage() {
                             longitude: loc.longitude,
                           }));
                         }}
+                        onPreviewLocation={(loc) => {
+                          if (loc.latitude && loc.longitude) {
+                            setNewCampus((prev) => ({
+                              ...prev,
+                              latitude: loc.latitude,
+                              longitude: loc.longitude,
+                              name: prev.name.trim() ? prev.name : (loc.shortName || loc.name || prev.name),
+                              address: prev.address.trim() ? prev.address : (loc.displayName || loc.address || ""),
+                              city: loc.city || prev.city || "Chennai",
+                              state: loc.state || prev.state || "Tamil Nadu",
+                            }));
+                          }
+                        }}
                         className="h-9 text-xs bg-white"
                       />
                     </div>

@@ -1266,6 +1266,16 @@ function OfferRideForm() {
                           longitude: lng,
                         });
                       }}
+                      onPreviewLocation={(loc) => {
+                        if (loc.latitude && loc.longitude) {
+                          setStartPoint((prev) => ({
+                            name: loc.shortName || loc.displayName.split(",")[0].trim(),
+                            address: loc.displayName,
+                            latitude: loc.latitude,
+                            longitude: loc.longitude,
+                          }));
+                        }
+                      }}
                       hasError={Boolean(fieldErrors.startingLocation)}
                       className="h-9 text-xs bg-white"
                       required
@@ -1325,6 +1335,16 @@ function OfferRideForm() {
                           latitude: lat,
                           longitude: lng,
                         });
+                      }}
+                      onPreviewLocation={(loc) => {
+                        if (loc.latitude && loc.longitude) {
+                          setEndPoint((prev) => ({
+                            name: loc.shortName || loc.displayName.split(",")[0].trim(),
+                            address: loc.displayName,
+                            latitude: loc.latitude,
+                            longitude: loc.longitude,
+                          }));
+                        }
                       }}
                       hasError={Boolean(fieldErrors.destination)}
                       className="h-9 text-xs bg-white"

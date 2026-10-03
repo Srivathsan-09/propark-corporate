@@ -1504,6 +1504,13 @@ export default function FindRidePage() {
                           setSelectedPickupStop(`Custom Stop: ${short}`);
                           setSelectedFare(selectedRide?.basePrice ? Math.round(selectedRide.basePrice * 0.8) : 120);
                         }}
+                        onPreviewLocation={(loc) => {
+                          if (loc.latitude && loc.longitude) {
+                            setCustomStopLat(loc.latitude);
+                            setCustomStopLng(loc.longitude);
+                            setCustomStopAddress(loc.displayName || loc.address || "");
+                          }
+                        }}
                         className="h-10 text-xs bg-white border-slate-200 rounded-xl"
                       />
 

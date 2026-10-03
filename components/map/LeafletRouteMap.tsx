@@ -110,6 +110,7 @@ export default function LeafletRouteMap({
   const hasUserPannedRef = useRef(false);
   const isInitialViewDoneRef = useRef(false);
   const mapRouteRequestIdRef = useRef(0);
+  const prevTargetCoordsRef = useRef<string>("");
 
   const [reroutedRoute, setReroutedRoute] = useState<RouteResult | null>(null);
   const [isRecalculatingRoute, setIsRecalculatingRoute] = useState(false);
@@ -252,28 +253,50 @@ export default function LeafletRouteMap({
       }
     });
 
-    // OpenStreetMap Standard & OSM France Tiles - High-contrast bold place names, neighborhoods & area labels
+    // Multi-source Tile Cascade: OSM Standard, CartoDB Voyager & OSM France
     const osmStandardTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       minZoom: 2,
-      keepBuffer: 4,
+      keepBuffer: 8,
       updateWhenIdle: false,
       updateWhenZooming: true,
+      crossOrigin: true,
       attribution: "&copy; OpenStreetMap contributors",
     });
+
+    const cartoVoyagerTileLayer = L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      {
+        maxZoom: 19,
+        minZoom: 2,
+        subdomains: "abcd",
+        keepBuffer: 8,
+        updateWhenIdle: false,
+        updateWhenZooming: true,
+        crossOrigin: true,
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      }
+    );
 
     const osmFranceTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", {
       maxZoom: 19,
       minZoom: 2,
-      keepBuffer: 4,
+      keepBuffer: 8,
       updateWhenIdle: false,
       updateWhenZooming: true,
+      crossOrigin: true,
       attribution: "&copy; OpenStreetMap France & contributors",
     });
 
     osmStandardTileLayer.addTo(map);
 
     osmStandardTileLayer.on("tileerror", () => {
+      if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(cartoVoyagerTileLayer)) {
+        cartoVoyagerTileLayer.addTo(mapInstanceRef.current);
+      }
+    });
+
+    cartoVoyagerTileLayer.on("tileerror", () => {
       if (mapInstanceRef.current && !mapInstanceRef.current.hasLayer(osmFranceTileLayer)) {
         osmFranceTileLayer.addTo(mapInstanceRef.current);
       }
@@ -794,25 +817,44 @@ export default function LeafletRouteMap({
       });
     }
 
-    // Auto-fit bounds or pan to custom point ONLY if user hasn't manually slid/panned the map
+    const currentCoordKey = `${destination?.latitude?.toFixed(4)},${destination?.longitude?.toFixed(4)}|${startLocation?.latitude?.toFixed(4)},${startLocation?.longitude?.toFixed(4)}|${customPickupPoint?.latitude?.toFixed(4)},${customPickupPoint?.longitude?.toFixed(4)}`;
+
+    const hasLocationChanged = prevTargetCoordsRef.current !== currentCoordKey && prevTargetCoordsRef.current !== "";
+    prevTargetCoordsRef.current = currentCoordKey;
+
+    if (hasLocationChanged) {
+      hasUserPannedRef.current = false;
+      setHasUserPanned(false);
+    }
+
+    // Auto-fit bounds or smoothly glide to location ONLY if user hasn't manually slid/panned the map
     if (!hasUserPannedRef.current) {
       if (customPickupPoint && customPickupPoint.latitude && customPickupPoint.longitude) {
-        map.setView([customPickupPoint.latitude, customPickupPoint.longitude], Math.max(map.getZoom(), 14.5), {
-          animate: true,
+        map.flyTo([customPickupPoint.latitude, customPickupPoint.longitude], Math.max(map.getZoom(), 15), {
+          duration: 0.8,
+          easeLinearity: 0.25,
         });
         isInitialViewDoneRef.current = true;
       } else if (!startLocation && destination && destination.latitude && destination.longitude) {
-        map.setView([destination.latitude, destination.longitude], Math.max(map.getZoom(), 14.5), {
-          animate: true,
+        map.flyTo([destination.latitude, destination.longitude], Math.max(map.getZoom(), 15), {
+          duration: 0.8,
+          easeLinearity: 0.25,
         });
         isInitialViewDoneRef.current = true;
-      } else if (boundsPoints.length > 0 && !isInitialViewDoneRef.current) {
+      } else if (startLocation && !destination && startLocation.latitude && startLocation.longitude) {
+        map.flyTo([startLocation.latitude, startLocation.longitude], Math.max(map.getZoom(), 15), {
+          duration: 0.8,
+          easeLinearity: 0.25,
+        });
+        isInitialViewDoneRef.current = true;
+      } else if (boundsPoints.length > 0 && (!isInitialViewDoneRef.current || hasLocationChanged)) {
         try {
           const bounds = L.latLngBounds(boundsPoints);
-          map.fitBounds(bounds, {
+          map.flyToBounds(bounds, {
             padding: [45, 45],
             maxZoom: 15,
-            animate: false,
+            duration: 0.8,
+            easeLinearity: 0.25,
           });
           isInitialViewDoneRef.current = true;
         } catch (err) {

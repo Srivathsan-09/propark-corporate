@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { geocodingService, LocationResult } from "@/lib/services/geocoding";
 
-export function useLocationSearch(initialQuery: string = "", debounceMs: number = 150) {
+export function useLocationSearch(initialQuery: string = "", debounceMs: number = 90) {
   const [query, setQuery] = useState(initialQuery);
   const [suggestions, setSuggestions] = useState<LocationResult[]>([]);
+  const [topPrediction, setTopPrediction] = useState<LocationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,6 +19,7 @@ export function useLocationSearch(initialQuery: string = "", debounceMs: number 
 
     if (!searchQuery || searchQuery.trim().length < 1) {
       setSuggestions([]);
+      setTopPrediction(null);
       setIsOpen(false);
       setIsLoading(false);
       return;
@@ -32,12 +34,22 @@ export function useLocationSearch(initialQuery: string = "", debounceMs: number 
         return;
       }
       setSuggestions(results);
-      setIsOpen(true);
+      setTopPrediction(results[0] || null);
+      if (results.length > 0) {
+        setIsOpen(true);
+      }
     } catch (err: any) {
       if (currentRequestId !== searchRequestIdRef.current) return;
       console.warn("Location search error:", err);
-      setError("Unable to fetch location suggestions.");
-      setSuggestions([]);
+      // Fallback to local prediction
+      const fallback = geocodingService.searchLocalSync(searchQuery, 6);
+      if (fallback.length > 0) {
+        setSuggestions(fallback);
+        setTopPrediction(fallback[0] || null);
+        setIsOpen(true);
+      } else {
+        setError("Unable to fetch location suggestions.");
+      }
     } finally {
       if (currentRequestId === searchRequestIdRef.current) {
         setIsLoading(false);
@@ -54,11 +66,22 @@ export function useLocationSearch(initialQuery: string = "", debounceMs: number 
 
     if (text.trim().length < 1) {
       setSuggestions([]);
+      setTopPrediction(null);
       setIsOpen(false);
       setIsLoading(false);
       return;
     }
 
+    // 1. INSTANT ZERO-LATENCY PREDICTION (0ms delay):
+    // Instantly predicts as user types, even with typos or misspelling!
+    const instantResults = geocodingService.searchLocalSync(text, 6);
+    if (instantResults.length > 0) {
+      setSuggestions(instantResults);
+      setTopPrediction(instantResults[0]);
+      setIsOpen(true);
+    }
+
+    // 2. Continuous background sync with live real-world OpenStreetMap
     debounceTimerRef.current = setTimeout(() => {
       searchLocations(text);
     }, debounceMs);
@@ -66,6 +89,7 @@ export function useLocationSearch(initialQuery: string = "", debounceMs: number 
 
   const selectSuggestion = (item: LocationResult) => {
     setQuery(item.shortName || item.displayName);
+    setTopPrediction(item);
     setSuggestions([]);
     setIsOpen(false);
   };
@@ -86,6 +110,7 @@ export function useLocationSearch(initialQuery: string = "", debounceMs: number 
     query,
     setQuery,
     suggestions,
+    topPrediction,
     isLoading,
     isOpen,
     error,
