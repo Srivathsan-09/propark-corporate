@@ -535,23 +535,10 @@ export async function getCommuteHubIntelligence(options: {
     }
   }
 
-  // 3. Fallback Heuristics for Brand New / Seeded Environments
-  let uniqueDriversCount = driverSet.size;
-  let uniquePassengersCount = passengerSet.size;
-  let totalCommuters = new Set([...Array.from(driverSet), ...Array.from(passengerSet)]).size;
-
-  if (rides.length === 0) {
-    totalCarpools = 12;
-    scheduledActive = 4;
-    completedCount = 8;
-    totalSeatsOffered = 42;
-    totalSeatsBooked = 29;
-    totalDistanceKm = 360;
-    totalFare = 4500;
-    uniqueDriversCount = 4;
-    uniquePassengersCount = 8;
-    totalCommuters = 12;
-  }
+  // 3. User & Overview Counters (Computed strictly from real DB records)
+  const uniqueDriversCount = driverSet.size;
+  const uniquePassengersCount = passengerSet.size;
+  const totalCommuters = new Set([...Array.from(driverSet), ...Array.from(passengerSet)]).size;
 
   const unusedSeatCapacity = Math.max(0, totalSeatsOffered - totalSeatsBooked);
   const avgOccupancyRate =
@@ -563,7 +550,7 @@ export async function getCommuteHubIntelligence(options: {
 
   // 4. Format Corridors Metric List
   const corridorList: ICorridorMetric[] = [];
-  let topCorridorName = "OMR IT Expressway Corridor";
+  let topCorridorName = "";
   let maxCorridorRides = 0;
 
   corridorMap.forEach((data, name) => {
@@ -610,86 +597,26 @@ export async function getCommuteHubIntelligence(options: {
       occupancyRate: occRate,
       uniqueDrivers: data.uniqueDrivers.size,
       uniquePassengers: data.uniquePassengers.size,
-      avgDistanceKm: Math.round((data.totalDistance / Math.max(1, ridesCount)) * 10) / 10 || 16.2,
-      avgPrice: Math.round(data.totalFare / Math.max(1, ridesCount)) || 140,
+      avgDistanceKm: Math.round((data.totalDistance / Math.max(1, ridesCount)) * 10) / 10 || 0,
+      avgPrice: Math.round(data.totalFare / Math.max(1, ridesCount)) || 0,
       frequentStops: sortedStops,
       status,
     });
   });
 
-  // Ensure baseline corridors if DB is fresh
-  if (corridorList.length === 0) {
-    corridorList.push(
-      {
-        id: "omr-it-expressway",
-        name: "OMR IT Expressway Corridor",
-        originName: "Velachery",
-        destinationName: "Siruseri IT Park",
-        description: "Popular route connecting Velachery with OMR Siruseri tech campuses",
-        totalRides: 8,
-        scheduledRides: 3,
-        completedRides: 5,
-        totalSeatsOffered: 28,
-        totalSeatsBooked: 22,
-        occupancyRate: 79,
-        uniqueDrivers: 4,
-        uniquePassengers: 9,
-        avgDistanceKm: 18.5,
-        avgPrice: 160,
-        frequentStops: [
-          { name: "Sholinganallur Junction", count: 7 },
-          { name: "Velachery MRTS", count: 6 },
-          { name: "Thoraipakkam Toll", count: 5 },
-        ],
-        status: "high_demand",
-      },
-      {
-        id: "gst-road-arterial",
-        name: "GST Road Corridor",
-        originName: "Tambaram",
-        destinationName: "Guindy Tech Park",
-        description: "Direct commute route from Tambaram & Chromepet to Guindy offices",
-        totalRides: 4,
-        scheduledRides: 1,
-        completedRides: 3,
-        totalSeatsOffered: 14,
-        totalSeatsBooked: 7,
-        occupancyRate: 50,
-        uniqueDrivers: 2,
-        uniquePassengers: 4,
-        avgDistanceKm: 14.0,
-        avgPrice: 120,
-        frequentStops: [
-          { name: "Guindy Kathipara", count: 4 },
-          { name: "Tambaram Sanatorium", count: 3 },
-        ],
-        status: "underserved",
-      }
-    );
-  }
-
   corridorList.sort((a, b) => b.totalRides - a.totalRides);
 
-  // 5. Frequent Origins & Destinations Formatting
+  // 5. Frequent Origins & Destinations Formatting (from real rides)
   const frequentOrigins: IAreaMetric[] = Array.from(originFrequency.entries())
     .map(([name, val]) => ({
       name,
       type: "origin" as const,
       ridesCount: val.rides,
       commutersCount: val.commuters.size || val.rides,
-      percentage: Math.round((val.rides / Math.max(1, totalCarpools)) * 100),
+      percentage: totalCarpools > 0 ? Math.round((val.rides / totalCarpools) * 100) : 0,
     }))
     .sort((a, b) => b.ridesCount - a.ridesCount)
     .slice(0, 6);
-
-  if (frequentOrigins.length === 0) {
-    frequentOrigins.push(
-      { name: "Velachery Bypass", type: "origin", ridesCount: 5, commutersCount: 7, percentage: 42 },
-      { name: "Tambaram West", type: "origin", ridesCount: 3, commutersCount: 4, percentage: 25 },
-      { name: "Sholinganallur", type: "origin", ridesCount: 2, commutersCount: 3, percentage: 17 },
-      { name: "Porur Toll Gate", type: "origin", ridesCount: 2, commutersCount: 2, percentage: 16 }
-    );
-  }
 
   const frequentDestinations: IAreaMetric[] = Array.from(destFrequency.entries())
     .map(([name, val]) => ({
@@ -697,20 +624,12 @@ export async function getCommuteHubIntelligence(options: {
       type: "destination" as const,
       ridesCount: val.rides,
       commutersCount: val.commuters.size || val.rides,
-      percentage: Math.round((val.rides / Math.max(1, totalCarpools)) * 100),
+      percentage: totalCarpools > 0 ? Math.round((val.rides / totalCarpools) * 100) : 0,
     }))
     .sort((a, b) => b.ridesCount - a.ridesCount)
     .slice(0, 6);
 
-  if (frequentDestinations.length === 0) {
-    frequentDestinations.push(
-      { name: "Tech Mahindra SEZ Campus", type: "destination", ridesCount: 6, commutersCount: 9, percentage: 50 },
-      { name: "Siruseri SIPCOT Gate", type: "destination", ridesCount: 4, commutersCount: 5, percentage: 33 },
-      { name: "Guindy Olympia Tech Park", type: "destination", ridesCount: 2, commutersCount: 2, percentage: 17 }
-    );
-  }
-
-  // 6. Temporal Patterns Formatting
+  // 6. Temporal Patterns Formatting (Actual counts only - no synthetic values)
   const rushHourDistribution = Object.entries(hourlyBins).map(([hour, data]) => {
     const occ = data.offered > 0 ? Math.round((data.booked / data.offered) * 100) : 0;
     return {
@@ -724,118 +643,76 @@ export async function getCommuteHubIntelligence(options: {
     };
   });
 
-  // If no rides in hourly bins, populate realistic defaults
-  const activeHoursCount = rushHourDistribution.filter((b) => b.totalRides > 0).length;
-  if (activeHoursCount === 0) {
-    rushHourDistribution.forEach((b) => {
-      if (b.hour === "08:00") {
-        b.pickupRides = 4;
-        b.totalRides = 4;
-        b.seatsOffered = 14;
-        b.seatsBooked = 11;
-        b.occupancyRate = 78;
-      } else if (b.hour === "09:00") {
-        b.pickupRides = 5;
-        b.totalRides = 5;
-        b.seatsOffered = 18;
-        b.seatsBooked = 15;
-        b.occupancyRate = 83;
-      } else if (b.hour === "17:00") {
-        b.dropRides = 3;
-        b.totalRides = 3;
-        b.seatsOffered = 10;
-        b.seatsBooked = 7;
-        b.occupancyRate = 70;
-      } else if (b.hour === "18:00") {
-        b.dropRides = 4;
-        b.totalRides = 4;
-        b.seatsOffered = 14;
-        b.seatsBooked = 12;
-        b.occupancyRate = 85;
-      }
-    });
-  }
-
   const dayOfWeekDistribution = Object.entries(dayOfWeekBins).map(([day, data]) => {
-    const occ = data.offered > 0 ? Math.round((data.booked / data.offered) * 100) : 72;
+    const occ = data.offered > 0 ? Math.round((data.booked / data.offered) * 100) : 0;
     return {
       day,
-      ridesCount: data.rides || (day === "Saturday" || day === "Sunday" ? 0 : 3),
+      ridesCount: data.rides,
       occupancyRate: occ,
     };
   });
 
-  const totalDirRides = pickupRideCount + dropRideCount || 1;
+  const totalDirRides = pickupRideCount + dropRideCount;
   const directionalSplit = {
-    pickupCount: pickupRideCount || 7,
-    dropCount: dropRideCount || 5,
-    pickupPercent: Math.round(((pickupRideCount || 7) / (pickupRideCount + dropRideCount || 12)) * 100),
-    dropPercent: Math.round(((dropRideCount || 5) / (pickupRideCount + dropRideCount || 12)) * 100),
+    pickupCount: pickupRideCount,
+    dropCount: dropRideCount,
+    pickupPercent: totalDirRides > 0 ? Math.round((pickupRideCount / totalDirRides) * 100) : 0,
+    dropPercent: totalDirRides > 0 ? Math.round((dropRideCount / totalDirRides) * 100) : 0,
   };
 
-  // 7. Recurring Commute Patterns & Carpool Matching Opportunities
-  const carpoolOpportunities: ICarpoolOpportunity[] = [
-    {
-      id: "opp-omr-morning",
-      corridor: "OMR IT Expressway Corridor",
-      timeWindow: "08:15 AM – 08:45 AM",
-      originArea: "Velachery & Vijayanagar",
-      destinationArea: "Tech Park Campus (Siruseri/OMR)",
-      availableSeats: 5,
-      passengerDemand: 8,
-      matchScore: 92,
-      potentialVehicleReduction: 3,
-      estimatedDailyCo2SavingKg: 14.8,
-      driverCount: 3,
-      recurringDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    },
-    {
-      id: "opp-gst-evening",
-      corridor: "GST Road Arterial Corridor",
-      timeWindow: "06:00 PM – 06:30 PM",
-      originArea: "Campus Tech Hub",
-      destinationArea: "Tambaram Sanatorium & Chromepet",
-      availableSeats: 4,
-      passengerDemand: 6,
-      matchScore: 84,
-      potentialVehicleReduction: 2,
-      estimatedDailyCo2SavingKg: 11.2,
-      driverCount: 2,
-      recurringDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    },
-    {
-      id: "opp-porur-morning",
-      corridor: "Mount-Poonamallee West Corridor",
-      timeWindow: "08:30 AM – 09:00 AM",
-      originArea: "Porur Junction & Iyyappanthangal",
-      destinationArea: "Guindy / City Tech Offices",
-      availableSeats: 3,
-      passengerDemand: 5,
-      matchScore: 78,
-      potentialVehicleReduction: 2,
-      estimatedDailyCo2SavingKg: 9.6,
-      driverCount: 2,
-      recurringDays: ["Mon", "Wed", "Thu"],
-    },
-  ];
+  // Find peak windows from real distributions
+  const morningHours = rushHourDistribution.filter((h) => {
+    const hr = parseInt(h.hour.split(":")[0], 10);
+    return hr >= 6 && hr <= 12;
+  });
+  const eveningHours = rushHourDistribution.filter((h) => {
+    const hr = parseInt(h.hour.split(":")[0], 10);
+    return hr >= 16 && hr <= 22;
+  });
 
-  // 8. Vehicle Seat Utilization & Capacity Breakdown
+  const peakMorning = morningHours.reduce((max, h) => (h.totalRides > max.totalRides ? h : max), morningHours[0]);
+  const peakEvening = eveningHours.reduce((max, h) => (h.totalRides > max.totalRides ? h : max), eveningHours[0]);
+
+  const peakMorningWindow = peakMorning && peakMorning.totalRides > 0 ? `${peakMorning.hour} – Peak Morning` : "No peak data";
+  const peakEveningWindow = peakEvening && peakEvening.totalRides > 0 ? `${peakEvening.hour} – Peak Evening` : "No peak data";
+
+  // 7. Recurring Commute Patterns & Carpool Matching Opportunities (Actual application data only)
+  const carpoolOpportunities: ICarpoolOpportunity[] = [];
+  corridorMap.forEach((cData, cName) => {
+    const scheduledRides = cData.rides.filter((r) => r.status === "scheduled" || r.status === "in_progress");
+    const openSeats = Math.max(0, cData.seatsOffered - cData.seatsBooked);
+    if (scheduledRides.length >= 2 || (scheduledRides.length >= 1 && openSeats > 0 && cData.seatsBooked > 0)) {
+      const first = scheduledRides[0];
+      const matchScore = Math.min(95, Math.max(60, Math.round(50 + (cData.seatsBooked / Math.max(1, cData.seatsOffered)) * 50)));
+      carpoolOpportunities.push({
+        id: `opp-${cName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+        corridor: cName,
+        timeWindow: first?.departureTime ? `${first.departureTime} commute window` : "Scheduled commute window",
+        originArea: cleanLocationName(first?.startingLocation || "Campus Zone"),
+        destinationArea: cleanLocationName(first?.destination || "Campus"),
+        availableSeats: openSeats,
+        passengerDemand: cData.seatsBooked,
+        matchScore,
+        potentialVehicleReduction: Math.max(1, Math.floor(cData.seatsBooked / 2)),
+        estimatedDailyCo2SavingKg: Math.round(openSeats * 2.4 * 10) / 10,
+        driverCount: cData.uniqueDrivers.size,
+        recurringDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      });
+    }
+  });
+
+  // 8. Vehicle Seat Utilization & Capacity Breakdown (From real rides)
   const vehicleTypeBreakdown = Array.from(vehicleTypeStats.entries()).map(([type, stats]) => ({
     type,
     ridesCount: stats.rides,
-    avgOccupancyRate: stats.offered > 0 ? Math.round((stats.booked / stats.offered) * 100) : 70,
+    avgOccupancyRate: stats.offered > 0 ? Math.round((stats.booked / stats.offered) * 100) : 0,
   }));
 
-  if (vehicleTypeBreakdown.length === 0) {
-    vehicleTypeBreakdown.push(
-      { type: "Car (Sedan/Hatchback)", ridesCount: 9, avgOccupancyRate: 74 },
-      { type: "SUV", ridesCount: 3, avgOccupancyRate: 61 }
-    );
-  }
-
   let capacityStatus: "optimal" | "moderate" | "severe_deficit" = "optimal";
-  if (avgOccupancyRate < 50) capacityStatus = "severe_deficit";
-  else if (avgOccupancyRate < 75) capacityStatus = "moderate";
+  if (totalSeatsOffered > 0) {
+    if (avgOccupancyRate < 40) capacityStatus = "severe_deficit";
+    else if (avgOccupancyRate < 70) capacityStatus = "moderate";
+  }
 
   const capacity: ICapacityMetric = {
     overallUtilizationRate: avgOccupancyRate,
@@ -846,88 +723,80 @@ export async function getCommuteHubIntelligence(options: {
     capacityStatus,
   };
 
-  // 9. Demand Density & Recommended Pickup Areas (Advisory Recommendations ONLY)
-  const recommendedPickupAreas: IRecommendedPickupArea[] = [
-    {
-      id: "rec-sholinganallur-junction",
-      name: "Sholinganallur Junction Signal (Near OMR Toll)",
-      corridor: "OMR IT Expressway Corridor",
-      observedCommuterDemand: 18,
-      peakWindow: "08:30 AM – 09:15 AM",
-      rationale:
-        "Recorded 18 distinct boarding stops and booking requests within a 450m radius. Drivers currently stop at 4 disparate points. Designating this pickup zone could reduce commuter detour times by 9 mins.",
-      latitude: 12.9012,
-      longitude: 80.2279,
-      suggestedAction: "Recommend drivers specify this landmark as primary boarding point for OMR morning commutes.",
-    },
-    {
-      id: "rec-velachery-bypass",
-      name: "Velachery MRTS / Bypass Road Shell Station",
-      corridor: "Central Metro Link Corridor",
-      observedCommuterDemand: 14,
-      peakWindow: "08:15 AM – 09:00 AM",
-      rationale:
-        "High density of pedestrian commuters exiting suburban transit looking for last-mile rides to OMR campuses. High seat match probability.",
-      latitude: 12.9815,
-      longitude: 80.218,
-      suggestedAction: "Suggest morning departure staging area for coworkers residing in southern suburbs.",
-    },
-    {
-      id: "rec-guindy-kathipara",
-      name: "Guindy Kathipara Interchange (Towards Airport)",
-      corridor: "GST Road Arterial Corridor",
-      observedCommuterDemand: 11,
-      peakWindow: "08:45 AM – 09:30 AM",
-      rationale:
-        "Crucial nexus for employees traveling from Western Chennai. Vehicles often run with 2 empty seats here while nearby commuters lack rides.",
-      latitude: 13.0067,
-      longitude: 80.2026,
-      suggestedAction: "Incentivize GST corridor drivers to list Kathipara as intermediate stop.",
-    },
-  ];
+  // 9. Demand Density & Recommended Pickup Areas (From real observed stops)
+  const recommendedPickupAreas: IRecommendedPickupArea[] = [];
+  const topStops = Array.from(stopDemandClusters.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
 
-  // 10. Mobility Insights
-  const insights: IMobilityInsight[] = [
-    {
-      id: "ins-capacity-utilization",
-      category: "capacity",
-      severity: unusedSeatCapacity > 0 ? "medium" : "low",
-      title: `${unusedSeatCapacity} Vacant Seats Across Active Rides`,
-      description: `Overall vehicle seat occupancy is currently ${avgOccupancyRate}%. Empty seats are mostly observed during early evening return trips.`,
-      impactMetric: `₹${Math.round(unusedSeatCapacity * 120)} Est. Daily Savings`,
-      recommendedAction: "Encourage drivers to list intermediate stops along return routes.",
-    },
-    {
-      id: "ins-rush-hour-concentration",
-      category: "timing",
-      severity: "high",
-      title: "Morning Commutes Peak at 08:30 AM – 09:15 AM",
-      description:
-        "The majority of inbound campus rides depart in this 45-minute window. Shifting departures slightly helps ease gate arrival queues.",
-      impactMetric: "Peak Morning Window",
-      recommendedAction: "Promote staggered departure times (08:00 AM or 09:15 AM) on team boards.",
-    },
-    {
-      id: "ins-top-corridor-demand",
-      category: "corridor",
-      severity: "info",
-      title: `${topCorridorName} is the Most Traveled Route`,
-      description:
-        "This corridor maintains steady carpool participation and low single-occupant driving rates.",
-      impactMetric: `${corridorList[0]?.totalSeatsBooked || 0} Seats Filled`,
-      recommendedAction: "Highlight this corridor as a primary carpool route for new employees.",
-    },
-    {
-      id: "ins-carpool-potential",
-      category: "opportunity",
-      severity: "high",
-      title: "Coworkers Sharing Similar Daily Routes",
-      description:
-        "Multiple employees travel along matching corridors at similar times with available vehicle seats.",
-      impactMetric: "Vehicle Reduction",
-      recommendedAction: "Suggest route connections to coworkers traveling along these corridors.",
-    },
-  ];
+  topStops.forEach((s, idx) => {
+    recommendedPickupAreas.push({
+      id: `rec-${idx}-${s.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      name: s.name,
+      corridor: s.corridor || "Campus Commute Route",
+      observedCommuterDemand: s.count,
+      peakWindow: s.hours[0] ? `${s.hours[0]} departures` : "Commute window",
+      rationale: `Recorded ${s.count} pickup requests and stops at this location.`,
+      latitude: s.lat || 12.9716,
+      longitude: s.lng || 80.2433,
+      suggestedAction: `Recommend ${s.name} as a designated pickup point to minimize detour times.`,
+    });
+  });
+
+  // 10. Mobility Insights (Maximum 3 concise, strictly data-driven insights)
+  const insights: IMobilityInsight[] = [];
+  if (totalCarpools > 0) {
+    // Insight 1: Capacity / Utilization
+    if (unusedSeatCapacity > 0) {
+      insights.push({
+        id: "ins-capacity",
+        category: "capacity",
+        severity: "medium",
+        title: `${unusedSeatCapacity} Open Seats Across ${totalCarpools} ${totalCarpools === 1 ? "Ride" : "Rides"}`,
+        description: `Average seat occupancy is currently ${avgOccupancyRate}%. ${unusedSeatCapacity} open seats remain available across employee vehicles.`,
+        impactMetric: `${unusedSeatCapacity} Open Seats`,
+        recommendedAction: "Encourage commuters traveling along active routes to carpool and fill vacant vehicle seats.",
+      });
+    } else {
+      insights.push({
+        id: "ins-capacity",
+        category: "capacity",
+        severity: "low",
+        title: "High Vehicle Utilization",
+        description: `Carpool seat occupancy is at ${avgOccupancyRate}%, with all offered vehicle seats filled by commuters.`,
+        impactMetric: `${avgOccupancyRate}% Occupancy`,
+        recommendedAction: "Encourage more drivers to offer rides to accommodate additional commuter demand.",
+      });
+    }
+
+    // Insight 2: Peak Commuting Activity
+    const busiestHour = rushHourDistribution.reduce((max, h) => (h.totalRides > max.totalRides ? h : max), rushHourDistribution[0]);
+    if (busiestHour && busiestHour.totalRides > 0) {
+      insights.push({
+        id: "ins-rush-hour",
+        category: "timing",
+        severity: "high",
+        title: `Peak Departures at ${busiestHour.hour}`,
+        description: `The highest volume of ride departures (${busiestHour.totalRides} ${busiestHour.totalRides === 1 ? "ride" : "rides"}) occurs around ${busiestHour.hour}.`,
+        impactMetric: `${busiestHour.totalRides} ${busiestHour.totalRides === 1 ? "Ride" : "Rides"}`,
+        recommendedAction: "Plan departure timing to avoid gate bottlenecks during peak hours.",
+      });
+    }
+
+    // Insight 3: Leading Corridor
+    if (topCorridorName && corridorList.length > 0) {
+      const topC = corridorList[0];
+      insights.push({
+        id: "ins-corridor",
+        category: "corridor",
+        severity: "info",
+        title: `Most Active Route: ${topCorridorName}`,
+        description: `This route accounts for ${topC.totalRides} ${topC.totalRides === 1 ? "ride" : "rides"} and ${topC.totalSeatsBooked} booked seats.`,
+        impactMetric: `${topC.totalRides} ${topC.totalRides === 1 ? "Ride" : "Rides"}`,
+        recommendedAction: "Highlight this route to new employees as a well-supported carpool option.",
+      });
+    }
+  }
 
   return {
     overview: {
