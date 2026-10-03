@@ -53,7 +53,7 @@ interface LeafletRouteMapProps {
   distanceText?: string;
   durationText?: string;
   trafficLevel?: "Light" | "Moderate" | "Heavy";
-  onMapClick?: (location: { address: string; latitude: number; longitude: number }) => void;
+  onMapClick?: (location: { address: string; latitude: number; longitude: number; city?: string; state?: string; name?: string }) => void;
   isClickPicking?: boolean;
   clickPickLabel?: string;
   enableDynamicRerouting?: boolean;
@@ -214,8 +214,8 @@ export default function LeafletRouteMap({
     if (!mapContainerRef.current) return;
 
     // Center on Chennai / Tamil Nadu campus belt by default (12.9249, 80.1472)
-    const initialLat = driverLocation?.latitude || startLocation?.latitude || 12.9249;
-    const initialLng = driverLocation?.longitude || startLocation?.longitude || 80.1472;
+    const initialLat = driverLocation?.latitude || startLocation?.latitude || destination?.latitude || 12.9249;
+    const initialLng = driverLocation?.longitude || startLocation?.longitude || destination?.longitude || 80.1472;
 
     const map = L.map(mapContainerRef.current, {
       center: [initialLat, initialLng],
@@ -343,7 +343,14 @@ export default function LeafletRouteMap({
       try {
         const rev = await geocodingService.reverse(lat, lng);
         const address = rev?.displayName || rev?.shortName || `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-        onMapClick({ address, latitude: lat, longitude: lng });
+        onMapClick({
+          address,
+          latitude: lat,
+          longitude: lng,
+          city: rev?.city,
+          state: rev?.state,
+          name: rev?.shortName,
+        });
       } catch (err) {
         onMapClick({
           address: `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
@@ -791,6 +798,11 @@ export default function LeafletRouteMap({
     if (!hasUserPannedRef.current) {
       if (customPickupPoint && customPickupPoint.latitude && customPickupPoint.longitude) {
         map.setView([customPickupPoint.latitude, customPickupPoint.longitude], Math.max(map.getZoom(), 14.5), {
+          animate: true,
+        });
+        isInitialViewDoneRef.current = true;
+      } else if (!startLocation && destination && destination.latitude && destination.longitude) {
+        map.setView([destination.latitude, destination.longitude], Math.max(map.getZoom(), 14.5), {
           animate: true,
         });
         isInitialViewDoneRef.current = true;

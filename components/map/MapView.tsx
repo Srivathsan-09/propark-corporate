@@ -35,7 +35,7 @@ export interface MapViewProps {
   distanceText?: string;
   durationText?: string;
   trafficLevel?: "Light" | "Moderate" | "Heavy";
-  onMapClick?: (location: { address: string; latitude: number; longitude: number }) => void;
+  onMapClick?: (location: { address: string; latitude: number; longitude: number; city?: string; state?: string; name?: string }) => void;
   isClickPicking?: boolean;
   clickPickLabel?: string;
   enableDynamicRerouting?: boolean;

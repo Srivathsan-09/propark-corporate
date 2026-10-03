@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { campusId, name, address, city, state, adminEmail, companies } = body;
+    const { campusId, name, address, city, state, adminEmail, companies, latitude, longitude } = body;
 
     if (!campusId || !name || !city || !state) {
       return NextResponse.json(
@@ -121,12 +121,17 @@ export async function POST(req: NextRequest) {
       ? companies.map((c: string) => c.trim()).filter((c: string) => c.length > 0)
       : [];
 
+    const parsedLat = typeof latitude === "number" ? latitude : (latitude ? parseFloat(latitude) : undefined);
+    const parsedLng = typeof longitude === "number" ? longitude : (longitude ? parseFloat(longitude) : undefined);
+
     const newCampus = await Campus.create({
       campusId: normalizedCampusId,
       name: name.trim(),
       address: address?.trim() || `${city}, ${state}`,
       city: city.trim(),
       state: state.trim(),
+      latitude: parsedLat !== undefined && !isNaN(parsedLat) ? parsedLat : undefined,
+      longitude: parsedLng !== undefined && !isNaN(parsedLng) ? parsedLng : undefined,
       adminEmail: normalizedAdminEmail || undefined,
       companies: cleanedCompanies,
       pendingCompanies: [],

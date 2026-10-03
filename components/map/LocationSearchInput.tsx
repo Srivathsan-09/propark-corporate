@@ -21,7 +21,7 @@ interface LocationSearchInputProps {
   id?: string;
   placeholder?: string;
   value: string;
-  onChange: (location: { name?: string; address: string; latitude: number; longitude: number; isConfirmed?: boolean }) => void;
+  onChange: (location: { name?: string; address: string; latitude: number; longitude: number; isConfirmed?: boolean; city?: string; state?: string }) => void;
   onSelectOnMap?: () => void;
   showCurrentLocation?: boolean;
   className?: string;
@@ -88,6 +88,8 @@ export default function LocationSearchInput({
       address: item.displayName,
       latitude: item.latitude,
       longitude: item.longitude,
+      city: item.city,
+      state: item.state,
       isConfirmed: true,
     });
   };
@@ -101,6 +103,8 @@ export default function LocationSearchInput({
         address: loc.displayName,
         latitude: loc.latitude,
         longitude: loc.longitude,
+        city: loc.city,
+        state: loc.state,
         isConfirmed: true,
       });
     }

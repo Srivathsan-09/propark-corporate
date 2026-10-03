@@ -13,6 +13,8 @@ export interface ICampus extends Document {
   address: string;
   city: string;
   state: string;
+  latitude?: number;
+  longitude?: number;
   adminEmail?: string;
   adminOtpCode?: string;
   adminOtpExpiresAt?: Date;
@@ -64,6 +66,14 @@ const CampusSchema = new Schema<ICampus>(
       type: String,
       required: [true, "State is required"],
       trim: true,
+    },
+    latitude: {
+      type: Number,
+      default: null,
+    },
+    longitude: {
+      type: Number,
+      default: null,
     },
     adminEmail: {
       type: String,

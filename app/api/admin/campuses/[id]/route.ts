@@ -264,6 +264,12 @@ export async function PATCH(
       if (body.address) campus.address = body.address.trim();
       if (body.city) campus.city = body.city.trim();
       if (body.state) campus.state = body.state.trim();
+      if (body.latitude !== undefined) {
+        campus.latitude = body.latitude !== null && !isNaN(Number(body.latitude)) ? Number(body.latitude) : undefined;
+      }
+      if (body.longitude !== undefined) {
+        campus.longitude = body.longitude !== null && !isNaN(Number(body.longitude)) ? Number(body.longitude) : undefined;
+      }
       if (body.status) campus.status = body.status;
       if (body.adminEmail !== undefined) campus.adminEmail = body.adminEmail ? body.adminEmail.toLowerCase().trim() : undefined;
       if (Array.isArray(body.companies)) {

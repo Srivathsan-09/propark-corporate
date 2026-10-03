@@ -30,6 +30,7 @@ import {
   Send,
   RefreshCw,
   ArrowRight,
+  Navigation,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CarLoader } from "@/components/common/CarLoader";
+import MapView from "@/components/map/MapView";
+import LocationSearchInput from "@/components/map/LocationSearchInput";
 
 interface IPendingCompany {
   name: string;
@@ -51,6 +54,8 @@ interface ICampus {
   address: string;
   city: string;
   state: string;
+  latitude?: number;
+  longitude?: number;
   adminEmail?: string;
   companies: string[];
   pendingCompanies?: IPendingCompany[];
@@ -79,9 +84,12 @@ export default function AdminCampusesPage() {
     address: "",
     city: "",
     state: "",
+    latitude: null as number | null,
+    longitude: null as number | null,
     adminEmail: "",
     companiesInput: "",
   });
+  const [locationSearchText, setLocationSearchText] = useState("");
   const [isSubmittingCampus, setIsSubmittingCampus] = useState(false);
 
   // Modal State for Assigning Campus Admin (Super Admin only - 2FA OTP)
@@ -159,6 +167,8 @@ export default function AdminCampusesPage() {
           address: newCampus.address.trim(),
           city: newCampus.city.trim(),
           state: newCampus.state.trim(),
+          latitude: newCampus.latitude,
+          longitude: newCampus.longitude,
           adminEmail: newCampus.adminEmail.trim().toLowerCase(),
           companies: companiesArray,
         }),
@@ -557,9 +567,12 @@ export default function AdminCampusesPage() {
                   address: "",
                   city: "",
                   state: "",
+                  latitude: null,
+                  longitude: null,
                   adminEmail: "",
                   companiesInput: "",
                 });
+                setLocationSearchText("");
                 setIsAddCampusOpen(true);
               }}
               size="default"
@@ -787,11 +800,22 @@ export default function AdminCampusesPage() {
                   </div>
 
                   {/* Location snippet */}
-                  <div className="flex items-center gap-1 text-xs text-slate-500">
-                    <MapPin className="h-3 w-3 text-emerald-600 shrink-0" />
-                    <span className="truncate">{campus.address}</span>
-                    <span className="text-slate-300">•</span>
-                    <strong className="text-slate-700 shrink-0">{campus.city}, {campus.state}</strong>
+                  <div className="flex items-center justify-between gap-1 text-xs text-slate-500">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <MapPin className="h-3 w-3 text-emerald-600 shrink-0" />
+                      <span className="truncate">{campus.address}</span>
+                      <span className="text-slate-300">•</span>
+                      <strong className="text-slate-700 shrink-0">{campus.city}, {campus.state}</strong>
+                    </div>
+                    {campus.latitude && campus.longitude ? (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-50 text-blue-700 border border-blue-200 shrink-0"
+                        title={`GPS: ${campus.latitude.toFixed(4)}, ${campus.longitude.toFixed(4)}`}
+                      >
+                        <Navigation className="h-2.5 w-2.5 text-blue-600" />
+                        {campus.latitude.toFixed(4)}, {campus.longitude.toFixed(4)}
+                      </span>
+                    ) : null}
                   </div>
 
                   {/* Admin Row - Clean, Compact, No Clipping */}
@@ -1067,124 +1091,253 @@ export default function AdminCampusesPage() {
       {/* MODAL: ADD NEW CAMPUS (Super Admin) */}
       {isAddCampusOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-50">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
-                  <Building2 className="h-4 w-4" />
+          <div className="w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 p-5 bg-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 shadow-2xs">
+                  <Building2 className="h-5 w-5" />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-slate-900">Add New Campus</h2>
-                  <p className="text-[11px] text-slate-500">Register a new physical campus and provision operating companies.</p>
+                  <p className="text-xs text-slate-500">Pick on map or search landmark to accurately pin campus location & coordinates.</p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsAddCampusOpen(false)}
                 className="text-slate-400 hover:text-slate-600 rounded-lg p-1.5 hover:bg-slate-100 transition-colors"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateCampus} className="space-y-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">Campus Code</Label>
-                  <Input
-                    required
-                    value={newCampus.campusId}
-                    onChange={(e) => setNewCampus({ ...newCampus, campusId: e.target.value.toUpperCase() })}
-                    placeholder="e.g. CAMP004"
-                    className="font-mono uppercase h-9 text-xs rounded-lg"
-                  />
+            {/* Scrollable Form Body */}
+            <form onSubmit={handleCreateCampus} className="flex flex-col flex-1 min-h-0">
+              <div className="overflow-y-auto p-5 md:p-6 flex-1 space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                  {/* Left Column: Campus Details */}
+                  <div className="lg:col-span-6 space-y-3.5 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-slate-700">Campus Code *</Label>
+                        <Input
+                          required
+                          value={newCampus.campusId}
+                          onChange={(e) => setNewCampus({ ...newCampus, campusId: e.target.value.toUpperCase() })}
+                          placeholder="e.g. CAMP004"
+                          className="font-mono uppercase h-9 text-xs rounded-lg"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-slate-700">Campus Name *</Label>
+                        <Input
+                          required
+                          value={newCampus.name}
+                          onChange={(e) => setNewCampus({ ...newCampus, name: e.target.value })}
+                          placeholder="e.g. TIDEL Park"
+                          className="h-9 text-xs rounded-lg"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-slate-700">Street Address</Label>
+                        {newCampus.latitude && newCampus.longitude ? (
+                          <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3" /> Auto-filled from map
+                          </span>
+                        ) : null}
+                      </div>
+                      <Input
+                        value={newCampus.address}
+                        onChange={(e) => setNewCampus({ ...newCampus, address: e.target.value })}
+                        placeholder="e.g. Rajiv Gandhi Salai (OMR), Taramani"
+                        className="h-9 text-xs rounded-lg"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-slate-700">City *</Label>
+                        <Input
+                          required
+                          value={newCampus.city}
+                          onChange={(e) => setNewCampus({ ...newCampus, city: e.target.value })}
+                          placeholder="e.g. Chennai"
+                          className="h-9 text-xs rounded-lg"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-slate-700">State *</Label>
+                        <Input
+                          required
+                          value={newCampus.state}
+                          onChange={(e) => setNewCampus({ ...newCampus, state: e.target.value })}
+                          placeholder="e.g. Tamil Nadu"
+                          className="h-9 text-xs rounded-lg"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold text-slate-700">Campus Admin Email (Optional)</Label>
+                      <Input
+                        type="email"
+                        value={newCampus.adminEmail}
+                        onChange={(e) => setNewCampus({ ...newCampus, adminEmail: e.target.value })}
+                        placeholder="e.g. campusadmin@company.com"
+                        className="h-9 text-xs rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold text-slate-700">Operating Companies (Comma-separated)</Label>
+                      <Input
+                        value={newCampus.companiesInput}
+                        onChange={(e) => setNewCampus({ ...newCampus, companiesInput: e.target.value })}
+                        placeholder="e.g. Tech Mahindra, TCS, Infosys, Wipro"
+                        className="h-9 text-xs rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right Column: Interactive Map & Landmark Search */}
+                  <div className="lg:col-span-6 flex flex-col space-y-2.5 bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4 text-purple-600" />
+                        <span className="text-xs font-bold text-slate-800">Campus Physical Location</span>
+                      </div>
+                      {newCampus.latitude && newCampus.longitude ? (
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-mono gap-1 py-0.5">
+                          <Check className="h-3 w-3" />
+                          {newCampus.latitude.toFixed(4)}, {newCampus.longitude.toFixed(4)}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px]">
+                          Click map to drop pin
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Autocomplete Landmark Search */}
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-semibold text-slate-600">Search Landmark / Campus Name</Label>
+                      <LocationSearchInput
+                        placeholder="e.g. TIDEL Park, DLF IT Park, RMZ Millenia..."
+                        value={locationSearchText}
+                        onChange={(loc) => {
+                          setLocationSearchText(loc.address);
+                          setNewCampus((prev) => ({
+                            ...prev,
+                            name: prev.name.trim() ? prev.name : (loc.name || prev.name),
+                            address: loc.address || prev.address,
+                            city: loc.city || prev.city || "Chennai",
+                            state: loc.state || prev.state || "Tamil Nadu",
+                            latitude: loc.latitude,
+                            longitude: loc.longitude,
+                          }));
+                        }}
+                        className="h-9 text-xs bg-white"
+                      />
+                    </div>
+
+                    {/* Leaflet Map */}
+                    <div className="relative rounded-xl overflow-hidden border border-slate-200 shadow-xs min-h-[220px] flex-1">
+                      <MapView
+                        height="230px"
+                        destination={
+                          newCampus.latitude && newCampus.longitude
+                            ? {
+                                latitude: newCampus.latitude,
+                                longitude: newCampus.longitude,
+                                name: newCampus.name || "Campus Location",
+                                address: newCampus.address,
+                              }
+                            : null
+                        }
+                        isClickPicking={true}
+                        clickPickLabel="Click anywhere on the map to pin campus location"
+                        onMapClick={(loc) => {
+                          setLocationSearchText(loc.address);
+                          setNewCampus((prev) => ({
+                            ...prev,
+                            name: prev.name.trim() ? prev.name : (loc.name || prev.name),
+                            address: loc.address || prev.address,
+                            city: loc.city || prev.city || "Chennai",
+                            state: loc.state || prev.state || "Tamil Nadu",
+                            latitude: loc.latitude,
+                            longitude: loc.longitude,
+                          }));
+                        }}
+                      />
+                    </div>
+
+                    {/* Footer helper inside map box */}
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                      <span className="flex items-center gap-1">
+                        💡 <span>Click map to reposition pin anytime.</span>
+                      </span>
+                      {newCampus.latitude && newCampus.longitude ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLocationSearchText("");
+                            setNewCampus((prev) => ({ ...prev, latitude: null, longitude: null }));
+                          }}
+                          className="text-[11px] text-rose-600 hover:text-rose-700 hover:underline font-medium"
+                        >
+                          Clear Pin
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fixed Bottom Modal Footer */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 border-t border-slate-100 shrink-0">
+                <div className="text-[11px] text-slate-500 hidden sm:block">
+                  {newCampus.latitude && newCampus.longitude ? (
+                    <span className="text-emerald-700 font-medium flex items-center gap-1.5">
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      GPS verified: {newCampus.latitude.toFixed(5)}, {newCampus.longitude.toFixed(5)}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">
+                      Coordinates enable exact corridor and commuter matching.
+                    </span>
+                  )}
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">Campus Name</Label>
-                  <Input
-                    required
-                    value={newCampus.name}
-                    onChange={(e) => setNewCampus({ ...newCampus, name: e.target.value })}
-                    placeholder="e.g. Silicon Oasis Tech Park"
-                    className="h-9 text-xs rounded-lg"
-                  />
+                <div className="flex items-center gap-2 ml-auto">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddCampusOpen(false)}
+                    className="h-9 px-4 text-xs font-semibold rounded-lg border-slate-200 text-slate-700 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmittingCampus}
+                    size="sm"
+                    className="h-9 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5 rounded-lg shadow-xs"
+                  >
+                    {isSubmittingCampus ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Plus className="h-3.5 w-3.5" />
+                    )}
+                    Create Campus
+                  </Button>
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Street Address</Label>
-                <Input
-                  value={newCampus.address}
-                  onChange={(e) => setNewCampus({ ...newCampus, address: e.target.value })}
-                  placeholder="e.g. Plot 12, Phase 3, Electronic City"
-                  className="h-9 text-xs rounded-lg"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">City</Label>
-                  <Input
-                    required
-                    value={newCampus.city}
-                    onChange={(e) => setNewCampus({ ...newCampus, city: e.target.value })}
-                    placeholder="e.g. Bangalore"
-                    className="h-9 text-xs rounded-lg"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">State</Label>
-                  <Input
-                    required
-                    value={newCampus.state}
-                    onChange={(e) => setNewCampus({ ...newCampus, state: e.target.value })}
-                    placeholder="e.g. Karnataka"
-                    className="h-9 text-xs rounded-lg"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Campus Admin Email (Optional)</Label>
-                <Input
-                  type="email"
-                  value={newCampus.adminEmail}
-                  onChange={(e) => setNewCampus({ ...newCampus, adminEmail: e.target.value })}
-                  placeholder="e.g. campusadmin@company.com"
-                  className="h-9 text-xs rounded-lg"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-700">Operating Companies (Comma-separated)</Label>
-                <Input
-                  value={newCampus.companiesInput}
-                  onChange={(e) => setNewCampus({ ...newCampus, companiesInput: e.target.value })}
-                  placeholder="e.g. Tech Mahindra, TCS, Infosys, Wipro"
-                  className="h-9 text-xs rounded-lg"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsAddCampusOpen(false)}
-                  className="h-9 px-4 text-xs font-semibold rounded-lg border-slate-200 text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmittingCampus}
-                  size="sm"
-                  className="h-9 px-4 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold gap-1.5 rounded-lg shadow-xs"
-                >
-                  {isSubmittingCampus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                  Create Campus
-                </Button>
               </div>
             </form>
           </div>
