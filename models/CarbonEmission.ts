@@ -40,6 +40,8 @@ export interface ICarbonEmission extends Document {
   };
   distanceSource: "GPS_TRACKED" | "ROUTE_ESTIMATED";
   calculationMethod: string;
+  dataCompleteness?: "COMPLETE" | "INCOMPLETE";
+  dataCompletenessReason?: string;
   calculatedAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -185,6 +187,15 @@ const CarbonEmissionSchema = new Schema<ICarbonEmission>(
     calculationMethod: {
       type: String,
       default: "Travel Distance (km) × Emission Factor (g CO2/km) / 1000",
+    },
+    dataCompleteness: {
+      type: String,
+      enum: ["COMPLETE", "INCOMPLETE"],
+      default: "COMPLETE",
+    },
+    dataCompletenessReason: {
+      type: String,
+      default: "",
     },
     calculatedAt: {
       type: Date,

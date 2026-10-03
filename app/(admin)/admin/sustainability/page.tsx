@@ -61,14 +61,32 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CarLoader } from "@/components/common/CarLoader";
 import { cn } from "@/lib/utils";
 
+export interface IDiagnosticRideItem {
+  rideId: string;
+  passengerCount: number;
+  soloDistancePerPassenger: string;
+  soloDistances: number[];
+  soloBaselineCO2Kg: number;
+  actualSharedVehicleDistanceKm: number;
+  carpoolEmissionsKg: number;
+  grossDifferenceKg: number;
+  avoidedEmissionsKg: number;
+  reductionPercentage: number;
+  dataCompleteness: "COMPLETE" | "INCOMPLETE";
+  dataCompletenessReason: string;
+  calculatedAt?: string | Date;
+}
+
 interface ISustainabilityAnalytics {
   totalCompletedRides: number;
   totalPassengers: number;
   totalCarpoolDistanceKm: number;
   totalSoloBaselineDistanceKm: number;
   vehicleKilometersReducedKm: number;
+  totalSoloBaselineCO2Kg?: number;
   totalEstimatedCO2EmittedKg: number;
   totalEstimatedCO2AvoidedKg: number;
+  grossDifferenceKg?: number;
   averageOccupancy: number;
   averageCO2SavingPerRideKg: number;
   averageCO2SavingPerPassengerKg: number;
@@ -76,6 +94,7 @@ interface ISustainabilityAnalytics {
   equivalentTreesPlanted: number;
   activeEmissionFactorSource: string;
   activeSourceReference: string;
+  diagnostics?: IDiagnosticRideItem[];
 }
 
 interface IMonthlyData {
@@ -267,15 +286,18 @@ export default function AdminSustainabilityPage() {
     }
   };
 
-  // Solo baseline vs Carpool emissions calculations (safe division & rounding)
+  // Solo baseline vs Carpool emissions calculations (safe independent aggregation & honest reporting)
   const soloBaselineCO2 =
-    (analytics?.totalEstimatedCO2EmittedKg || 0) + (analytics?.totalEstimatedCO2AvoidedKg || 0);
+    analytics?.totalSoloBaselineCO2Kg !== undefined
+      ? analytics.totalSoloBaselineCO2Kg
+      : (analytics?.totalEstimatedCO2EmittedKg || 0) + (analytics?.totalEstimatedCO2AvoidedKg || 0);
   const actualCarpoolCO2 = analytics?.totalEstimatedCO2EmittedKg || 0;
   const co2Avoided = analytics?.totalEstimatedCO2AvoidedKg || 0;
-  const reductionPct =
-    soloBaselineCO2 > 0 && co2Avoided > 0
-      ? Math.round((co2Avoided / soloBaselineCO2) * 100 * 10) / 10
-      : analytics?.co2ReductionPercentage || 0;
+  const grossDiff =
+    analytics?.grossDifferenceKg !== undefined
+      ? analytics.grossDifferenceKg
+      : Math.round((soloBaselineCO2 - actualCarpoolCO2) * 100) / 100;
+  const reductionPct = analytics?.co2ReductionPercentage ?? 0;
 
   // Comparison Bar Chart Data (Chart 1)
   const comparisonBarData = [
@@ -319,8 +341,9 @@ export default function AdminSustainabilityPage() {
             className="h-8 gap-1.5 text-xs text-slate-600 rounded-lg"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh Data
+            Refresh
           </Button>
+
           <Button
             size="sm"
             onClick={handleOpenAddFactor}
@@ -345,6 +368,13 @@ export default function AdminSustainabilityPage() {
               <h2 className="text-2xl font-black tracking-tight text-white mt-1">
                 {isLoading ? (
                   <Skeleton className="h-8 w-48 bg-slate-700" />
+                ) : grossDiff < 0 ? (
+                  <span>
+                    0 kg CO₂ Avoided{" "}
+                    <span className="text-sm font-semibold text-rose-300">
+                      ({Math.abs(grossDiff).toLocaleString()} kg Net Increase)
+                    </span>
+                  </span>
                 ) : (
                   `${co2Avoided.toLocaleString()} kg CO₂ Avoided`
                 )}
@@ -396,7 +426,9 @@ export default function AdminSustainabilityPage() {
               <div className="text-xl font-black text-emerald-400 mt-1">
                 {isLoading ? <Skeleton className="h-6 w-20 bg-slate-700" /> : `${co2Avoided.toLocaleString()} kg`}
               </div>
-              <span className="text-[10px] text-emerald-300 block mt-0.5">Baseline − Actual Carpool</span>
+              <span className="text-[10px] text-emerald-300 block mt-0.5">
+                {grossDiff < 0 ? `Net: ${grossDiff.toLocaleString()} kg` : "Baseline − Actual Carpool"}
+              </span>
             </div>
 
             {/* 4. CO2 Reduction Percentage */}
@@ -405,9 +437,15 @@ export default function AdminSustainabilityPage() {
                 CO₂ Reduction Percentage
               </span>
               <div className="text-xl font-black text-emerald-400 mt-1">
-                {isLoading ? <Skeleton className="h-6 w-16 bg-slate-700" /> : `${reductionPct}%`}
+                {isLoading ? (
+                  <Skeleton className="h-6 w-16 bg-slate-700" />
+                ) : (
+                  `${reductionPct > 0 ? "+" : ""}${reductionPct}%`
+                )}
               </div>
-              <span className="text-[10px] text-emerald-300 block mt-0.5">Net carbon reduction ratio</span>
+              <span className="text-[10px] text-emerald-300 block mt-0.5">
+                {reductionPct < 0 ? "Emissions exceeded solo baseline" : "Net carbon reduction ratio"}
+              </span>
             </div>
           </div>
         </div>
@@ -856,6 +894,108 @@ export default function AdminSustainabilityPage() {
               <span className="font-semibold text-slate-700">Distance Source Preference:</span> GPS Tracked Telemetry &gt; OSRM Route Calculation
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* 6B. Completed Rides Carbon Diagnostics Table */}
+      <Card className="border-slate-200 shadow-2xs rounded-xl bg-white">
+        <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-[10px] font-bold text-emerald-700 border-emerald-200 bg-emerald-50">
+                Diagnostic Verification
+              </Badge>
+              <CardTitle className="text-sm font-bold text-slate-900">
+                Completed Rides Carbon Calculation Diagnostics
+              </CardTitle>
+            </div>
+            <CardDescription className="text-xs text-slate-500 mt-0.5">
+              Ride-level audit trail verifying independent calculations, individual passenger journeys, and data completeness.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!analytics?.diagnostics || analytics.diagnostics.length === 0 ? (
+            <div className="text-center py-8 text-xs text-slate-400">
+              No completed rides recorded for carbon diagnostics yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                  <tr>
+                    <th className="py-2.5 px-3">Ride ID</th>
+                    <th className="py-2.5 px-3">Passengers</th>
+                    <th className="py-2.5 px-3">Solo Dist / Pax</th>
+                    <th className="py-2.5 px-3">Solo Baseline</th>
+                    <th className="py-2.5 px-3">Shared Vehicle Dist</th>
+                    <th className="py-2.5 px-3">Carpool CO₂</th>
+                    <th className="py-2.5 px-3">Gross Diff</th>
+                    <th className="py-2.5 px-3">Avoided CO₂</th>
+                    <th className="py-2.5 px-3">Reduction %</th>
+                    <th className="py-2.5 px-3">Data Completeness</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {analytics.diagnostics.map((d, idx) => (
+                    <tr key={d.rideId || idx} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-2.5 px-3 font-mono text-[11px] font-semibold text-slate-800" title={d.rideId}>
+                        {d.rideId.length > 12 ? `${d.rideId.slice(0, 8)}...` : d.rideId}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <Badge variant="secondary" className="text-[10px] font-medium">
+                          {d.passengerCount} {d.passengerCount === 1 ? "passenger" : "passengers"}
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600 font-mono text-[11px]">
+                        {d.soloDistancePerPassenger}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-rose-600">
+                        {d.soloBaselineCO2Kg} kg
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-slate-700">
+                        {d.actualSharedVehicleDistanceKm} km
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-blue-600">
+                        {d.carpoolEmissionsKg} kg
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold">
+                        <span className={d.grossDifferenceKg >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                          {d.grossDifferenceKg >= 0 ? `+${d.grossDifferenceKg}` : d.grossDifferenceKg} kg
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-emerald-700">
+                        {d.avoidedEmissionsKg} kg
+                      </td>
+                      <td className="py-2.5 px-3 font-mono">
+                        <span className={d.reductionPercentage >= 0 ? "text-emerald-700 font-bold" : "text-rose-600 font-bold"}>
+                          {d.reductionPercentage > 0 ? `+${d.reductionPercentage}%` : `${d.reductionPercentage}%`}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="flex flex-col gap-0.5">
+                          {d.dataCompleteness === "COMPLETE" ? (
+                            <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold border-0 w-fit">
+                              COMPLETE
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="bg-amber-100 text-amber-800 text-[10px] font-semibold border-0 w-fit">
+                              INCOMPLETE
+                            </Badge>
+                          )}
+                          {d.dataCompletenessReason && (
+                            <span className="text-[10px] text-slate-400 max-w-[200px] truncate" title={d.dataCompletenessReason}>
+                              {d.dataCompletenessReason}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

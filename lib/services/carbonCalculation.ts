@@ -266,61 +266,79 @@ export async function calculateRideCarbonEmissions(
   const passengerRecords: any[] = [];
   let soloBaselineDistanceKm = 0;
   let soloBaselineCO2Kg = 0;
+  let dataCompleteness: "COMPLETE" | "INCOMPLETE" = "COMPLETE";
+  const missingReasons: string[] = [];
+  let dataCompletenessReason = "";
 
-  // Standard passenger baseline factor (if passenger drove solo, assumed average petrol car)
+  if (actualCarpoolDistanceKm <= 0) {
+    dataCompleteness = "INCOMPLETE";
+    missingReasons.push("Missing vehicle route distance or valid route coordinates");
+  }
+
+  // Standard passenger baseline factor (if passenger drove solo, assumed standard petrol car)
   const passengerBaselineFactor = await getResolvedEmissionFactor("Car", "Petrol", "default");
 
-  for (const req of acceptedRequests) {
-    const pPickup = (req.pickupStop || "").toLowerCase().trim();
-    const pDrop = (req.dropStop || "").toLowerCase().trim();
+  if (passengerCount === 0) {
+    // Single-occupant trip (0 passengers carried)
+    dataCompleteness = "COMPLETE";
+    dataCompletenessReason = "Single-occupant trip (0 passengers). Baseline emissions are 0 kg.";
+  } else {
+    for (const req of acceptedRequests) {
+      const pPickup = (req.pickupStop || "").toLowerCase().trim();
+      const pDrop = (req.dropStop || "").toLowerCase().trim();
 
-    const pickupCoords = stopCoordsMap.get(pPickup);
-    const dropCoords = stopCoordsMap.get(pDrop);
+      const pickupCoords = stopCoordsMap.get(pPickup);
+      const dropCoords = stopCoordsMap.get(pDrop);
 
-    let pSoloDist = 0;
-    if (pickupCoords && dropCoords) {
-      pSoloDist = calculateRoadDistanceKm(
-        pickupCoords.lat,
-        pickupCoords.lon,
-        dropCoords.lat,
-        dropCoords.lon
-      );
+      let pSoloDist = 0;
+      if (pickupCoords && dropCoords) {
+        pSoloDist = calculateRoadDistanceKm(
+          pickupCoords.lat,
+          pickupCoords.lon,
+          dropCoords.lat,
+          dropCoords.lon
+        );
+      }
+
+      // Do NOT silently substitute route distance when passenger coordinates are missing
+      if (pSoloDist <= 0) {
+        dataCompleteness = "INCOMPLETE";
+        const passengerObj = req.passenger as any;
+        const passengerIdentifier =
+          passengerObj?.name || passengerObj?._id || req.pickupStop || "passenger";
+        missingReasons.push(`Missing valid coordinates for ${passengerIdentifier}`);
+        pSoloDist = 0;
+      }
+
+      const pSoloCO2 =
+        Math.round(((pSoloDist * passengerBaselineFactor.gramsCO2PerKm) / 1000) * 1000) / 1000;
+
+      soloBaselineDistanceKm += pSoloDist;
+      soloBaselineCO2Kg += pSoloCO2;
+
+      passengerRecords.push({
+        userId: req.passenger?._id || req.passenger,
+        pickupStop: req.pickupStop,
+        dropStop: req.dropStop,
+        soloDistanceKm: pSoloDist,
+        soloEmissionKg: pSoloCO2,
+        emissionFactorUsed: {
+          gramsCO2PerKm: passengerBaselineFactor.gramsCO2PerKm,
+          source: passengerBaselineFactor.source,
+          isDefault: passengerBaselineFactor.isDefault,
+        },
+      });
     }
-
-    // Fallback if coordinates missing: proportional to entire ride distance
-    if (pSoloDist <= 0) {
-      // Default to 85% of total route distance or at least actual distance
-      pSoloDist = Math.max(1, Math.round(actualCarpoolDistanceKm * 0.85 * 100) / 100);
-    }
-
-    const pSoloCO2 =
-      Math.round(((pSoloDist * passengerBaselineFactor.gramsCO2PerKm) / 1000) * 1000) / 1000;
-
-    soloBaselineDistanceKm += pSoloDist;
-    soloBaselineCO2Kg += pSoloCO2;
-
-    passengerRecords.push({
-      userId: req.passenger?._id || req.passenger,
-      pickupStop: req.pickupStop,
-      dropStop: req.dropStop,
-      soloDistanceKm: pSoloDist,
-      soloEmissionKg: pSoloCO2,
-      emissionFactorUsed: {
-        gramsCO2PerKm: passengerBaselineFactor.gramsCO2PerKm,
-        source: passengerBaselineFactor.source,
-        isDefault: passengerBaselineFactor.isDefault,
-      },
-    });
   }
 
   soloBaselineDistanceKm = Math.round(soloBaselineDistanceKm * 100) / 100;
   soloBaselineCO2Kg = Math.round(soloBaselineCO2Kg * 1000) / 1000;
 
   // 4. Calculate Environmental Savings
-  // Raw difference (can be negative if carpool route > solo emissions)
+  // Raw difference (negative when carpool emissions exceed solo baseline)
   const grossDifferenceKg = Math.round((soloBaselineCO2Kg - actualCarpoolCO2Kg) * 1000) / 1000;
 
-  // Guard against displaying negative savings (as required by spec)
+  // Avoided emissions (capped at 0 so we never report negative savings)
   const co2SavedKg = Math.max(0, grossDifferenceKg);
 
   // Vehicle-Kilometers Reduced (VKR)
@@ -329,43 +347,58 @@ export async function calculateRideCarbonEmissions(
     Math.round((soloBaselineDistanceKm - actualCarpoolDistanceKm) * 100) / 100
   );
 
-  // CO2 Reduction Percentage: safely handle division by zero
+  // CO2 Reduction Percentage: (Gross Difference / Solo Baseline) * 100 when baseline > 0
   let co2ReductionPercentage = 0;
-  if (soloBaselineCO2Kg > 0 && co2SavedKg > 0) {
+  if (soloBaselineCO2Kg > 0) {
     co2ReductionPercentage =
-      Math.round(((soloBaselineCO2Kg - actualCarpoolCO2Kg) / soloBaselineCO2Kg) * 100 * 10) / 10;
-    if (co2ReductionPercentage < 0) co2ReductionPercentage = 0;
+      Math.round((grossDifferenceKg / soloBaselineCO2Kg) * 100 * 10) / 10;
   }
 
-  // 5. Persist to MongoDB
-  const carbonRecord = await CarbonEmission.create({
-    rideId: ride._id,
-    driverId: ride.driver,
-    vehicleId: ride.vehicle._id || ride.vehicle,
-    campusId: ride.campusId || "CAMP001",
-    passengers: passengerRecords,
-    soloBaselineDistanceKm,
-    actualCarpoolDistanceKm,
-    soloBaselineCO2Kg,
-    actualCarpoolCO2Kg,
-    co2SavedKg,
-    grossDifferenceKg,
-    co2ReductionPercentage,
-    vehicleKilometersReduced,
-    occupancy,
-    passengerCount,
-    emissionFactor: {
-      vehicleType: driverFactor.vehicleType,
-      fuelType: driverFactor.fuelType,
-      engineCategory: driverFactor.engineCategory,
-      gramsCO2PerKm: driverFactor.gramsCO2PerKm,
-      source: driverFactor.source,
-      isDefault: driverFactor.isDefault,
+  if (dataCompleteness === "INCOMPLETE") {
+    dataCompletenessReason = missingReasons.join("; ");
+  } else if (passengerCount === 0) {
+    dataCompletenessReason = "Single-occupant trip (0 passengers). Baseline emissions are 0 kg.";
+  } else {
+    dataCompletenessReason = "All passenger distances and emission factors verified";
+  }
+
+  // 5. Persist to MongoDB idempotently (upsert by rideId)
+  const carbonRecord = await CarbonEmission.findOneAndUpdate(
+    { rideId: ride._id },
+    {
+      $set: {
+        rideId: ride._id,
+        driverId: ride.driver,
+        vehicleId: ride.vehicle._id || ride.vehicle,
+        campusId: ride.campusId || "CAMP001",
+        passengers: passengerRecords,
+        soloBaselineDistanceKm,
+        actualCarpoolDistanceKm,
+        soloBaselineCO2Kg,
+        actualCarpoolCO2Kg,
+        co2SavedKg,
+        grossDifferenceKg,
+        co2ReductionPercentage,
+        vehicleKilometersReduced,
+        occupancy,
+        passengerCount,
+        emissionFactor: {
+          vehicleType: driverFactor.vehicleType,
+          fuelType: driverFactor.fuelType,
+          engineCategory: driverFactor.engineCategory,
+          gramsCO2PerKm: driverFactor.gramsCO2PerKm,
+          source: driverFactor.source,
+          isDefault: driverFactor.isDefault,
+        },
+        distanceSource,
+        calculationMethod: "Travel Distance (km) × Emission Factor (g CO2/km) / 1000",
+        dataCompleteness,
+        dataCompletenessReason,
+        calculatedAt: new Date(),
+      },
     },
-    distanceSource,
-    calculationMethod: "Travel Distance (km) × Emission Factor (g CO2/km) / 1000",
-    calculatedAt: new Date(),
-  });
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
 
   return carbonRecord;
 }
@@ -448,6 +481,142 @@ export async function getUserCarbonStats(userId: string) {
   };
 }
 
+export interface DiagnosticRideItem {
+  rideId: string;
+  passengerCount: number;
+  soloDistancePerPassenger: string;
+  soloDistances: number[];
+  soloBaselineCO2Kg: number;
+  actualSharedVehicleDistanceKm: number;
+  carpoolEmissionsKg: number;
+  grossDifferenceKg: number;
+  avoidedEmissionsKg: number;
+  reductionPercentage: number;
+  dataCompleteness: "COMPLETE" | "INCOMPLETE";
+  dataCompletenessReason: string;
+  calculatedAt?: Date;
+}
+
+export interface CalculationInput {
+  actualCarpoolDistanceKm: number;
+  driverGramsCO2PerKm: number;
+  passengers: Array<{
+    passengerId?: string;
+    distanceKm?: number | null;
+    gramsCO2PerKm?: number;
+    hasValidCoordinates?: boolean;
+    name?: string;
+  }>;
+}
+
+export interface CalculationResult {
+  soloBaselineDistanceKm: number;
+  actualCarpoolDistanceKm: number;
+  soloBaselineCO2Kg: number;
+  actualCarpoolCO2Kg: number;
+  grossDifferenceKg: number;
+  co2SavedKg: number;
+  co2ReductionPercentage: number;
+  vehicleKilometersReduced: number;
+  passengerCount: number;
+  dataCompleteness: "COMPLETE" | "INCOMPLETE";
+  dataCompletenessReason: string;
+}
+
+/**
+ * Pure calculation logic matching IPCC 2006 guidelines and CommuteX specification
+ */
+export function computeSustainabilityFigures(input: CalculationInput): CalculationResult {
+  const actualCarpoolDistanceKm = Math.max(0, input.actualCarpoolDistanceKm || 0);
+  const driverFactor = input.driverGramsCO2PerKm || 150;
+  const actualCarpoolCO2Kg =
+    Math.round(((actualCarpoolDistanceKm * driverFactor) / 1000) * 1000) / 1000;
+
+  const passengers = input.passengers || [];
+  const passengerCount = passengers.length;
+  let soloBaselineDistanceKm = 0;
+  let soloBaselineCO2Kg = 0;
+  let dataCompleteness: "COMPLETE" | "INCOMPLETE" = "COMPLETE";
+  const missingReasons: string[] = [];
+
+  if (actualCarpoolDistanceKm <= 0) {
+    dataCompleteness = "INCOMPLETE";
+    missingReasons.push("Missing vehicle route distance");
+  }
+
+  if (passengerCount === 0) {
+    dataCompleteness = "COMPLETE";
+    const dataCompletenessReason =
+      "Single-occupant trip (0 passengers). Baseline emissions are 0 kg.";
+    return {
+      soloBaselineDistanceKm: 0,
+      actualCarpoolDistanceKm,
+      soloBaselineCO2Kg: 0,
+      actualCarpoolCO2Kg,
+      grossDifferenceKg: Math.round((0 - actualCarpoolCO2Kg) * 1000) / 1000,
+      co2SavedKg: 0,
+      co2ReductionPercentage: 0,
+      vehicleKilometersReduced: 0,
+      passengerCount: 0,
+      dataCompleteness,
+      dataCompletenessReason,
+    };
+  }
+
+  for (let i = 0; i < passengers.length; i++) {
+    const p = passengers[i];
+    const pDist = p.distanceKm != null ? p.distanceKm : 0;
+    const hasCoords = p.hasValidCoordinates !== false && pDist > 0;
+
+    if (!hasCoords) {
+      dataCompleteness = "INCOMPLETE";
+      missingReasons.push(`Missing valid coordinates/distance for passenger ${p.name || i + 1}`);
+    }
+
+    const factor = p.gramsCO2PerKm || 150;
+    const pCO2 = Math.round(((pDist * factor) / 1000) * 1000) / 1000;
+    soloBaselineDistanceKm += pDist;
+    soloBaselineCO2Kg += pCO2;
+  }
+
+  soloBaselineDistanceKm = Math.round(soloBaselineDistanceKm * 100) / 100;
+  soloBaselineCO2Kg = Math.round(soloBaselineCO2Kg * 1000) / 1000;
+
+  const grossDifferenceKg = Math.round((soloBaselineCO2Kg - actualCarpoolCO2Kg) * 1000) / 1000;
+  const co2SavedKg = Math.max(0, grossDifferenceKg);
+  const vehicleKilometersReduced = Math.max(
+    0,
+    Math.round((soloBaselineDistanceKm - actualCarpoolDistanceKm) * 100) / 100
+  );
+
+  let co2ReductionPercentage = 0;
+  if (soloBaselineCO2Kg > 0) {
+    co2ReductionPercentage =
+      Math.round((grossDifferenceKg / soloBaselineCO2Kg) * 100 * 10) / 10;
+  }
+
+  let dataCompletenessReason = "";
+  if (dataCompleteness === "INCOMPLETE") {
+    dataCompletenessReason = missingReasons.join("; ");
+  } else {
+    dataCompletenessReason = "All passenger distances and emission factors verified";
+  }
+
+  return {
+    soloBaselineDistanceKm,
+    actualCarpoolDistanceKm,
+    soloBaselineCO2Kg,
+    actualCarpoolCO2Kg,
+    grossDifferenceKg,
+    co2SavedKg,
+    co2ReductionPercentage,
+    vehicleKilometersReduced,
+    passengerCount,
+    dataCompleteness,
+    dataCompletenessReason,
+  };
+}
+
 /**
  * Campus/Organization-wide Sustainability Analytics
  */
@@ -459,7 +628,7 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
     query.campusId = campusId.toUpperCase();
   }
 
-  const records = await CarbonEmission.find(query).lean();
+  const records = await CarbonEmission.find(query).sort({ calculatedAt: -1 }).lean();
 
   const completedRidesCount = records.length;
   let totalPassengers = 0;
@@ -468,7 +637,10 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
   let totalVKRKm = 0;
   let totalEstimatedCO2EmittedKg = 0;
   let totalEstimatedCO2AvoidedKg = 0;
+  let totalSoloBaselineCO2Kg = 0;
   let sumOccupancy = 0;
+
+  const diagnostics: DiagnosticRideItem[] = [];
 
   for (const r of records) {
     totalPassengers += r.passengerCount || 0;
@@ -477,7 +649,51 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
     totalVKRKm += r.vehicleKilometersReduced || 0;
     totalEstimatedCO2EmittedKg += r.actualCarpoolCO2Kg || 0;
     totalEstimatedCO2AvoidedKg += r.co2SavedKg || 0;
+    totalSoloBaselineCO2Kg += r.soloBaselineCO2Kg || 0;
     sumOccupancy += r.occupancy || 1;
+
+    // Diagnostic information for each completed ride
+    const soloDistances = (r.passengers || []).map((p: any) => p.soloDistanceKm);
+    const soloDistancesStr =
+      soloDistances.length > 0
+        ? soloDistances.map((d: number) => `${d} km`).join(", ")
+        : "0 km (No passengers)";
+
+    let completeness: "COMPLETE" | "INCOMPLETE" = r.dataCompleteness || "COMPLETE";
+    let completenessReason = r.dataCompletenessReason || "";
+    if (!r.dataCompleteness) {
+      if ((r.passengerCount || 0) > 0 && soloDistances.some((d: number) => d <= 0)) {
+        completeness = "INCOMPLETE";
+        completenessReason = "Missing route coordinates for one or more passengers";
+      } else {
+        completeness = "COMPLETE";
+        completenessReason =
+          (r.passengerCount || 0) === 0
+            ? "Single-occupant trip (0 passengers)"
+            : "All passenger distances and emission factors verified";
+      }
+    }
+
+    const rideGrossDiff =
+      r.grossDifferenceKg !== undefined
+        ? r.grossDifferenceKg
+        : Math.round(((r.soloBaselineCO2Kg || 0) - (r.actualCarpoolCO2Kg || 0)) * 1000) / 1000;
+
+    diagnostics.push({
+      rideId: r.rideId?.toString() || r._id.toString(),
+      passengerCount: r.passengerCount || 0,
+      soloDistancePerPassenger: soloDistancesStr,
+      soloDistances,
+      soloBaselineCO2Kg: Math.round((r.soloBaselineCO2Kg || 0) * 1000) / 1000,
+      actualSharedVehicleDistanceKm: Math.round((r.actualCarpoolDistanceKm || 0) * 100) / 100,
+      carpoolEmissionsKg: Math.round((r.actualCarpoolCO2Kg || 0) * 1000) / 1000,
+      grossDifferenceKg: Math.round(rideGrossDiff * 1000) / 1000,
+      avoidedEmissionsKg: Math.round((r.co2SavedKg || 0) * 1000) / 1000,
+      reductionPercentage: r.co2ReductionPercentage || 0,
+      dataCompleteness: completeness,
+      dataCompletenessReason: completenessReason,
+      calculatedAt: r.calculatedAt || (r as any).createdAt,
+    });
   }
 
   const averageOccupancy =
@@ -491,10 +707,15 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
       ? Math.round((totalEstimatedCO2AvoidedKg / totalPassengers) * 100) / 100
       : 0;
 
-  const totalSoloCO2 = totalEstimatedCO2EmittedKg + totalEstimatedCO2AvoidedKg;
+  totalSoloBaselineCO2Kg = Math.round(totalSoloBaselineCO2Kg * 1000) / 1000;
+  totalEstimatedCO2EmittedKg = Math.round(totalEstimatedCO2EmittedKg * 1000) / 1000;
+  totalEstimatedCO2AvoidedKg = Math.round(totalEstimatedCO2AvoidedKg * 1000) / 1000;
+  const totalGrossDifferenceKg =
+    Math.round((totalSoloBaselineCO2Kg - totalEstimatedCO2EmittedKg) * 1000) / 1000;
+
   const co2ReductionPercentage =
-    totalSoloCO2 > 0
-      ? Math.round((totalEstimatedCO2AvoidedKg / totalSoloCO2) * 100 * 10) / 10
+    totalSoloBaselineCO2Kg > 0
+      ? Math.round((totalGrossDifferenceKg / totalSoloBaselineCO2Kg) * 100 * 10) / 10
       : 0;
 
   // Active emission factor source for transparency display
@@ -506,8 +727,10 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
     totalCarpoolDistanceKm: Math.round(totalCarpoolDistanceKm * 100) / 100,
     totalSoloBaselineDistanceKm: Math.round(totalSoloBaselineDistanceKm * 100) / 100,
     vehicleKilometersReducedKm: Math.round(totalVKRKm * 100) / 100,
+    totalSoloBaselineCO2Kg: Math.round(totalSoloBaselineCO2Kg * 100) / 100,
     totalEstimatedCO2EmittedKg: Math.round(totalEstimatedCO2EmittedKg * 100) / 100,
     totalEstimatedCO2AvoidedKg: Math.round(totalEstimatedCO2AvoidedKg * 100) / 100,
+    grossDifferenceKg: Math.round(totalGrossDifferenceKg * 100) / 100,
     averageOccupancy,
     averageCO2SavingPerRideKg,
     averageCO2SavingPerPassengerKg,
@@ -515,6 +738,7 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
     equivalentTreesPlanted: Math.round((totalEstimatedCO2AvoidedKg / 21.77) * 10) / 10,
     activeEmissionFactorSource: activeFactor?.source || "IPCC 2006 / MoEFCC India GHG Platform",
     activeSourceReference: activeFactor?.sourceReference || "India GHG Platform Baseline",
+    diagnostics,
   };
 }
 
