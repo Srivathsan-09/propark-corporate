@@ -24,6 +24,8 @@ import {
   RefreshCw,
   Loader2,
   BarChart3,
+  Download,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -45,6 +47,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -65,6 +74,7 @@ import { cn } from "@/lib/utils";
 
 export interface IDiagnosticRideItem {
   rideId: string;
+  driverSoloDistanceKm?: number;
   passengerCount: number;
   soloDistancePerPassenger: string;
   soloDistances: number[];
@@ -108,6 +118,7 @@ interface IMonthlyData {
   co2AvoidedKg: number;
   co2EmittedKg: number;
   soloCO2Kg: number;
+  netEmissionsIncreaseKg?: number;
   vkrKm: number;
   ridesCount: number;
   passengersCount: number;
@@ -355,6 +366,192 @@ export default function AdminSustainabilityPage() {
     }
   }, [soloBaselineCO2, actualCarpoolCO2, monthlyData, isLoading]);
 
+  // CSV Export helper
+  const handleExportSustainabilityCSV = (type: "all" | "monthly" | "rides" = "all") => {
+    if (!analytics) return;
+
+    const escapeCSV = (val: any): string => {
+      if (val === null || val === undefined) return '""';
+      const s = String(val);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+
+    const triggerCSVDownload = (filename: string, content: string) => {
+      const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+
+    const dateStr = new Date().toISOString().split("T")[0];
+
+    if (type === "monthly") {
+      const headers = [
+        "Month Code",
+        "Month Label",
+        "Solo Baseline CO2 (kg)",
+        "Carpool Emissions (kg)",
+        "Net CO2 Avoided (kg)",
+        "Net Emissions Increase (kg)",
+        "Vehicle-KM Reduced (km)",
+        "Completed Rides",
+        "Passengers Carried",
+      ];
+      const rows = (analytics.monthlyData || []).map((m) => [
+        escapeCSV(m.month),
+        escapeCSV(m.label),
+        m.soloCO2Kg,
+        m.co2EmittedKg,
+        m.co2AvoidedKg,
+        m.netEmissionsIncreaseKg ?? 0,
+        m.vkrKm,
+        m.ridesCount,
+        m.passengersCount,
+      ]);
+      const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+      triggerCSVDownload(`CommuteX_Sustainability_Monthly_${dateStr}.csv`, csv);
+      return;
+    }
+
+    if (type === "rides") {
+      const headers = [
+        "Ride ID",
+        "Calculated At",
+        "Passenger Count",
+        "Passenger Solo Distances (km)",
+        "Driver Solo Distance (km)",
+        "Solo Baseline CO2 (kg)",
+        "Actual Carpool Distance (km)",
+        "Actual Carpool CO2 (kg)",
+        "Net CO2 Avoided (kg)",
+        "Net Emissions Increase (kg)",
+        "CO2 Reduction (%)",
+        "Completeness Status",
+        "Completeness Reason",
+      ];
+      const rows = (analytics.diagnostics || []).map((d) => [
+        escapeCSV(d.rideId),
+        escapeCSV(d.calculatedAt ? new Date(d.calculatedAt).toISOString() : ""),
+        d.passengerCount,
+        escapeCSV(d.soloDistancePerPassenger),
+        d.driverSoloDistanceKm ?? "",
+        d.soloBaselineCO2Kg,
+        d.actualSharedVehicleDistanceKm,
+        d.carpoolEmissionsKg,
+        d.avoidedEmissionsKg,
+        d.netEmissionsIncreaseKg,
+        d.reductionPercentage,
+        escapeCSV(d.dataCompleteness),
+        escapeCSV(d.dataCompletenessReason),
+      ]);
+      const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+      triggerCSVDownload(`CommuteX_Completed_Rides_Carbon_${dateStr}.csv`, csv);
+      return;
+    }
+
+    // Comprehensive Full Sustainability Report
+    const lines: string[] = [];
+    lines.push(`"COMMUTEX SUSTAINABILITY & ESG CARBON ACCOUNTING REPORT"`);
+    lines.push(`"Generated On",${escapeCSV(new Date().toLocaleString())}`);
+    lines.push(`"Methodology Standards",${escapeCSV("IPCC 2006 / MoEFCC India GHG Platform")}`);
+    lines.push(`"Active Emission Source",${escapeCSV(analytics.activeEmissionFactorSource || "")}`);
+    lines.push("");
+
+    // Section 1: Executive KPI Overview
+    lines.push(`"--- EXECUTIVE SUSTAINABILITY SUMMARY ---"`);
+    lines.push(`"Metric","Value","Unit"`);
+    lines.push(`"Solo Commuting Baseline CO2",${soloBaselineCO2},"kg CO2"`);
+    lines.push(`"Actual Shared Carpool CO2",${actualCarpoolCO2},"kg CO2"`);
+    lines.push(`"Net Estimated CO2 Avoided",${co2Avoided},"kg CO2"`);
+    lines.push(`"Net Emissions Increase",${netEmissionsIncrease},"kg CO2"`);
+    lines.push(`"CO2 Reduction Percentage",${reductionPct},"%"`);
+    lines.push(`"Total Verified Completed Rides",${analytics.totalCompletedRides ?? 0},"rides"`);
+    lines.push(`"Total Shared Passengers Carried",${analytics.totalPassengers ?? 0},"passengers"`);
+    lines.push(`"Actual Carpool Vehicle Travel Distance",${analytics.totalCarpoolDistanceKm ?? 0},"km"`);
+    lines.push(`"Vehicle-Kilometres Reduced (VKR)",${analytics.vehicleKilometersReducedKm ?? 0},"km"`);
+    lines.push(`"Average Carpool Occupancy",${analytics.averageOccupancy ?? 0},"commuters/car"`);
+    lines.push(`"Equivalent Mature Trees Absorbing CO2/yr",${analytics.equivalentTreesPlanted ?? 0},"trees"`);
+    lines.push("");
+
+    // Section 2: Monthly Time Series
+    lines.push(`"--- MONTHLY TIME-SERIES DATA ---"`);
+    lines.push(
+      [
+        "Month Code",
+        "Month Label",
+        "Solo Baseline CO2 (kg)",
+        "Carpool Emissions (kg)",
+        "Net CO2 Avoided (kg)",
+        "Net Emissions Increase (kg)",
+        "VKR (km)",
+        "Rides Count",
+        "Passengers Count",
+      ].map(escapeCSV).join(",")
+    );
+    (analytics.monthlyData || []).forEach((m) => {
+      lines.push(
+        [
+          escapeCSV(m.month),
+          escapeCSV(m.label),
+          m.soloCO2Kg,
+          m.co2EmittedKg,
+          m.co2AvoidedKg,
+          m.netEmissionsIncreaseKg ?? 0,
+          m.vkrKm,
+          m.ridesCount,
+          m.passengersCount,
+        ].join(",")
+      );
+    });
+    lines.push("");
+
+    // Section 3: Diagnostic Per-Ride Records
+    lines.push(`"--- COMPLETED RIDES CARBON ACCOUNTING DIAGNOSTICS ---"`);
+    lines.push(
+      [
+        "Ride ID",
+        "Calculated At",
+        "Passengers Count",
+        "Passenger Solo Distances (km)",
+        "Driver Solo Distance (km)",
+        "Solo Baseline CO2 (kg)",
+        "Carpool Distance (km)",
+        "Carpool CO2 (kg)",
+        "Net Avoided (kg)",
+        "Net Increase (kg)",
+        "Reduction (%)",
+        "Completeness Status",
+        "Completeness Reason",
+      ].map(escapeCSV).join(",")
+    );
+    (analytics.diagnostics || []).forEach((d) => {
+      lines.push(
+        [
+          escapeCSV(d.rideId),
+          escapeCSV(d.calculatedAt ? new Date(d.calculatedAt).toISOString() : ""),
+          d.passengerCount,
+          escapeCSV(d.soloDistancePerPassenger),
+          d.driverSoloDistanceKm ?? "",
+          d.soloBaselineCO2Kg,
+          d.actualSharedVehicleDistanceKm,
+          d.carpoolEmissionsKg,
+          d.avoidedEmissionsKg,
+          d.netEmissionsIncreaseKg,
+          d.reductionPercentage,
+          escapeCSV(d.dataCompleteness),
+          escapeCSV(d.dataCompletenessReason),
+        ].join(",")
+      );
+    });
+
+    triggerCSVDownload(`CommuteX_Sustainability_Full_Report_${dateStr}.csv`, lines.join("\r\n"));
+  };
+
   return (
     <div className="space-y-6 pb-12 animate-in fade-in-50 duration-300">
       {/* 1. Header */}
@@ -390,6 +587,45 @@ export default function AdminSustainabilityPage() {
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh
           </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isLoading}
+                className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-800 hover:bg-emerald-50 rounded-lg font-medium cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5 text-emerald-600" />
+                <span>Export CSV</span>
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-white border-slate-200 shadow-lg">
+              <DropdownMenuItem
+                onClick={() => handleExportSustainabilityCSV("all")}
+                className="text-xs font-semibold text-emerald-900 cursor-pointer hover:bg-emerald-50"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-2 text-emerald-600" />
+                Full Sustainability Report (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleExportSustainabilityCSV("monthly")}
+                className="text-xs cursor-pointer text-slate-700 hover:bg-slate-50"
+              >
+                <Leaf className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                Monthly Emissions Summary
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleExportSustainabilityCSV("rides")}
+                className="text-xs cursor-pointer text-slate-700 hover:bg-slate-50"
+              >
+                <Route className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                Completed Rides Diagnostics
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Button
             size="sm"

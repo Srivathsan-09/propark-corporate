@@ -30,6 +30,7 @@ import {
   ArrowRight,
   Trash2,
   Loader2,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -255,6 +256,87 @@ export default function AdminRidesPage() {
     return matchSearch && matchStatus && matchRideType;
   });
 
+  // Export rides manifest to CSV
+  const handleExportRidesCSV = () => {
+    if (filteredRides.length === 0) return;
+
+    const escapeCSV = (val: any): string => {
+      if (val === null || val === undefined) return '""';
+      const s = String(val);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+
+    const headers = [
+      "Ride ID",
+      "Date",
+      "Time",
+      "Ride Type",
+      "Status",
+      "Driver Name",
+      "Driver Email",
+      "Driver Phone",
+      "Employee ID",
+      "Company",
+      "Vehicle Model",
+      "Registration Number",
+      "Vehicle Type",
+      "Total Seats",
+      "Available Seats",
+      "Base Price (INR)",
+      "Starting Location",
+      "Destination",
+      "Distance (km)",
+      "Accepted Passengers Count",
+      "Passengers",
+      "Created At",
+    ];
+
+    const rows = filteredRides.map((r) => [
+      escapeCSV(r._id),
+      escapeCSV(r.departureDate),
+      escapeCSV(r.departureTime),
+      escapeCSV(r.rideType === "drop" ? "Drop (From Campus)" : "Pickup (To Campus)"),
+      escapeCSV(r.status),
+      escapeCSV(r.driver?.name || ""),
+      escapeCSV(r.driver?.email || ""),
+      escapeCSV(r.driver?.phone || ""),
+      escapeCSV(r.driver?.employeeId || ""),
+      escapeCSV(r.driver?.companyName || ""),
+      escapeCSV(r.vehicle?.vehicleModel || ""),
+      escapeCSV(r.vehicle?.registrationNumber || ""),
+      escapeCSV(r.vehicle?.vehicleType || r.vehicleType || ""),
+      r.totalSeats ?? 0,
+      r.availableSeats ?? 0,
+      r.basePrice ?? 0,
+      escapeCSV(r.startingLocation),
+      escapeCSV(r.destination),
+      r.distanceKm ?? 0,
+      r.requests?.filter((req) => req.status === "accepted").length ?? 0,
+      escapeCSV(
+        r.requests
+          ?.filter((req) => req.status === "accepted")
+          .map((req) => req.passenger?.name)
+          .filter(Boolean)
+          .join("; ") || ""
+      ),
+      escapeCSV(r.createdAt ? new Date(r.createdAt).toISOString() : ""),
+    ]);
+
+    const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\r\n");
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `CommuteX_Rides_Manifest_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4 max-w-7xl mx-auto pt-0 pb-6 animate-in fade-in-50 duration-300">
       {/* Header */}
@@ -280,15 +362,27 @@ export default function AdminRidesPage() {
           </p>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fetchAdminRides()}
-          disabled={isLoading}
-          className="text-xs rounded-xl gap-1.5"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh Manifest
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportRidesCSV}
+            disabled={filteredRides.length === 0}
+            className="text-xs rounded-xl gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer"
+          >
+            <Download className="h-3.5 w-3.5 text-purple-600" /> Export CSV
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchAdminRides()}
+            disabled={isLoading}
+            className="text-xs rounded-xl gap-1.5"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh Manifest
+          </Button>
+        </div>
       </div>
 
       {/* Feedback Banner */}

@@ -22,10 +22,20 @@ import {
   AlertCircle,
   HelpCircle,
   ShieldCheck,
+  Download,
+  FileSpreadsheet,
+  ChevronDown,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -158,6 +168,306 @@ export default function AdminCommuteHubPage() {
     },
   ];
 
+  // CSV Export helpers
+  const escapeCSV = (val: any): string => {
+    if (val === null || val === undefined) return '""';
+    const s = String(val);
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+
+  const triggerCSVDownload = (filename: string, content: string) => {
+    const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCSV = (type: "all" | "corridors" | "hours" | "carpool" | "areas" = "all") => {
+    if (!data) return;
+
+    const dateStr = new Date().toISOString().split("T")[0];
+    const campusLabel =
+      selectedCampus === "all"
+        ? "All_Campuses"
+        : campuses.find((c) => c.campusId === selectedCampus)?.name.replace(/[^a-zA-Z0-9]/g, "_") ||
+          selectedCampus;
+
+    if (type === "corridors") {
+      const headers = [
+        "Corridor ID",
+        "Corridor Name",
+        "Origin",
+        "Destination",
+        "Status",
+        "Total Rides",
+        "Active Scheduled Rides",
+        "Completed Rides",
+        "Total Seats Offered",
+        "Total Seats Booked",
+        "Occupancy Rate (%)",
+        "Unique Drivers",
+        "Unique Passengers",
+        "Average Distance (km)",
+        "Average Price (INR)",
+        "Frequent Stops",
+      ];
+      const rows = corridors.map((c) => [
+        escapeCSV(c.id),
+        escapeCSV(c.name),
+        escapeCSV(c.originName || ""),
+        escapeCSV(c.destinationName || ""),
+        escapeCSV(c.status),
+        c.totalRides ?? 0,
+        c.scheduledRides ?? 0,
+        c.completedRides ?? 0,
+        c.totalSeatsOffered ?? 0,
+        c.totalSeatsBooked ?? 0,
+        c.occupancyRate ?? 0,
+        c.uniqueDrivers ?? 0,
+        c.uniquePassengers ?? 0,
+        c.avgDistanceKm ?? 0,
+        c.avgPrice ?? 0,
+        escapeCSV(c.frequentStops?.map((s) => s.name).join("; ") || ""),
+      ]);
+      const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+      triggerCSVDownload(`CommuteX_Corridors_${campusLabel}_${dateStr}.csv`, csv);
+      return;
+    }
+
+    if (type === "hours") {
+      const headers = [
+        "Hour Window",
+        "Total Rides",
+        "Pickup Rides (To Campus)",
+        "Drop Rides (From Campus)",
+        "Seats Offered",
+        "Seats Booked",
+        "Occupancy Rate (%)",
+      ];
+      const distribution = patterns?.rushHourDistribution || [];
+      const rows = distribution.map((h) => [
+        escapeCSV(h.hour),
+        h.totalRides ?? 0,
+        h.pickupRides ?? 0,
+        h.dropRides ?? 0,
+        h.seatsOffered ?? 0,
+        h.seatsBooked ?? 0,
+        h.occupancyRate ?? 0,
+      ]);
+      const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+      triggerCSVDownload(`CommuteX_Hourly_Patterns_${campusLabel}_${dateStr}.csv`, csv);
+      return;
+    }
+
+    if (type === "carpool") {
+      const headers = [
+        "Opportunity ID",
+        "Corridor",
+        "Time Window",
+        "Origin Area",
+        "Destination Area",
+        "Available Seats",
+        "Passenger Demand",
+        "Match Score (%)",
+        "Potential Vehicle Reduction",
+        "Estimated Daily CO2 Saved (kg)",
+        "Recurring Days",
+      ];
+      const rows = carpoolOpportunities.map((op) => [
+        escapeCSV(op.id),
+        escapeCSV(op.corridor),
+        escapeCSV(op.timeWindow),
+        escapeCSV(op.originArea),
+        escapeCSV(op.destinationArea),
+        op.availableSeats ?? 0,
+        op.passengerDemand ?? 0,
+        op.matchScore ?? 0,
+        op.potentialVehicleReduction ?? 0,
+        op.estimatedDailyCo2SavingKg ?? 0,
+        escapeCSV(op.recurringDays?.join(", ") || ""),
+      ]);
+      const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+      triggerCSVDownload(`CommuteX_Carpool_Opportunities_${campusLabel}_${dateStr}.csv`, csv);
+      return;
+    }
+
+    if (type === "areas") {
+      const headers = ["Area Name", "Type", "Rides Count", "Commuters Count", "Percentage (%)"];
+      const origins = (frequentOrigins || []).map((o) => [
+        escapeCSV(o.name),
+        escapeCSV("Origin"),
+        o.ridesCount ?? 0,
+        o.commutersCount ?? 0,
+        o.percentage ?? 0,
+      ]);
+      const destinations = (frequentDestinations || []).map((d) => [
+        escapeCSV(d.name),
+        escapeCSV("Destination"),
+        d.ridesCount ?? 0,
+        d.commutersCount ?? 0,
+        d.percentage ?? 0,
+      ]);
+      const rows = [...origins, ...destinations];
+      const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+      triggerCSVDownload(`CommuteX_Demand_Areas_${campusLabel}_${dateStr}.csv`, csv);
+      return;
+    }
+
+    // Comprehensive Full Report
+    const lines: string[] = [];
+    lines.push(`"COMMUTEX CORPORATE MOBILITY & CARPOOL ANALYTICS REPORT"`);
+    lines.push(`"Generated On",${escapeCSV(new Date().toLocaleString())}`);
+    lines.push(`"Campus Filter",${escapeCSV(selectedCampus === "all" ? "All Campuses" : selectedCampus)}`);
+    lines.push(`"Timeframe",${escapeCSV(selectedDateRange)}`);
+    lines.push("");
+
+    // Section 1: Executive KPI Overview
+    lines.push(`"--- EXECUTIVE SUMMARY & KEY METRICS ---"`);
+    lines.push(`"Metric","Value","Unit"`);
+    lines.push(`"Total Carpools Analyzed",${overview?.totalCarpoolsAnalyzed ?? 0},"rides"`);
+    lines.push(`"Scheduled Active Rides",${overview?.scheduledActiveRides ?? 0},"rides"`);
+    lines.push(`"Completed Rides",${overview?.completedRides ?? 0},"rides"`);
+    lines.push(`"Total Commuters",${overview?.totalCommuters ?? 0},"employees"`);
+    lines.push(`"Unique Drivers",${overview?.uniqueDrivers ?? 0},"drivers"`);
+    lines.push(`"Unique Passengers",${overview?.uniquePassengers ?? 0},"passengers"`);
+    lines.push(`"Total Seats Offered",${overview?.totalSeatsOffered ?? 0},"seats"`);
+    lines.push(`"Total Seats Booked",${overview?.totalSeatsBooked ?? 0},"seats"`);
+    lines.push(`"Unused Seat Capacity",${overview?.unusedSeatCapacity ?? 0},"seats"`);
+    lines.push(`"Average Occupancy Rate",${overview?.avgOccupancyRate ?? 0},"%"`);
+    lines.push(`"Estimated Fuel Cost Saved",${overview?.estimatedCostSavedInr ?? 0},"INR"`);
+    lines.push(`"Estimated CO2 Emissions Avoided",${overview?.estimatedCo2SavedKg ?? 0},"kg CO2"`);
+    lines.push(`"Active Travel Corridors",${overview?.activeCorridorsCount ?? 0},"routes"`);
+    lines.push("");
+
+    // Section 2: Corridors
+    lines.push(`"--- POPULAR TRAVEL ROUTES & CORRIDORS ---"`);
+    lines.push(
+      [
+        "Corridor Name",
+        "Origin",
+        "Destination",
+        "Status",
+        "Total Rides",
+        "Active Rides",
+        "Completed Rides",
+        "Seats Offered",
+        "Seats Booked",
+        "Occupancy Rate (%)",
+        "Drivers",
+        "Passengers",
+        "Avg Distance (km)",
+        "Avg Price (INR)",
+        "Frequent Stops",
+      ].map(escapeCSV).join(",")
+    );
+    corridors.forEach((c) => {
+      lines.push(
+        [
+          escapeCSV(c.name),
+          escapeCSV(c.originName || ""),
+          escapeCSV(c.destinationName || ""),
+          escapeCSV(c.status),
+          c.totalRides ?? 0,
+          c.scheduledRides ?? 0,
+          c.completedRides ?? 0,
+          c.totalSeatsOffered ?? 0,
+          c.totalSeatsBooked ?? 0,
+          c.occupancyRate ?? 0,
+          c.uniqueDrivers ?? 0,
+          c.uniquePassengers ?? 0,
+          c.avgDistanceKm ?? 0,
+          c.avgPrice ?? 0,
+          escapeCSV(c.frequentStops?.map((s) => s.name).join("; ") || ""),
+        ].join(",")
+      );
+    });
+    lines.push("");
+
+    // Section 3: Rush Hours
+    lines.push(`"--- HOURLY DISTRIBUTION & BUSY HOURS ---"`);
+    lines.push(
+      [
+        "Hour Window",
+        "Total Rides",
+        "Pickup Rides",
+        "Drop Rides",
+        "Seats Offered",
+        "Seats Booked",
+        "Occupancy Rate (%)",
+      ].map(escapeCSV).join(",")
+    );
+    (patterns?.rushHourDistribution || []).forEach((h) => {
+      lines.push(
+        [
+          escapeCSV(h.hour),
+          h.totalRides ?? 0,
+          h.pickupRides ?? 0,
+          h.dropRides ?? 0,
+          h.seatsOffered ?? 0,
+          h.seatsBooked ?? 0,
+          h.occupancyRate ?? 0,
+        ].join(",")
+      );
+    });
+    lines.push("");
+
+    // Section 4: Carpool Opportunities
+    lines.push(`"--- CARPOOL MATCHING & SEAT OPPORTUNITIES ---"`);
+    lines.push(
+      [
+        "Corridor",
+        "Time Window",
+        "Origin Area",
+        "Destination Area",
+        "Available Seats",
+        "Passenger Demand",
+        "Match Score (%)",
+        "Potential Vehicle Reduction",
+        "Daily CO2 Saved (kg)",
+      ].map(escapeCSV).join(",")
+    );
+    carpoolOpportunities.forEach((op) => {
+      lines.push(
+        [
+          escapeCSV(op.corridor),
+          escapeCSV(op.timeWindow),
+          escapeCSV(op.originArea),
+          escapeCSV(op.destinationArea),
+          op.availableSeats ?? 0,
+          op.passengerDemand ?? 0,
+          op.matchScore ?? 0,
+          op.potentialVehicleReduction ?? 0,
+          op.estimatedDailyCo2SavingKg ?? 0,
+        ].join(",")
+      );
+    });
+    lines.push("");
+
+    // Section 5: Recommended Pickup Areas
+    if (recommendedPickupAreas.length > 0) {
+      lines.push(`"--- RECOMMENDED PICKUP HUBS & AREAS ---"`);
+      lines.push(["Area Name", "Corridor", "Observed Demand", "Peak Window", "Rationale"].map(escapeCSV).join(","));
+      recommendedPickupAreas.forEach((p) => {
+        lines.push(
+          [
+            escapeCSV(p.name),
+            escapeCSV(p.corridor),
+            p.observedCommuterDemand ?? 0,
+            escapeCSV(p.peakWindow),
+            escapeCSV(p.rationale),
+          ].join(",")
+        );
+      });
+    }
+
+    triggerCSVDownload(`CommuteX_Analytics_Report_${campusLabel}_${dateStr}.csv`, lines.join("\r\n"));
+  };
+
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-10 animate-in fade-in-50 duration-300">
       {/* 1. Header Bar */}
@@ -233,6 +543,59 @@ export default function AdminCommuteHubPage() {
             <RefreshCw className={`h-3 w-3 ${isRefreshing ? "animate-spin" : ""}`} />
             <span>Refresh</span>
           </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data || isLoading}
+                className="h-8 text-xs rounded-lg border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800 px-2.5 gap-1.5 font-medium shadow-2xs cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5 text-purple-600" />
+                <span>Export CSV</span>
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-white border-slate-200 shadow-lg">
+              <DropdownMenuItem
+                onClick={() => handleExportCSV("all")}
+                className="text-xs font-semibold text-purple-900 cursor-pointer hover:bg-purple-50"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-2 text-purple-600" />
+                Full Analytics Report (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleExportCSV("corridors")}
+                className="text-xs cursor-pointer text-slate-700 hover:bg-slate-50"
+              >
+                <Route className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                Popular Routes & Corridors
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleExportCSV("hours")}
+                className="text-xs cursor-pointer text-slate-700 hover:bg-slate-50"
+              >
+                <Clock className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                Hourly Commute Patterns
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleExportCSV("carpool")}
+                className="text-xs cursor-pointer text-slate-700 hover:bg-slate-50"
+              >
+                <Users className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                Carpool & Seat Matches
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleExportCSV("areas")}
+                className="text-xs cursor-pointer text-slate-700 hover:bg-slate-50"
+              >
+                <MapPin className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                Origin & Destination Areas
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
