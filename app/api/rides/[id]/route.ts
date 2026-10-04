@@ -240,15 +240,16 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Verify session user is the driver (or admin)
+    // Verify session user is the driver (or admin / campus_admin)
+    const isAdmin = session.user.role === "admin" || session.user.role === "campus_admin";
     const isDriver =
       ride.driver._id.toString() === session.user.id ||
-      session.user.role === "admin" ||
+      isAdmin ||
       (session.user.email && (ride.driver as any).email?.toLowerCase() === session.user.email.toLowerCase());
 
     if (!isDriver) {
       return NextResponse.json(
-        { success: false, error: "Forbidden. You can only delete your own offered rides." },
+        { success: false, error: "Forbidden. You can only delete your own offered rides or require administrator privileges." },
         { status: 403 }
       );
     }
@@ -259,10 +260,13 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     // 2. Notify all passengers who requested or were accepted
     const notificationPromises = requests.map(async (reqItem: any) => {
       try {
+        const passengerId = reqItem.passenger?._id || reqItem.passenger;
+        if (!passengerId) return;
+
         await Notification.create({
-          recipient: reqItem.passenger,
+          recipient: passengerId,
           title: "Ride Cancelled & Deleted",
-          message: `The ride from ${ride.startingLocation} to ${ride.destination} scheduled for ${ride.departureDate} at ${ride.departureTime} has been cancelled and deleted by the driver.`,
+          message: `The ride from ${ride.startingLocation} to ${ride.destination} scheduled for ${ride.departureDate} at ${ride.departureTime} has been cancelled and deleted by ${isAdmin ? "campus administration" : "the driver"}.`,
           type: "ride_request",
           link: "/rides/find",
         });
@@ -271,7 +275,23 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       }
     });
 
-    await Promise.all(notificationPromises);
+    await Promise.allSettled(notificationPromises);
+
+    // If an administrator deleted the ride, notify the driver as well
+    if (isAdmin && ride.driver) {
+      try {
+        const driverId = (ride.driver as any)._id || ride.driver;
+        await Notification.create({
+          recipient: driverId,
+          title: "Ride Cancelled by Campus Admin",
+          message: `Your ride offering from ${ride.startingLocation} to ${ride.destination} scheduled for ${ride.departureDate} at ${ride.departureTime} was removed by campus administration.`,
+          type: "ride_request",
+          link: "/rides/my-rides",
+        });
+      } catch (err) {
+        console.warn("Failed to send driver notification on admin deletion:", err);
+      }
+    }
 
     // 3. Clean up associated CarbonEmission records
     try {
@@ -286,13 +306,15 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
     // 5. Log RIDE_DELETED activity
     logEmployeeActivity({
-      employeeId: (ride.driver as any)._id || ride.driver,
+      employeeId: isAdmin ? (session.user.id || (ride.driver as any)._id) : ((ride.driver as any)._id || ride.driver),
       campusId: ride.campusId || "CAMP001",
       activityType: "RIDE_DELETED",
       entityType: "RIDE",
       entityId: id,
-      description: `Permanently deleted ride from ${ride.startingLocation} to ${ride.destination}`,
-      metadata: { deletedAt: new Date(), previousStatus: ride.status },
+      description: isAdmin
+        ? `Administrator cancelled and deleted ride from ${ride.startingLocation} to ${ride.destination}`
+        : `Permanently deleted ride from ${ride.startingLocation} to ${ride.destination}`,
+      metadata: { deletedAt: new Date(), previousStatus: ride.status, deletedByRole: session.user.role },
     }).catch(() => {});
 
     return NextResponse.json({

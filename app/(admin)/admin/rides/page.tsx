@@ -28,6 +28,8 @@ import {
   RefreshCw,
   Eye,
   ArrowRight,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,6 +140,14 @@ export default function AdminRidesPage() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [showModalMap, setShowModalMap] = useState(false);
 
+  // Delete ride state & feedback
+  const [deleteDialogRide, setDeleteDialogRide] = useState<IAdminRide | null>(null);
+  const [isDeletingRide, setIsDeletingRide] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
   const fetchAdminRides = async (isSilent = false) => {
     if (!isSilent) setIsLoading(true);
     else setIsRefreshing(true);
@@ -159,6 +169,56 @@ export default function AdminRidesPage() {
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  const handleDeleteRide = async () => {
+    if (!deleteDialogRide) return;
+    try {
+      setIsDeletingRide(true);
+      setFeedbackMessage(null);
+
+      const res = await fetch(`/api/admin/rides/${deleteDialogRide._id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setRides((prev) => prev.filter((r) => r._id !== deleteDialogRide._id));
+        setStats((prev) => ({
+          ...prev,
+          totalRides: Math.max(0, prev.totalRides - 1),
+          scheduledRides:
+            deleteDialogRide.status === "scheduled" || deleteDialogRide.status === "in_progress"
+              ? Math.max(0, prev.scheduledRides - 1)
+              : prev.scheduledRides,
+        }));
+        setFeedbackMessage({
+          type: "success",
+          text: data.message || `Successfully deleted ride from ${deleteDialogRide.startingLocation} to ${deleteDialogRide.destination}.`,
+        });
+        if (selectedRideForDetails?._id === deleteDialogRide._id) {
+          setIsDetailsModalOpen(false);
+          setSelectedRideForDetails(null);
+        }
+        setDeleteDialogRide(null);
+        // Refresh manifest silently to update exact counters from the server
+        fetchAdminRides(true);
+      } else {
+        setFeedbackMessage({
+          type: "error",
+          text: data.error || "Failed to delete ride.",
+        });
+      }
+    } catch (err: any) {
+      console.error("Failed to delete ride:", err);
+      setFeedbackMessage({
+        type: "error",
+        text: "Network error while attempting to delete ride.",
+      });
+    } finally {
+      setIsDeletingRide(false);
     }
   };
 
@@ -230,6 +290,32 @@ export default function AdminRidesPage() {
           <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh Manifest
         </Button>
       </div>
+
+      {/* Feedback Banner */}
+      {feedbackMessage && (
+        <div
+          className={`p-3 rounded-2xl border text-xs flex items-center justify-between gap-3 animate-in fade-in-50 duration-200 ${
+            feedbackMessage.type === "success"
+              ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+              : "bg-rose-50 text-rose-900 border-rose-200"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {feedbackMessage.type === "success" ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            ) : (
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+            )}
+            <span className="font-medium">{feedbackMessage.text}</span>
+          </div>
+          <button
+            onClick={() => setFeedbackMessage(null)}
+            className="text-xs font-bold opacity-60 hover:opacity-100 px-2 py-0.5 rounded-lg hover:bg-black/5 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -475,8 +561,8 @@ export default function AdminRidesPage() {
                   </div>
                 </div>
 
-                {/* Card Footer: View Details Button */}
-                <div className="p-3 bg-slate-50/50 border-t border-slate-100">
+                {/* Card Footer: View Details & Delete Buttons */}
+                <div className="p-3 bg-slate-50/50 border-t border-slate-100 flex items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -485,9 +571,19 @@ export default function AdminRidesPage() {
                       setShowModalMap(false);
                       setIsDetailsModalOpen(true);
                     }}
-                    className="w-full h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-2xs"
+                    className="flex-1 h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-2xs"
                   >
                     <Eye className="h-3.5 w-3.5 text-emerald-600" /> View Details
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDeleteDialogRide(ride)}
+                    className="h-8 px-2.5 text-xs font-semibold border-slate-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-2xs shrink-0"
+                    title="Delete Ride"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Delete</span>
                   </Button>
                 </div>
               </Card>
@@ -800,7 +896,19 @@ export default function AdminRidesPage() {
             </div>
           )}
 
-          <DialogFooter className="pt-3 border-t border-slate-100">
+          <DialogFooter className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const r = selectedRideForDetails;
+                setIsDetailsModalOpen(false);
+                if (r) setDeleteDialogRide(r);
+              }}
+              className="rounded-xl text-xs font-semibold h-9 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 inline-flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete Ride
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -808,6 +916,87 @@ export default function AdminRidesPage() {
               className="rounded-xl text-xs font-semibold h-9"
             >
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Ride Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogRide !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteDialogRide(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-700">
+              <Trash2 className="h-5 w-5" />
+              Delete Campus Ride
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to permanently delete the ride from{" "}
+              <strong className="text-slate-900">{deleteDialogRide?.startingLocation}</strong> to{" "}
+              <strong className="text-slate-900">{deleteDialogRide?.destination}</strong> scheduled for{" "}
+              <span className="font-semibold text-slate-800">{deleteDialogRide?.departureDate} at {deleteDialogRide?.departureTime}</span>?
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteDialogRide && (
+            <div className="space-y-3">
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-xs space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Driver:</span>
+                  <span className="font-bold text-slate-800">{deleteDialogRide.driver.name} ({deleteDialogRide.driver.employeeId})</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Vehicle:</span>
+                  <span className="font-mono text-slate-800">{deleteDialogRide.vehicle.vehicleModel} • {deleteDialogRide.vehicle.registrationNumber}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Passengers Affected:</span>
+                  <span className="font-bold text-emerald-800">
+                    {deleteDialogRide.requests.filter(r => r.status === "accepted" || r.status === "pending").length} commuter(s)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Current Status:</span>
+                  <span className="font-semibold uppercase text-slate-700">{deleteDialogRide.status}</span>
+                </div>
+              </div>
+
+              <div className="bg-rose-50 border border-rose-200/80 rounded-xl p-3 text-xs text-rose-800 flex items-start gap-2.5">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                <div>
+                  <span className="font-semibold block">Permanent Deletion Warning</span>
+                  <span className="text-[11px] text-rose-700 leading-relaxed">
+                    This action is permanent and cannot be undone. All passenger bookings, pending requests, and linked carbon emission calculations will be removed, and all affected commuters and the driver will be notified immediately.
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isDeletingRide}
+              onClick={() => setDeleteDialogRide(null)}
+              className="h-9 px-4 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={isDeletingRide}
+              onClick={handleDeleteRide}
+              className="h-9 px-4 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-xl inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              {isDeletingRide && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {isDeletingRide ? "Deleting..." : "Permanently Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
