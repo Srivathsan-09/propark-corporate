@@ -682,7 +682,10 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
     query.campusId = campusId.toUpperCase();
   }
 
-  const records = await CarbonEmission.find(query).sort({ calculatedAt: -1 }).lean();
+  const records = await CarbonEmission.find(query)
+    .populate("rideId", "completedAt startedAt departureDate createdAt")
+    .sort({ calculatedAt: -1 })
+    .lean();
 
   const completedRidesCount = records.length;
   let totalPassengers = 0;
@@ -726,7 +729,15 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
     sumOccupancy += r.occupancy || 1;
 
     // Grouping for monthly time-series analytics (single source of truth)
-    const d = new Date(r.calculatedAt || (r as any).createdAt);
+    // Group ride savings by actual ride completion date, falling back to departure date or calculation date
+    const rideDoc = r.rideId as any;
+    const completionDate =
+      rideDoc?.completedAt ||
+      (rideDoc?.departureDate ? new Date(rideDoc.departureDate) : null) ||
+      rideDoc?.startedAt ||
+      r.calculatedAt ||
+      (r as any).createdAt;
+    const d = new Date(completionDate);
     const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const mLabel = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
 
@@ -788,7 +799,7 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
         : 0;
 
     diagnostics.push({
-      rideId: r.rideId?.toString() || r._id.toString(),
+      rideId: (r.rideId as any)?._id?.toString() || r.rideId?.toString() || r._id.toString(),
       driverSoloDistanceKm: r.driverSoloDistanceKm || r.actualCarpoolDistanceKm,
       driverSoloEmissionKg: r.driverSoloEmissionKg || r.actualCarpoolCO2Kg,
       passengerCount: r.passengerCount || 0,

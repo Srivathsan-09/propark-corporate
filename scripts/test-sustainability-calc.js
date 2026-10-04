@@ -544,36 +544,30 @@ try {
 
   const agg = aggregateCampusSustainability(records);
 
-  // Construct comparison bar chart data identically to page.tsx
-  const comparisonBarData =
-    agg.monthlyData.length > 1
-      ? [
-          ...agg.monthlyData.map((m) => ({
-            name: m.label,
-            "Solo Driving (Baseline)": m.soloCO2Kg,
-            "CommuteX Shared Carpool": m.co2EmittedKg,
-          })),
-          {
-            name: "Total",
-            "Solo Driving (Baseline)": agg.totalSoloBaselineCO2Kg,
-            "CommuteX Shared Carpool": agg.totalEstimatedCO2EmittedKg,
-          },
-        ]
-      : [
-          {
-            name: agg.monthlyData.length === 1 ? agg.monthlyData[0].label : "Total Fleet",
-            "Solo Driving (Baseline)": agg.totalSoloBaselineCO2Kg,
-            "CommuteX Shared Carpool": agg.totalEstimatedCO2EmittedKg,
-          },
-        ];
+  // Construct Chart 1 data: exactly two discrete bars matching top summary metrics
+  const comparisonBarData = [
+    {
+      name: "Solo Emissions",
+      emissions: agg.totalSoloBaselineCO2Kg,
+      fill: "#f43f5e",
+    },
+    {
+      name: "Carpool Emissions",
+      emissions: agg.totalEstimatedCO2EmittedKg,
+      fill: "#10b981",
+    },
+  ];
 
-  assert.strictEqual(comparisonBarData.length, 1, "Should have 1 comparative entry");
-  assert.strictEqual(comparisonBarData[0]["Solo Driving (Baseline)"], agg.totalSoloBaselineCO2Kg, "Chart Solo value must exactly match top summary baseline");
-  assert.strictEqual(comparisonBarData[0]["CommuteX Shared Carpool"], agg.totalEstimatedCO2EmittedKg, "Chart Carpool value must exactly match top summary emissions");
-  assert.strictEqual(comparisonBarData[0]["Solo Driving (Baseline)"], 13.24, "Solo baseline must be exactly 13.24 kg");
-  assert.strictEqual(comparisonBarData[0]["CommuteX Shared Carpool"], 10.18, "Carpool emissions must be exactly 10.18 kg");
+  assert.strictEqual(comparisonBarData.length, 2, "Chart 1 must display exactly 2 discrete bars");
+  assert.strictEqual(comparisonBarData[0].name, "Solo Emissions", "Bar 1 label must be 'Solo Emissions'");
+  assert.strictEqual(comparisonBarData[0].emissions, agg.totalSoloBaselineCO2Kg, "Chart Solo value must exactly match top summary baseline");
+  assert.strictEqual(comparisonBarData[0].emissions, 13.24, "Solo baseline must be exactly 13.24 kg");
 
-  console.log("  -> PASSED: Chart 1 solo and carpool values exactly match top dashboard metrics!\n");
+  assert.strictEqual(comparisonBarData[1].name, "Carpool Emissions", "Bar 2 label must be 'Carpool Emissions'");
+  assert.strictEqual(comparisonBarData[1].emissions, agg.totalEstimatedCO2EmittedKg, "Chart Carpool value must exactly match top summary emissions");
+  assert.strictEqual(comparisonBarData[1].emissions, 10.18, "Carpool emissions must be exactly 10.18 kg");
+
+  console.log("  -> PASSED: Chart 1 displays exactly two bars (Solo Emissions: 13.24 kg, Carpool Emissions: 10.18 kg) matching top dashboard metrics!\n");
   passedCount++;
 } catch (err) {
   console.error("  -> FAILED TEST 10:", err.message, "\n");

@@ -29,6 +29,7 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  Cell,
   LineChart,
   Line,
   XAxis,
@@ -36,6 +37,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceLine,
 } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -141,6 +143,9 @@ export default function AdminSustainabilityPage() {
 
   // Expandable secondary insights section
   const [isInsightsExpanded, setIsInsightsExpanded] = useState(false);
+
+  // Chart 2 view mode (auto selects bar for single month, line for multi-month)
+  const [savingsChartMode, setSavingsChartMode] = useState<"auto" | "bar" | "line">("auto");
 
   // Calculation transparency toggle
   const [showCalculationModal, setShowCalculationModal] = useState(false);
@@ -327,29 +332,28 @@ export default function AdminSustainabilityPage() {
       ? Math.round((co2Avoided / soloBaselineCO2) * 100 * 100) / 100
       : 0;
 
-  // Comparison Bar Chart Data (Chart 1: Solo vs Carpool Emissions)
-  // Single source of truth: Correlates strictly with top summary metrics
-  const comparisonBarData =
-    monthlyData.length > 1
-      ? [
-          ...monthlyData.map((m) => ({
-            name: m.label,
-            "Solo Driving (Baseline)": m.soloCO2Kg,
-            "CommuteX Shared Carpool": m.co2EmittedKg,
-          })),
-          {
-            name: "Total",
-            "Solo Driving (Baseline)": soloBaselineCO2,
-            "CommuteX Shared Carpool": actualCarpoolCO2,
-          },
-        ]
-      : [
-          {
-            name: monthlyData.length === 1 ? monthlyData[0].label : "Total Fleet",
-            "Solo Driving (Baseline)": soloBaselineCO2,
-            "CommuteX Shared Carpool": actualCarpoolCO2,
-          },
-        ];
+  // Chart 1: Solo vs Carpool Emissions (Two discrete bars: Solo Emissions and Carpool Emissions)
+  // Single source of truth: Displays exactly two bars matching top dashboard metrics directly
+  const comparisonBarData = [
+    {
+      name: "Solo Emissions",
+      emissions: soloBaselineCO2,
+      fill: "#f43f5e",
+    },
+    {
+      name: "Carpool Emissions",
+      emissions: actualCarpoolCO2,
+      fill: "#10b981",
+    },
+  ];
+
+  // Debug logging: logs the exact values supplied to both chart components
+  useEffect(() => {
+    if (!isLoading) {
+      console.log("[SustainabilityCharts] Chart 1 (Solo vs Carpool Emissions):", comparisonBarData);
+      console.log("[SustainabilityCharts] Chart 2 (Monthly CO2 Savings):", monthlyData);
+    }
+  }, [soloBaselineCO2, actualCarpoolCO2, monthlyData, isLoading]);
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in-50 duration-300">
@@ -638,7 +642,7 @@ export default function AdminSustainabilityPage() {
                     Solo vs. Carpool Emissions
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-500">
-                    Comparing solo-travel baseline emissions against actual carpool emissions (kg CO₂)
+                    Comparing total solo baseline emissions against actual carpool emissions (kg CO₂)
                   </CardDescription>
                 </div>
                 <Badge variant="outline" className="text-[10px] text-emerald-800 border-emerald-300 font-semibold">
@@ -658,7 +662,7 @@ export default function AdminSustainabilityPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={comparisonBarData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
+                      <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} />
                       <YAxis stroke="#94a3b8" fontSize={11} unit=" kg" />
                       <Tooltip
                         contentStyle={{
@@ -667,11 +671,16 @@ export default function AdminSustainabilityPage() {
                           border: "1px solid #e2e8f0",
                           fontSize: "12px",
                         }}
-                        formatter={(value: any, name: any) => [`${value} kg`, name]}
+                        formatter={(value: any, _name: any, item: any) => [
+                          `${value} kg CO₂`,
+                          item?.payload?.name || "Emissions",
+                        ]}
                       />
-                      <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
-                      <Bar dataKey="Solo Driving (Baseline)" fill="#f43f5e" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="CommuteX Shared Carpool" fill="#10b981" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="emissions" radius={[6, 6, 0, 0]}>
+                        {comparisonBarData.map((entry, index) => (
+                          <Cell key={`comparison-bar-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -679,22 +688,50 @@ export default function AdminSustainabilityPage() {
             </CardContent>
           </Card>
 
-          {/* Chart 2: CO2 Emissions Avoided Over Time (Line Chart) */}
+          {/* Chart 2: Monthly CO₂ Savings */}
           <Card className="border-slate-200 shadow-2xs rounded-xl bg-white">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
                     <Leaf className="h-4 w-4 text-emerald-600" />
-                    CO₂ Emissions Avoided Over Time
+                    Monthly CO₂ Savings
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-500">
-                    Monthly estimated CO₂ savings from completed carpool trips (kg CO₂)
+                    Monthly net CO₂ savings (Solo Baseline − Actual Carpool) from completed carpool trips (kg CO₂)
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-[10px] text-emerald-800 border-emerald-300 font-semibold">
-                  Monthly Trend
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {monthlyData.length > 1 && (
+                    <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setSavingsChartMode("bar")}
+                        className={`px-2 py-0.5 text-[10px] font-semibold rounded cursor-pointer transition-colors ${
+                          savingsChartMode === "bar"
+                            ? "bg-white text-slate-800 shadow-2xs"
+                            : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        Bar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSavingsChartMode("line")}
+                        className={`px-2 py-0.5 text-[10px] font-semibold rounded cursor-pointer transition-colors ${
+                          savingsChartMode === "line" || (savingsChartMode === "auto" && monthlyData.length > 1)
+                            ? "bg-white text-slate-800 shadow-2xs"
+                            : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        Line
+                      </button>
+                    </div>
+                  )}
+                  <Badge variant="outline" className="text-[10px] text-emerald-800 border-emerald-300 font-semibold">
+                    {monthlyData.length === 1 ? "Single Reporting Month" : "Monthly Trend"}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="pt-2">
@@ -705,12 +742,49 @@ export default function AdminSustainabilityPage() {
                     <p className="font-medium text-slate-600">No monthly historical data yet</p>
                     <p className="text-[11px] text-slate-400">Monthly savings will display as trips are verified and completed.</p>
                   </div>
+                ) : savingsChartMode === "bar" || (savingsChartMode === "auto" && monthlyData.length === 1) ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="label" stroke="#64748b" fontSize={11} tickLine={false} />
+                      <YAxis stroke="#94a3b8" fontSize={11} unit=" kg" />
+                      <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="2 2" />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#ffffff",
+                          borderRadius: "10px",
+                          border: "1px solid #e2e8f0",
+                          fontSize: "12px",
+                        }}
+                        formatter={(value: any, _name: any, item: any) => {
+                          const payload = item?.payload;
+                          if (payload && payload.soloCO2Kg !== undefined) {
+                            const avoided = payload.co2AvoidedKg;
+                            return [
+                              `${avoided >= 0 ? "+" : ""}${avoided} kg (Solo: ${payload.soloCO2Kg} kg − Carpool: ${payload.co2EmittedKg} kg)`,
+                              avoided >= 0 ? "CO₂ Avoided" : "Net Increase",
+                            ];
+                          }
+                          return [`${value} kg`, "CO₂ Avoided"];
+                        }}
+                      />
+                      <Bar dataKey="co2AvoidedKg" name="CO₂ Avoided (kg)" radius={[6, 6, 0, 0]}>
+                        {monthlyData.map((entry, index) => (
+                          <Cell
+                            key={`monthly-bar-${index}`}
+                            fill={entry.co2AvoidedKg >= 0 ? "#10b981" : "#f43f5e"}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={monthlyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="label" stroke="#94a3b8" fontSize={11} />
                       <YAxis stroke="#94a3b8" fontSize={11} unit=" kg" />
+                      <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "#ffffff",
@@ -721,9 +795,10 @@ export default function AdminSustainabilityPage() {
                         formatter={(value: any, name: any, item: any) => {
                           const payload = item?.payload;
                           if (payload && payload.soloCO2Kg !== undefined) {
+                            const avoided = payload.co2AvoidedKg;
                             return [
-                              `${value >= 0 ? "+" : ""}${value} kg (Solo: ${payload.soloCO2Kg} kg − Carpool: ${payload.co2EmittedKg} kg)`,
-                              name,
+                              `${avoided >= 0 ? "+" : ""}${avoided} kg (Solo: ${payload.soloCO2Kg} kg − Carpool: ${payload.co2EmittedKg} kg)`,
+                              avoided >= 0 ? "CO₂ Avoided" : "Net Increase",
                             ];
                           }
                           return [`${value} kg`, name];
