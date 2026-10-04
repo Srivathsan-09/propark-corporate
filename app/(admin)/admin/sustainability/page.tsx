@@ -1204,13 +1204,16 @@ export default function AdminSustainabilityPage() {
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <span className="font-bold text-slate-900 block">1. Solo Commuting Baseline Formula</span>
               <p className="text-[11px] text-slate-600">
-                For each accepted passenger, the system evaluates their individual route distance if they had driven a solo personal vehicle:
+                Calculates the emissions produced if every employee who travelled on the carpool had made their journey separately:
               </p>
               <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Solo Passenger CO₂ (kg) = Solo Distance (km) × Baseline Factor (g/km) / 1000
+                Driver Solo CO₂ (kg) = Driver Direct Distance (km) × Driver Factor (g/km) ÷ 1000
               </div>
               <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Total Solo Baseline CO₂ = ∑(All Passenger Solo CO₂)
+                Passenger Solo CO₂ (kg) = Individual Solo Distance (km) × Passenger Factor (g/km) ÷ 1000
+              </div>
+              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
+                Total Solo Baseline CO₂ = Driver Solo CO₂ + ∑(All Passenger Solo CO₂)
               </div>
             </div>
 

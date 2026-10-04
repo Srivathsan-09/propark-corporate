@@ -236,7 +236,24 @@ export async function calculateRideCarbonEmissions(
   const rawCarpoolKg = Math.round(carpoolGrams) / 1000;
   const actualCarpoolCO2Kg = Math.round(rawCarpoolKg * 100) / 100;
 
-  // 3. Calculate Solo Commute Baseline for Accepted Passengers
+  // 3. Determine Driver Solo Journey Distance & Emissions
+  // If driver commuted solo without carpooling, they would drive from origin to destination directly
+  const dStartLat = ride.startLocation?.latitude || 0;
+  const dStartLon = ride.startLocation?.longitude || 0;
+  const dEndLat = ride.endLocation?.latitude || 0;
+  const dEndLon = ride.endLocation?.longitude || 0;
+  let driverSoloDistanceKm = 0;
+  if (dStartLat && dStartLon && dEndLat && dEndLon) {
+    driverSoloDistanceKm = calculateRoadDistanceKm(dStartLat, dStartLon, dEndLat, dEndLon);
+  }
+  if (driverSoloDistanceKm <= 0) {
+    driverSoloDistanceKm = actualCarpoolDistanceKm;
+  }
+  const driverSoloGrams = driverSoloDistanceKm * driverFactor.gramsCO2PerKm;
+  const driverSoloCO2Kg = Math.round(driverSoloGrams) / 1000;
+  const driverSoloEmissionKg = Math.round(driverSoloCO2Kg * 100) / 100;
+
+  // 4. Calculate Solo Commute Baseline for Driver + Accepted Passengers
   const acceptedRequests = (ride.requests || []).filter((r: any) => r.status === "accepted");
   const passengerCount = acceptedRequests.length;
   const occupancy = passengerCount + 1; // 1 driver + N passengers
@@ -265,8 +282,8 @@ export async function calculateRideCarbonEmissions(
   });
 
   const passengerRecords: any[] = [];
-  let soloBaselineDistanceKm = 0;
-  let rawSoloBaselineKg = 0;
+  let soloBaselineDistanceKm = driverSoloDistanceKm;
+  let rawSoloBaselineKg = driverSoloCO2Kg;
   let dataCompleteness: "COMPLETE" | "INCOMPLETE" = "COMPLETE";
   const missingReasons: string[] = [];
   let dataCompletenessReason = "";
@@ -282,7 +299,7 @@ export async function calculateRideCarbonEmissions(
   if (passengerCount === 0) {
     // Single-occupant trip (0 passengers carried)
     dataCompleteness = "COMPLETE";
-    dataCompletenessReason = "Single-occupant trip (0 passengers). Baseline emissions are 0 kg.";
+    dataCompletenessReason = "Single-occupant trip (0 passengers). Baseline emissions equal carpool emissions.";
   } else {
     for (const req of acceptedRequests) {
       const pPickup = (req.pickupStop || "").toLowerCase().trim();
@@ -336,7 +353,7 @@ export async function calculateRideCarbonEmissions(
   soloBaselineDistanceKm = Math.round(soloBaselineDistanceKm * 100) / 100;
   const soloBaselineCO2Kg = Math.round(rawSoloBaselineKg * 100) / 100;
 
-  // 4. Calculate Environmental Savings
+  // 5. Calculate Environmental Savings
   // Net CO2 Avoided = Solo Baseline - Actual Carpool (negative when carpool emissions exceed solo baseline)
   const grossDifferenceKg = Math.round((soloBaselineCO2Kg - actualCarpoolCO2Kg) * 100) / 100;
   const co2SavedKg = grossDifferenceKg;
@@ -357,12 +374,12 @@ export async function calculateRideCarbonEmissions(
   if (dataCompleteness === "INCOMPLETE") {
     dataCompletenessReason = missingReasons.join("; ");
   } else if (passengerCount === 0) {
-    dataCompletenessReason = "Single-occupant trip (0 passengers). Baseline emissions are 0 kg.";
+    dataCompletenessReason = "Single-occupant trip (0 passengers). Baseline emissions equal carpool emissions.";
   } else {
-    dataCompletenessReason = "All passenger distances and emission factors verified";
+    dataCompletenessReason = "All driver and passenger distances and emission factors verified";
   }
 
-  // 5. Persist to MongoDB idempotently (upsert by rideId)
+  // 6. Persist to MongoDB idempotently (upsert by rideId)
   const carbonRecord = await CarbonEmission.findOneAndUpdate(
     { rideId: ride._id },
     {
@@ -372,6 +389,8 @@ export async function calculateRideCarbonEmissions(
         vehicleId: ride.vehicle._id || ride.vehicle,
         campusId: ride.campusId || "CAMP001",
         passengers: passengerRecords,
+        driverSoloDistanceKm,
+        driverSoloEmissionKg,
         soloBaselineDistanceKm,
         actualCarpoolDistanceKm,
         soloBaselineCO2Kg,
@@ -492,6 +511,8 @@ export async function getUserCarbonStats(userId: string) {
 
 export interface DiagnosticRideItem {
   rideId: string;
+  driverSoloDistanceKm?: number;
+  driverSoloEmissionKg?: number;
   passengerCount: number;
   soloDistancePerPassenger: string;
   soloDistances: number[];
@@ -510,6 +531,7 @@ export interface DiagnosticRideItem {
 export interface CalculationInput {
   actualCarpoolDistanceKm: number;
   driverGramsCO2PerKm: number;
+  driverSoloDistanceKm?: number;
   passengers: Array<{
     passengerId?: string;
     distanceKm?: number | null;
@@ -520,6 +542,8 @@ export interface CalculationInput {
 }
 
 export interface CalculationResult {
+  driverSoloDistanceKm: number;
+  driverSoloEmissionKg: number;
   soloBaselineDistanceKm: number;
   actualCarpoolDistanceKm: number;
   soloBaselineCO2Kg: number;
@@ -547,8 +571,18 @@ export function computeSustainabilityFigures(input: CalculationInput): Calculati
 
   const passengers = input.passengers || [];
   const passengerCount = passengers.length;
-  let soloBaselineDistanceKm = 0;
-  let rawSoloBaselineKg = 0;
+
+  // Driver solo journey: If not specified, driver would drive direct distance (actual distance)
+  const driverSoloDistanceKm =
+    input.driverSoloDistanceKm != null
+      ? Math.max(0, input.driverSoloDistanceKm)
+      : actualCarpoolDistanceKm;
+  const driverSoloGrams = driverSoloDistanceKm * driverFactor;
+  const driverSoloCO2Kg = Math.round(driverSoloGrams) / 1000;
+  const driverSoloEmissionKg = Math.round(driverSoloCO2Kg * 100) / 100;
+
+  let soloBaselineDistanceKm = driverSoloDistanceKm;
+  let rawSoloBaselineKg = driverSoloCO2Kg;
   let dataCompleteness: "COMPLETE" | "INCOMPLETE" = "COMPLETE";
   const missingReasons: string[] = [];
 
@@ -560,18 +594,19 @@ export function computeSustainabilityFigures(input: CalculationInput): Calculati
   if (passengerCount === 0) {
     dataCompleteness = "COMPLETE";
     const dataCompletenessReason =
-      "Single-occupant trip (0 passengers). Baseline emissions are 0 kg.";
-    const netDiff = Math.round((0 - actualCarpoolCO2Kg) * 100) / 100;
+      "Single-occupant trip (0 passengers). Baseline equals carpool emissions.";
     return {
-      soloBaselineDistanceKm: 0,
+      driverSoloDistanceKm,
+      driverSoloEmissionKg,
+      soloBaselineDistanceKm: driverSoloDistanceKm,
       actualCarpoolDistanceKm,
-      soloBaselineCO2Kg: 0,
+      soloBaselineCO2Kg: actualCarpoolCO2Kg,
       actualCarpoolCO2Kg,
-      grossDifferenceKg: netDiff,
-      co2SavedKg: netDiff,
-      netEmissionsIncreaseKg: actualCarpoolCO2Kg,
+      grossDifferenceKg: 0,
+      co2SavedKg: 0,
+      netEmissionsIncreaseKg: 0,
       co2ReductionPercentage: 0,
-      vehicleKilometersReduced: Math.round((0 - actualCarpoolDistanceKm) * 100) / 100,
+      vehicleKilometersReduced: 0,
       passengerCount: 0,
       dataCompleteness,
       dataCompletenessReason,
@@ -615,10 +650,12 @@ export function computeSustainabilityFigures(input: CalculationInput): Calculati
   if (dataCompleteness === "INCOMPLETE") {
     dataCompletenessReason = missingReasons.join("; ");
   } else {
-    dataCompletenessReason = "All passenger distances and emission factors verified";
+    dataCompletenessReason = "All driver and passenger distances and emission factors verified";
   }
 
   return {
+    driverSoloDistanceKm,
+    driverSoloEmissionKg,
     soloBaselineDistanceKm,
     actualCarpoolDistanceKm,
     soloBaselineCO2Kg,
@@ -703,6 +740,8 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
 
     diagnostics.push({
       rideId: r.rideId?.toString() || r._id.toString(),
+      driverSoloDistanceKm: r.driverSoloDistanceKm || r.actualCarpoolDistanceKm,
+      driverSoloEmissionKg: r.driverSoloEmissionKg || r.actualCarpoolCO2Kg,
       passengerCount: r.passengerCount || 0,
       soloDistancePerPassenger: soloDistancesStr,
       soloDistances,

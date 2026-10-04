@@ -20,6 +20,8 @@ export interface ICarbonEmission extends Document {
   vehicleId: mongoose.Types.ObjectId;
   campusId?: string;
   passengers: IPassengerCarbonRecord[];
+  driverSoloDistanceKm?: number;
+  driverSoloEmissionKg?: number;
   soloBaselineDistanceKm: number;
   actualCarpoolDistanceKm: number;
   soloBaselineCO2Kg: number;
@@ -112,6 +114,16 @@ const CarbonEmissionSchema = new Schema<ICarbonEmission>(
     passengers: {
       type: [PassengerCarbonRecordSchema],
       default: [],
+    },
+    driverSoloDistanceKm: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    driverSoloEmissionKg: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     soloBaselineDistanceKm: {
       type: Number,
