@@ -1189,64 +1189,64 @@ export default function AdminSustainabilityPage() {
 
       {/* 8. Calculation Transparency Dialog */}
       <Dialog open={showCalculationModal} onOpenChange={setShowCalculationModal}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="pb-1">
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Leaf className="h-4 w-4 text-emerald-600" />
-              Carbon Emission Calculation Methodology
+              Calculation Formula
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Complete mathematical model used across CommuteX sustainability analysis
+              Simple 3-step calculation comparing solo commuting with carpooling
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3.5 py-3 text-xs text-slate-700">
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <span className="font-bold text-slate-900 block">1. Solo Commuting Baseline Formula</span>
-              <p className="text-[11px] text-slate-600">
-                Calculates the emissions produced if every employee who travelled on the carpool had made their journey separately:
+          <div className="space-y-2.5 py-2 text-xs">
+            {/* Step 1: Solo Emissions */}
+            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+              <span className="font-semibold text-slate-900 block">1. Solo Emissions</span>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Add the estimated emissions of all employees travelling separately.
               </p>
-              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Driver Solo CO₂ (kg) = Driver Direct Distance (km) × Driver Factor (g/km) ÷ 1000
-              </div>
-              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Passenger Solo CO₂ (kg) = Individual Solo Distance (km) × Passenger Factor (g/km) ÷ 1000
-              </div>
-              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Total Solo Baseline CO₂ = Driver Solo CO₂ + ∑(All Passenger Solo CO₂)
+              <div className="mt-1.5 font-mono text-[11px] bg-white px-2 py-1 rounded border border-slate-200 text-slate-800">
+                Solo CO₂ = Sum of individual trip emissions
               </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <span className="font-bold text-slate-900 block">2. Actual Physical Carpool Emissions</span>
-              <p className="text-[11px] text-slate-600">
-                The carpool vehicle travels its physical route distance (sourced from GPS telemetry when available, or OSRM route calculation):
+            {/* Step 2: Carpool Emissions */}
+            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+              <span className="font-semibold text-slate-900 block">2. Carpool Emissions</span>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Calculate emissions from the shared vehicle's actual trip.
               </p>
-              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Actual Carpool CO₂ (kg) = Actual Vehicle Distance (km) × Vehicle Factor (g/km) / 1000
+              <div className="mt-1.5 font-mono text-[11px] bg-white px-2 py-1 rounded border border-slate-200 text-slate-800">
+                Carpool CO₂ = Distance × Vehicle Emission Factor ÷ 1000
               </div>
-              <p className="text-[10px] text-amber-700 font-medium">
-                Note: Total vehicle emissions are never artificially divided by passenger count; the car physically emits its actual route total.
-              </p>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-              <span className="font-bold text-slate-900 block">3. Net Environmental Savings & Reporting Formulas</span>
-              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Net CO₂ Avoided (kg) = Total Solo Baseline CO₂ − Actual Carpool CO₂
-              </div>
-              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                CO₂ Reduction % = (Net CO₂ Avoided / Total Solo Baseline CO₂) × 100
-              </div>
-              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Net Emissions Increase (kg) = Actual Carpool CO₂ − Total Solo Baseline CO₂ (when carpool &gt; solo)
-              </div>
-              <div className="font-mono text-[11px] bg-white p-2 rounded border border-slate-200">
-                Vehicle-Kilometres Reduced (VKR) = Total Solo Distance − Actual Carpool Distance
-              </div>
-              <p className="text-[10px] text-slate-600">
-                Dashboard wording follows physical reality: positive savings are reported as <strong>CO₂ Avoided</strong>, emissions increases are reported as <strong>Net Emissions Increase</strong>, and equal values are labeled <strong>No Net Emissions Change</strong>.
+            {/* Step 3: CO₂ Saved */}
+            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+              <span className="font-semibold text-slate-900 block">3. CO₂ Saved</span>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Compare solo emissions with carpool emissions.
               </p>
+              <div className="mt-1.5 font-mono text-[11px] bg-white px-2 py-1 rounded border border-slate-200 text-slate-800">
+                CO₂ Saved = Solo Emissions − Carpool Emissions
+              </div>
+            </div>
+
+            {/* Small Example */}
+            <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200 text-slate-700">
+              <span className="font-semibold text-emerald-900 block text-[11px]">
+                Example
+              </span>
+              <p className="text-[11px] text-slate-600 mt-0.5">
+                4 employees travel 10 km separately, with an assumed emission factor of 150 g CO₂/km:
+              </p>
+              <ul className="mt-1.5 space-y-0.5 text-[11px] text-slate-700">
+                <li>• Solo emissions: <strong className="text-slate-900">6 kg CO₂</strong></li>
+                <li>• One shared car travelling 10 km: <strong className="text-slate-900">1.5 kg CO₂</strong></li>
+                <li>• Estimated CO₂ saved: <strong className="text-emerald-700">4.5 kg (75% reduction)</strong></li>
+              </ul>
             </div>
           </div>
 
@@ -1254,7 +1254,7 @@ export default function AdminSustainabilityPage() {
             <Button
               size="sm"
               onClick={() => setShowCalculationModal(false)}
-              className="bg-slate-900 text-white text-xs rounded-lg"
+              className="bg-slate-900 hover:bg-slate-800 text-white text-xs rounded-lg"
             >
               Close
             </Button>
