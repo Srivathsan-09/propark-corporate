@@ -696,6 +696,25 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
 
   const diagnostics: DiagnosticRideItem[] = [];
 
+  const monthNames = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  ];
+
+  const monthlyMap = new Map<
+    string,
+    {
+      month: string;
+      label: string;
+      co2AvoidedKg: number;
+      co2EmittedKg: number;
+      soloCO2Kg: number;
+      vkrKm: number;
+      ridesCount: number;
+      passengersCount: number;
+    }
+  >();
+
   for (const r of records) {
     totalPassengers += r.passengerCount || 0;
     totalCarpoolDistanceKm += r.actualCarpoolDistanceKm || 0;
@@ -705,6 +724,36 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
     totalEstimatedCO2AvoidedKg += r.co2SavedKg || 0;
     totalSoloBaselineCO2Kg += r.soloBaselineCO2Kg || 0;
     sumOccupancy += r.occupancy || 1;
+
+    // Grouping for monthly time-series analytics (single source of truth)
+    const d = new Date(r.calculatedAt || (r as any).createdAt);
+    const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const mLabel = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+
+    const existingMonth = monthlyMap.get(mKey) || {
+      month: mKey,
+      label: mLabel,
+      co2AvoidedKg: 0,
+      co2EmittedKg: 0,
+      soloCO2Kg: 0,
+      vkrKm: 0,
+      ridesCount: 0,
+      passengersCount: 0,
+    };
+
+    const rideNetAvoided =
+      r.grossDifferenceKg !== undefined
+        ? r.grossDifferenceKg
+        : (r.soloBaselineCO2Kg || 0) - (r.actualCarpoolCO2Kg || 0);
+
+    existingMonth.co2AvoidedKg += rideNetAvoided;
+    existingMonth.co2EmittedKg += r.actualCarpoolCO2Kg || 0;
+    existingMonth.soloCO2Kg += r.soloBaselineCO2Kg || 0;
+    existingMonth.vkrKm += r.vehicleKilometersReduced || 0;
+    existingMonth.ridesCount += 1;
+    existingMonth.passengersCount += r.passengerCount || 0;
+
+    monthlyMap.set(mKey, existingMonth);
 
     // Diagnostic information for each completed ride
     const soloDistances = (r.passengers || []).map((p: any) => p.soloDistanceKm);
@@ -766,6 +815,39 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
   // Net Emissions Increase = Actual Carpool - Solo Baseline (when positive, else 0)
   const netEmissionsIncreaseKg = Math.max(0, Math.round((totalCarpoolEmissions - totalSoloBaseline) * 100) / 100);
 
+  // Chronologically sort and reconcile monthly time-series
+  const sortedMonthKeys = Array.from(monthlyMap.keys()).sort();
+  const monthlyData = sortedMonthKeys.map((key) => {
+    const item = monthlyMap.get(key)!;
+    const mSoloCO2Kg = Math.round(item.soloCO2Kg * 100) / 100;
+    const mCarpoolCO2Kg = Math.round(item.co2EmittedKg * 100) / 100;
+    // Calculate actual CO2 avoided for each month using Solo Emissions - Carpool Emissions
+    const mAvoidedCO2Kg = Math.round((mSoloCO2Kg - mCarpoolCO2Kg) * 100) / 100;
+    const mNetIncreaseKg = Math.max(0, Math.round((mCarpoolCO2Kg - mSoloCO2Kg) * 100) / 100);
+    return {
+      month: item.month,
+      label: item.label,
+      co2AvoidedKg: mAvoidedCO2Kg,
+      co2EmittedKg: mCarpoolCO2Kg,
+      soloCO2Kg: mSoloCO2Kg,
+      netEmissionsIncreaseKg: mNetIncreaseKg,
+      vkrKm: Math.round(item.vkrKm * 100) / 100,
+      ridesCount: item.ridesCount,
+      passengersCount: item.passengersCount,
+    };
+  });
+
+  // Reconcile sum of monthly savings with overall summary for the exact same reporting period
+  if (monthlyData.length > 0) {
+    const sumMonthlyAvoided = Math.round(monthlyData.reduce((acc, m) => acc + m.co2AvoidedKg, 0) * 100) / 100;
+    const diff = Math.round((totalNetCO2AvoidedKg - sumMonthlyAvoided) * 100) / 100;
+    if (diff !== 0 && Math.abs(diff) <= 0.05) {
+      // Reconcile minor centigram rounding delta on the last active month
+      const last = monthlyData[monthlyData.length - 1];
+      last.co2AvoidedKg = Math.round((last.co2AvoidedKg + diff) * 100) / 100;
+    }
+  }
+
   const co2ReductionPercentage =
     totalSoloBaseline > 0
       ? Math.round((totalNetCO2AvoidedKg / totalSoloBaseline) * 100 * 100) / 100
@@ -804,99 +886,17 @@ export async function getCampusSustainabilityAnalytics(campusId?: string) {
     activeEmissionFactorSource: activeFactor?.source || "IPCC 2006 / MoEFCC India GHG Platform",
     activeSourceReference: activeFactor?.sourceReference || "India GHG Platform Baseline",
     diagnostics,
+    monthlyData,
   };
 }
 
 /**
  * Time-series monthly analytics for charts
+ * Guaranteed single source of truth: delegates to getCampusSustainabilityAnalytics
  */
 export async function getMonthlyCarbonAnalytics(campusId?: string) {
-  await connectToDatabase();
-
-  const query: any = {};
-  if (campusId && campusId !== "all") {
-    query.campusId = campusId.toUpperCase();
-  }
-
-  const records = await CarbonEmission.find(query).sort({ calculatedAt: 1 }).lean();
-
-  // Group by "YYYY-MM"
-  const monthlyMap = new Map<
-    string,
-    {
-      month: string;
-      label: string;
-      co2AvoidedKg: number;
-      co2EmittedKg: number;
-      soloCO2Kg: number;
-      vkrKm: number;
-      ridesCount: number;
-      passengersCount: number;
-    }
-  >();
-
-  const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-
-  for (const r of records) {
-    const d = new Date(r.calculatedAt || r.createdAt);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
-
-    const existing = monthlyMap.get(key) || {
-      month: key,
-      label,
-      co2AvoidedKg: 0,
-      co2EmittedKg: 0,
-      soloCO2Kg: 0,
-      vkrKm: 0,
-      ridesCount: 0,
-      passengersCount: 0,
-    };
-
-    const netAvoided =
-      r.grossDifferenceKg !== undefined
-        ? r.grossDifferenceKg
-        : (r.soloBaselineCO2Kg || 0) - (r.actualCarpoolCO2Kg || 0);
-
-    existing.co2AvoidedKg += netAvoided;
-    existing.co2EmittedKg += r.actualCarpoolCO2Kg || 0;
-    existing.soloCO2Kg += r.soloBaselineCO2Kg || 0;
-    existing.vkrKm += r.vehicleKilometersReduced || 0;
-    existing.ridesCount += 1;
-    existing.passengersCount += r.passengerCount || 0;
-
-    monthlyMap.set(key, existing);
-  }
-
-  const result = Array.from(monthlyMap.values()).map((item) => {
-    const soloCO2Kg = Math.round(item.soloCO2Kg * 100) / 100;
-    const co2EmittedKg = Math.round(item.co2EmittedKg * 100) / 100;
-    const co2AvoidedKg = Math.round((soloCO2Kg - co2EmittedKg) * 100) / 100;
-    const netEmissionsIncreaseKg = Math.max(0, Math.round((co2EmittedKg - soloCO2Kg) * 100) / 100);
-    return {
-      ...item,
-      co2AvoidedKg,
-      co2EmittedKg,
-      soloCO2Kg,
-      netEmissionsIncreaseKg,
-      vkrKm: Math.round(item.vkrKm * 100) / 100,
-    };
-  });
-
-  return result;
+  const analytics = await getCampusSustainabilityAnalytics(campusId);
+  return analytics.monthlyData;
 }
 
 /**

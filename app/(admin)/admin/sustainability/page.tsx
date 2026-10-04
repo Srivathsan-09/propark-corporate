@@ -97,6 +97,7 @@ interface ISustainabilityAnalytics {
   activeEmissionFactorSource: string;
   activeSourceReference: string;
   diagnostics?: IDiagnosticRideItem[];
+  monthlyData?: IMonthlyData[];
 }
 
 interface IMonthlyData {
@@ -187,8 +188,13 @@ export default function AdminSustainabilityPage() {
       if (analyticsRes.ok) {
         const aJson = await analyticsRes.json();
         setAnalytics(aJson.analytics);
-      }
-      if (monthlyRes.ok) {
+        if (aJson.analytics?.monthlyData) {
+          setMonthlyData(aJson.analytics.monthlyData);
+        } else if (monthlyRes.ok) {
+          const mJson = await monthlyRes.json();
+          setMonthlyData(mJson.data || []);
+        }
+      } else if (monthlyRes.ok) {
         const mJson = await monthlyRes.json();
         setMonthlyData(mJson.data || []);
       }
@@ -321,14 +327,29 @@ export default function AdminSustainabilityPage() {
       ? Math.round((co2Avoided / soloBaselineCO2) * 100 * 100) / 100
       : 0;
 
-  // Comparison Bar Chart Data (Chart 1)
-  const comparisonBarData = [
-    {
-      name: "Total Emissions",
-      "Solo Driving (Baseline)": soloBaselineCO2,
-      "CommuteX Shared Carpool": actualCarpoolCO2,
-    },
-  ];
+  // Comparison Bar Chart Data (Chart 1: Solo vs Carpool Emissions)
+  // Single source of truth: Correlates strictly with top summary metrics
+  const comparisonBarData =
+    monthlyData.length > 1
+      ? [
+          ...monthlyData.map((m) => ({
+            name: m.label,
+            "Solo Driving (Baseline)": m.soloCO2Kg,
+            "CommuteX Shared Carpool": m.co2EmittedKg,
+          })),
+          {
+            name: "Total",
+            "Solo Driving (Baseline)": soloBaselineCO2,
+            "CommuteX Shared Carpool": actualCarpoolCO2,
+          },
+        ]
+      : [
+          {
+            name: monthlyData.length === 1 ? monthlyData[0].label : "Total Fleet",
+            "Solo Driving (Baseline)": soloBaselineCO2,
+            "CommuteX Shared Carpool": actualCarpoolCO2,
+          },
+        ];
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in-50 duration-300">
@@ -646,6 +667,7 @@ export default function AdminSustainabilityPage() {
                           border: "1px solid #e2e8f0",
                           fontSize: "12px",
                         }}
+                        formatter={(value: any, name: any) => [`${value} kg`, name]}
                       />
                       <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
                       <Bar dataKey="Solo Driving (Baseline)" fill="#f43f5e" radius={[6, 6, 0, 0]} />
@@ -696,6 +718,16 @@ export default function AdminSustainabilityPage() {
                           border: "1px solid #e2e8f0",
                           fontSize: "12px",
                         }}
+                        formatter={(value: any, name: any, item: any) => {
+                          const payload = item?.payload;
+                          if (payload && payload.soloCO2Kg !== undefined) {
+                            return [
+                              `${value >= 0 ? "+" : ""}${value} kg (Solo: ${payload.soloCO2Kg} kg − Carpool: ${payload.co2EmittedKg} kg)`,
+                              name,
+                            ];
+                          }
+                          return [`${value} kg`, name];
+                        }}
                       />
                       <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
                       <Line
@@ -704,8 +736,8 @@ export default function AdminSustainabilityPage() {
                         name="CO₂ Avoided (kg)"
                         stroke="#10b981"
                         strokeWidth={2.5}
-                        dot={{ r: 4, fill: "#10b981" }}
-                        activeDot={{ r: 6 }}
+                        dot={{ r: 5, fill: "#10b981", stroke: "#047857", strokeWidth: 2 }}
+                        activeDot={{ r: 7 }}
                       />
                     </LineChart>
                   </ResponsiveContainer>

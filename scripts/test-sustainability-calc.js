@@ -140,6 +140,12 @@ function aggregateCampusSustainability(records) {
   let totalEstimatedCO2EmittedKg = 0;
   let totalSoloBaselineCO2Kg = 0;
 
+  const monthNames = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  ];
+  const monthlyMap = new Map();
+
   for (const r of records) {
     totalPassengers += r.passengerCount || 0;
     totalCarpoolDistanceKm += r.actualCarpoolDistanceKm || 0;
@@ -147,6 +153,35 @@ function aggregateCampusSustainability(records) {
     totalVKRKm += r.vehicleKilometersReduced || 0;
     totalEstimatedCO2EmittedKg += r.actualCarpoolCO2Kg || 0;
     totalSoloBaselineCO2Kg += r.soloBaselineCO2Kg || 0;
+
+    const d = new Date(r.calculatedAt || r.createdAt || "2026-09-02");
+    const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const mLabel = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+
+    const existingMonth = monthlyMap.get(mKey) || {
+      month: mKey,
+      label: mLabel,
+      co2AvoidedKg: 0,
+      co2EmittedKg: 0,
+      soloCO2Kg: 0,
+      vkrKm: 0,
+      ridesCount: 0,
+      passengersCount: 0,
+    };
+
+    const rideNetAvoided =
+      r.grossDifferenceKg !== undefined
+        ? r.grossDifferenceKg
+        : (r.soloBaselineCO2Kg || 0) - (r.actualCarpoolCO2Kg || 0);
+
+    existingMonth.co2AvoidedKg += rideNetAvoided;
+    existingMonth.co2EmittedKg += r.actualCarpoolCO2Kg || 0;
+    existingMonth.soloCO2Kg += r.soloBaselineCO2Kg || 0;
+    existingMonth.vkrKm += r.vehicleKilometersReduced || 0;
+    existingMonth.ridesCount += 1;
+    existingMonth.passengersCount += r.passengerCount || 0;
+
+    monthlyMap.set(mKey, existingMonth);
   }
 
   const totalSoloBaseline = Math.round(totalSoloBaselineCO2Kg * 100) / 100;
@@ -155,6 +190,35 @@ function aggregateCampusSustainability(records) {
   const totalNetCO2AvoidedKg = Math.round((totalSoloBaseline - totalCarpoolEmissions) * 100) / 100;
   // Net Emissions Increase = Actual Carpool - Solo Baseline (when positive)
   const netEmissionsIncreaseKg = Math.max(0, Math.round((totalCarpoolEmissions - totalSoloBaseline) * 100) / 100);
+
+  const sortedMonthKeys = Array.from(monthlyMap.keys()).sort();
+  const monthlyData = sortedMonthKeys.map((key) => {
+    const item = monthlyMap.get(key);
+    const mSoloCO2Kg = Math.round(item.soloCO2Kg * 100) / 100;
+    const mCarpoolCO2Kg = Math.round(item.co2EmittedKg * 100) / 100;
+    const mAvoidedCO2Kg = Math.round((mSoloCO2Kg - mCarpoolCO2Kg) * 100) / 100;
+    const mNetIncreaseKg = Math.max(0, Math.round((mCarpoolCO2Kg - mSoloCO2Kg) * 100) / 100);
+    return {
+      month: item.month,
+      label: item.label,
+      co2AvoidedKg: mAvoidedCO2Kg,
+      co2EmittedKg: mCarpoolCO2Kg,
+      soloCO2Kg: mSoloCO2Kg,
+      netEmissionsIncreaseKg: mNetIncreaseKg,
+      vkrKm: Math.round(item.vkrKm * 100) / 100,
+      ridesCount: item.ridesCount,
+      passengersCount: item.passengersCount,
+    };
+  });
+
+  if (monthlyData.length > 0) {
+    const sumMonthlyAvoided = Math.round(monthlyData.reduce((acc, m) => acc + m.co2AvoidedKg, 0) * 100) / 100;
+    const diff = Math.round((totalNetCO2AvoidedKg - sumMonthlyAvoided) * 100) / 100;
+    if (diff !== 0 && Math.abs(diff) <= 0.05) {
+      const last = monthlyData[monthlyData.length - 1];
+      last.co2AvoidedKg = Math.round((last.co2AvoidedKg + diff) * 100) / 100;
+    }
+  }
 
   const co2ReductionPercentage =
     totalSoloBaseline > 0
@@ -173,6 +237,7 @@ function aggregateCampusSustainability(records) {
     grossDifferenceKg: totalNetCO2AvoidedKg,
     netEmissionsIncreaseKg,
     co2ReductionPercentage,
+    monthlyData,
   };
 }
 
@@ -188,7 +253,7 @@ console.log("       CommuteX Sustainability Carbon Calculation - Automated Verif
 console.log("================================================================================\n");
 
 let passedCount = 0;
-let totalCount = 9;
+let totalCount = 11;
 
 // TEST 1: User Specification Example (4 Employees: 1 Driver + 3 Passengers, each 10 km @ 150 g/km)
 try {
@@ -455,6 +520,149 @@ try {
   passedCount++;
 } catch (err) {
   console.error("  -> FAILED TEST 9:", err.message, "\n");
+}
+
+// TEST 10: Solo vs Carpool Emissions Chart Data Exact Match with Top Summary
+try {
+  console.log("TEST 10: Solo vs. Carpool Emissions Chart Data Exact Match with Top Dashboard");
+  const records = [
+    {
+      rideId: "6a981c069f5103c8e838e425",
+      calculatedAt: "2026-09-02T13:22:50.917Z",
+      passengerCount: 1,
+      soloBaselineDistanceKm: 92.9,
+      actualCarpoolDistanceKm: 71.4,
+      soloBaselineCO2Kg: 13.24,
+      actualCarpoolCO2Kg: 10.18,
+      co2SavedKg: 3.06,
+      grossDifferenceKg: 3.06,
+      netEmissionsIncreaseKg: 0,
+      co2ReductionPercentage: 23.11,
+      vehicleKilometersReduced: 21.5,
+    },
+  ];
+
+  const agg = aggregateCampusSustainability(records);
+
+  // Construct comparison bar chart data identically to page.tsx
+  const comparisonBarData =
+    agg.monthlyData.length > 1
+      ? [
+          ...agg.monthlyData.map((m) => ({
+            name: m.label,
+            "Solo Driving (Baseline)": m.soloCO2Kg,
+            "CommuteX Shared Carpool": m.co2EmittedKg,
+          })),
+          {
+            name: "Total",
+            "Solo Driving (Baseline)": agg.totalSoloBaselineCO2Kg,
+            "CommuteX Shared Carpool": agg.totalEstimatedCO2EmittedKg,
+          },
+        ]
+      : [
+          {
+            name: agg.monthlyData.length === 1 ? agg.monthlyData[0].label : "Total Fleet",
+            "Solo Driving (Baseline)": agg.totalSoloBaselineCO2Kg,
+            "CommuteX Shared Carpool": agg.totalEstimatedCO2EmittedKg,
+          },
+        ];
+
+  assert.strictEqual(comparisonBarData.length, 1, "Should have 1 comparative entry");
+  assert.strictEqual(comparisonBarData[0]["Solo Driving (Baseline)"], agg.totalSoloBaselineCO2Kg, "Chart Solo value must exactly match top summary baseline");
+  assert.strictEqual(comparisonBarData[0]["CommuteX Shared Carpool"], agg.totalEstimatedCO2EmittedKg, "Chart Carpool value must exactly match top summary emissions");
+  assert.strictEqual(comparisonBarData[0]["Solo Driving (Baseline)"], 13.24, "Solo baseline must be exactly 13.24 kg");
+  assert.strictEqual(comparisonBarData[0]["CommuteX Shared Carpool"], 10.18, "Carpool emissions must be exactly 10.18 kg");
+
+  console.log("  -> PASSED: Chart 1 solo and carpool values exactly match top dashboard metrics!\n");
+  passedCount++;
+} catch (err) {
+  console.error("  -> FAILED TEST 10:", err.message, "\n");
+}
+
+// TEST 11: Multi-Month CO₂ Savings Chart Reconciles with Overall Summary
+try {
+  console.log("TEST 11: Multi-Month CO₂ Savings Chart Reconciles with Overall Summary (Solo - Carpool per month)");
+  const multiMonthRecords = [
+    // Month 1: Jul 2026 (Positive savings: 10 kg solo, 4 kg carpool -> 6 kg avoided)
+    {
+      rideId: "ride-jul",
+      calculatedAt: "2026-07-15T10:00:00.000Z",
+      passengerCount: 2,
+      soloBaselineDistanceKm: 70,
+      actualCarpoolDistanceKm: 28,
+      soloBaselineCO2Kg: 10.00,
+      actualCarpoolCO2Kg: 4.00,
+      co2SavedKg: 6.00,
+      grossDifferenceKg: 6.00,
+      vehicleKilometersReduced: 42,
+    },
+    // Month 2: Aug 2026 (Negative savings: 3 kg solo, 5 kg carpool -> -2 kg avoided / 2 kg increase)
+    {
+      rideId: "ride-aug",
+      calculatedAt: "2026-08-20T10:00:00.000Z",
+      passengerCount: 1,
+      soloBaselineDistanceKm: 20,
+      actualCarpoolDistanceKm: 35,
+      soloBaselineCO2Kg: 3.00,
+      actualCarpoolCO2Kg: 5.00,
+      co2SavedKg: -2.00,
+      grossDifferenceKg: -2.00,
+      vehicleKilometersReduced: -15,
+    },
+    // Month 3: Sep 2026 (Live ride: 13.24 solo, 10.18 carpool -> 3.06 avoided)
+    {
+      rideId: "ride-sep",
+      calculatedAt: "2026-09-02T13:22:50.917Z",
+      passengerCount: 1,
+      soloBaselineDistanceKm: 92.9,
+      actualCarpoolDistanceKm: 71.4,
+      soloBaselineCO2Kg: 13.24,
+      actualCarpoolCO2Kg: 10.18,
+      co2SavedKg: 3.06,
+      grossDifferenceKg: 3.06,
+      vehicleKilometersReduced: 21.5,
+    },
+  ];
+
+  const agg = aggregateCampusSustainability(multiMonthRecords);
+
+  console.log("  Monthly Series:", JSON.stringify(agg.monthlyData, null, 2));
+
+  // Check Month 1 (Jul 2026)
+  assert.strictEqual(agg.monthlyData[0].label, "Jul 2026");
+  assert.strictEqual(agg.monthlyData[0].soloCO2Kg, 10.00);
+  assert.strictEqual(agg.monthlyData[0].co2EmittedKg, 4.00);
+  assert.strictEqual(agg.monthlyData[0].co2AvoidedKg, 6.00, "Jul CO2 Avoided = 10 - 4 = 6 kg");
+
+  // Check Month 2 (Aug 2026 - Negative Savings / Net Emissions Increase)
+  assert.strictEqual(agg.monthlyData[1].label, "Aug 2026");
+  assert.strictEqual(agg.monthlyData[1].soloCO2Kg, 3.00);
+  assert.strictEqual(agg.monthlyData[1].co2EmittedKg, 5.00);
+  assert.strictEqual(agg.monthlyData[1].co2AvoidedKg, -2.00, "Aug CO2 Avoided = 3 - 5 = -2 kg");
+  assert.strictEqual(agg.monthlyData[1].netEmissionsIncreaseKg, 2.00, "Aug Net Increase = 2 kg");
+
+  // Check Month 3 (Sep 2026)
+  assert.strictEqual(agg.monthlyData[2].label, "Sep 2026");
+  assert.strictEqual(agg.monthlyData[2].soloCO2Kg, 13.24);
+  assert.strictEqual(agg.monthlyData[2].co2EmittedKg, 10.18);
+  assert.strictEqual(agg.monthlyData[2].co2AvoidedKg, 3.06, "Sep CO2 Avoided = 13.24 - 10.18 = 3.06 kg");
+
+  // Verify Single Source of Truth & Full Reconciliation with Top Summary
+  // Total Solo: 10.00 + 3.00 + 13.24 = 26.24 kg
+  assert.strictEqual(agg.totalSoloBaselineCO2Kg, 26.24, "Total Solo Baseline must be 26.24 kg");
+  // Total Carpool: 4.00 + 5.00 + 10.18 = 19.18 kg
+  assert.strictEqual(agg.totalEstimatedCO2EmittedKg, 19.18, "Total Carpool must be 19.18 kg");
+  // Total Avoided: 26.24 - 19.18 = 7.06 kg
+  assert.strictEqual(agg.totalEstimatedCO2AvoidedKg, 7.06, "Total Net Avoided must be 7.06 kg");
+
+  // Sum of monthly savings equals overall total: 6.00 + (-2.00) + 3.06 = 7.06 kg
+  const sumMonthly = Math.round(agg.monthlyData.reduce((acc, m) => acc + m.co2AvoidedKg, 0) * 100) / 100;
+  assert.strictEqual(sumMonthly, agg.totalEstimatedCO2AvoidedKg, "Sum of monthly savings strictly equals total CO2 avoided!");
+
+  console.log("  -> PASSED: Multi-month series calculated with (Solo - Carpool) and reconciles 100% with summary!\n");
+  passedCount++;
+} catch (err) {
+  console.error("  -> FAILED TEST 11:", err.message, "\n");
 }
 
 console.log("================================================================================");
