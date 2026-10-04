@@ -96,15 +96,21 @@ export function Navbar({ onMobileMenuToggle, isMobileMenuOpen }: NavbarProps) {
                   <Badge variant="secondary" className="bg-purple-100 text-purple-800 gap-1 text-[11px]">
                     <Shield className="h-3 w-3" /> Admin
                   </Badge>
+                ) : session.user.role === "campus_admin" ? (
+                  <Badge variant="secondary" className="bg-purple-100 text-purple-800 gap-1 text-[11px]">
+                    <Shield className="h-3 w-3" /> Campus Admin
+                  </Badge>
                 ) : (
                   <Badge variant="default" className="text-[11px]">
                     {session.user.employeeId || "Employee"}
                   </Badge>
                 )}
               </div>
-              <span className="text-xs text-slate-500">
-                {session.user.department || session.user.email}
-              </span>
+              {!isAdmin && (
+                <span className="text-xs text-slate-500">
+                  {session.user.department || session.user.email}
+                </span>
+              )}
             </div>
 
             {/* User Avatar */}
