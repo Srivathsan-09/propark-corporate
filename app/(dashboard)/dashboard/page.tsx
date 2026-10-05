@@ -14,7 +14,6 @@ import {
   Building2,
   ArrowRight,
   Leaf,
-  Sparkles,
   AlertTriangle,
   Lock,
   Shield,
@@ -74,7 +73,6 @@ export default function DashboardPage() {
   const [vehicles, setVehicles] = useState<IVehicleItem[]>([]);
   const [userProfile, setUserProfile] = useState<IUserProfile | null>(null);
   const [carbonStats, setCarbonStats] = useState<ICarbonStats | null>(null);
-  const [carbonSource, setCarbonSource] = useState<string>("IPCC 2006 / MoEFCC India GHG Platform");
   const [isLoading, setIsLoading] = useState(true);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
 
@@ -109,7 +107,6 @@ export default function DashboardPage() {
         if (carbonRes.ok) {
           const cData = await carbonRes.json();
           if (cData.stats) setCarbonStats(cData.stats);
-          if (cData.activeEmissionFactorSource) setCarbonSource(cData.activeEmissionFactorSource);
         }
       } catch (err) {
         console.error("Failed to load dashboard data:", err);
@@ -266,20 +263,20 @@ export default function DashboardPage() {
           Commute Overview
         </h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {/* Registered Vehicles */}
           <Card className="border-slate-200">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardHeader className="flex flex-row items-center justify-between p-3.5 sm:p-4 pb-1.5 sm:pb-2 space-y-0">
               <CardTitle className="text-xs font-medium text-slate-500">
                 Registered Vehicles
               </CardTitle>
               <Car className="h-4 w-4 text-emerald-600" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3.5 sm:p-4 pt-0">
               {isLoading ? (
                 <Skeleton className="h-7 w-12" />
               ) : (
-                <div className="text-2xl font-bold text-slate-900">{vehicles.length}</div>
+                <div className="text-xl sm:text-2xl font-bold text-slate-900">{vehicles.length}</div>
               )}
               <p className="text-[11px] text-slate-500 mt-1">Available for carpooling</p>
             </CardContent>
@@ -287,31 +284,31 @@ export default function DashboardPage() {
 
           {/* Upcoming Rides */}
           <Card className="border-slate-200">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardHeader className="flex flex-row items-center justify-between p-3.5 sm:p-4 pb-1.5 sm:pb-2 space-y-0">
               <CardTitle className="text-xs font-medium text-slate-500">
                 Upcoming Rides
               </CardTitle>
               <Clock className="h-4 w-4 text-blue-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">0</div>
+            <CardContent className="p-3.5 sm:p-4 pt-0">
+              <div className="text-xl sm:text-2xl font-bold text-slate-900">0</div>
               <p className="text-[11px] text-slate-500 mt-1">Scheduled for this week</p>
             </CardContent>
           </Card>
 
           {/* Completed Rides */}
           <Card className="border-slate-200">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardHeader className="flex flex-row items-center justify-between p-3.5 sm:p-4 pb-1.5 sm:pb-2 space-y-0">
               <CardTitle className="text-xs font-medium text-slate-500">
                 Completed Rides
               </CardTitle>
               <CheckCircle2 className="h-4 w-4 text-purple-600" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3.5 sm:p-4 pt-0">
               {isLoading ? (
                 <Skeleton className="h-7 w-12" />
               ) : (
-                <div className="text-2xl font-bold text-slate-900">
+                <div className="text-xl sm:text-2xl font-bold text-slate-900">
                   {carbonStats?.carpoolRidesCount || 0}
                 </div>
               )}
@@ -321,13 +318,13 @@ export default function DashboardPage() {
 
           {/* Verification Status Card */}
           <Card className="border-slate-200">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardHeader className="flex flex-row items-center justify-between p-3.5 sm:p-4 pb-1.5 sm:pb-2 space-y-0">
               <CardTitle className="text-xs font-medium text-slate-500">
                 Account Status
               </CardTitle>
               <ShieldCheck className="h-4 w-4 text-emerald-600" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3.5 sm:p-4 pt-0">
               {isApproved ? (
                 <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs font-bold">
                   Verified & Active
@@ -346,214 +343,168 @@ export default function DashboardPage() {
       </div>
 
       {/* MY ENVIRONMENTAL IMPACT SECTION */}
-      <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50/40 via-white to-slate-50 shadow-xs">
-        <CardHeader className="pb-3 border-b border-emerald-100/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-xs">
-              <Leaf className="h-4 w-4" />
+      <Card className="border-emerald-200/90 bg-gradient-to-br from-emerald-50/40 via-white to-slate-50/60 shadow-xs overflow-hidden">
+        <CardHeader className="p-3.5 sm:p-4 pb-2.5 sm:pb-3 border-b border-emerald-100/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-xs shrink-0">
+              <Leaf className="h-3.5 w-3.5" />
             </div>
             <div>
-              <CardTitle className="text-base font-bold text-slate-900">
+              <CardTitle className="text-sm sm:text-base font-bold text-slate-900">
                 My Environmental Impact
               </CardTitle>
-              <CardDescription className="text-xs text-slate-500">
+              <CardDescription className="text-[11px] sm:text-xs text-slate-500">
                 Quantitative sustainability metrics from your completed carpool rides
               </CardDescription>
             </div>
           </div>
-          <Badge variant="outline" className="text-[10px] font-semibold border-emerald-300 text-emerald-800 bg-emerald-100/50 w-fit">
+          <Badge variant="outline" className="text-[9px] sm:text-[10px] font-semibold border-emerald-300 text-emerald-800 bg-emerald-100/50 w-fit self-start sm:self-auto py-0.5">
             Research-Grade Carbon Model
           </Badge>
         </CardHeader>
 
-        <CardContent className="pt-4 space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <CardContent className="p-3.5 sm:p-4 space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
             {/* Estimated CO2 Avoided */}
-            <div className="p-3 bg-white rounded-xl border border-emerald-100 shadow-xs">
-              <span className="text-[11px] font-medium text-slate-500 block">
+            <div className="p-2.5 sm:p-3 bg-white rounded-lg border border-emerald-100 shadow-xs">
+              <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 block truncate">
                 Estimated CO₂ Avoided
               </span>
-              <div className="text-2xl font-black text-emerald-700 mt-0.5">
-                {isLoading ? <Skeleton className="h-7 w-16" /> : `${carbonStats?.totalCO2SavedKg ?? 0} kg`}
+              <div className="text-lg sm:text-xl font-bold text-emerald-700 mt-0.5">
+                {isLoading ? <Skeleton className="h-6 w-16" /> : `${carbonStats?.totalCO2SavedKg ?? 0} kg`}
               </div>
-              <span className="text-[10px] text-emerald-600 font-medium">
+              <span className="text-[9px] sm:text-[10px] text-emerald-600 font-medium block truncate">
                 vs Solo Commute Baseline
               </span>
             </div>
 
             {/* Vehicle-Km Reduced */}
-            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
-              <span className="text-[11px] font-medium text-slate-500 block">
+            <div className="p-2.5 sm:p-3 bg-white rounded-lg border border-slate-200/90 shadow-xs">
+              <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 block truncate">
                 Vehicle-Km Reduced (VKR)
               </span>
-              <div className="text-2xl font-black text-slate-900 mt-0.5">
-                {isLoading ? <Skeleton className="h-7 w-16" /> : `${carbonStats?.totalVKRKm ?? 0} km`}
+              <div className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5">
+                {isLoading ? <Skeleton className="h-6 w-16" /> : `${carbonStats?.totalVKRKm ?? 0} km`}
               </div>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">
                 Road congestion saved
               </span>
             </div>
 
             {/* Carpool Rides Completed */}
-            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
-              <span className="text-[11px] font-medium text-slate-500 block">
+            <div className="p-2.5 sm:p-3 bg-white rounded-lg border border-slate-200/90 shadow-xs">
+              <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 block truncate">
                 Carpool Trips
               </span>
-              <div className="text-2xl font-black text-slate-900 mt-0.5">
-                {isLoading ? <Skeleton className="h-7 w-12" /> : (carbonStats?.carpoolRidesCount ?? 0)}
+              <div className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5">
+                {isLoading ? <Skeleton className="h-6 w-12" /> : (carbonStats?.carpoolRidesCount ?? 0)}
               </div>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">
                 Driver + Passenger rides
               </span>
             </div>
 
             {/* Average Occupancy */}
-            <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
-              <span className="text-[11px] font-medium text-slate-500 block">
+            <div className="p-2.5 sm:p-3 bg-white rounded-lg border border-slate-200/90 shadow-xs">
+              <span className="text-[10px] sm:text-[11px] font-medium text-slate-500 block truncate">
                 Average Occupancy
               </span>
-              <div className="text-2xl font-black text-slate-900 mt-0.5">
-                {isLoading ? <Skeleton className="h-7 w-12" /> : (carbonStats?.averageOccupancy ? `${carbonStats.averageOccupancy}` : "1.0")}
+              <div className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5">
+                {isLoading ? <Skeleton className="h-6 w-12" /> : (carbonStats?.averageOccupancy ? `${carbonStats.averageOccupancy}` : "1.0")}
               </div>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">
                 Persons per vehicle
               </span>
             </div>
           </div>
 
           {/* Secondary stats row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-100 text-xs text-slate-600">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
             <div>
-              <span className="text-[10px] text-slate-400 block">Avg CO₂ Saved/Ride</span>
-              <span className="font-semibold text-slate-800">{carbonStats?.averageCO2SavedPerRideKg ?? 0} kg</span>
+              <span className="text-[10px] text-slate-400 block truncate">Avg CO₂ Saved/Ride</span>
+              <span className="font-semibold text-slate-800 text-xs sm:text-sm">{carbonStats?.averageCO2SavedPerRideKg ?? 0} kg</span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block">Avg CO₂ Saved/Passenger</span>
-              <span className="font-semibold text-slate-800">{carbonStats?.averageCO2SavedPerPassengerKg ?? 0} kg</span>
+              <span className="text-[10px] text-slate-400 block truncate">Avg CO₂ Saved/Passenger</span>
+              <span className="font-semibold text-slate-800 text-xs sm:text-sm">{carbonStats?.averageCO2SavedPerPassengerKg ?? 0} kg</span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block">CO₂ Reduction %</span>
-              <span className="font-semibold text-emerald-700">{carbonStats?.overallReductionPercentage ?? 0}%</span>
+              <span className="text-[10px] text-slate-400 block truncate">CO₂ Reduction %</span>
+              <span className="font-semibold text-emerald-700 text-xs sm:text-sm">{carbonStats?.overallReductionPercentage ?? 0}%</span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block">Tree Equivalent</span>
-              <span className="font-semibold text-emerald-800">~{carbonStats?.equivalentTreesPlanted ?? 0} trees/yr</span>
+              <span className="text-[10px] text-slate-400 block truncate">Tree Equivalent</span>
+              <span className="font-semibold text-emerald-800 text-xs sm:text-sm">~{carbonStats?.equivalentTreesPlanted ?? 0} trees/yr</span>
             </div>
-          </div>
-
-          {/* Methodology & Transparency Note */}
-          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] text-slate-500 leading-relaxed flex items-start gap-2">
-            <span className="text-emerald-700 font-bold shrink-0">Methodology:</span>
-            <span>
-              Values represent <strong>estimated CO₂ avoided</strong> calculated using individual passenger solo travel distances minus actual physical carpool vehicle distance multiplied by configured emission factors (<em>{carbonSource}</em>). Values are computational estimates rather than direct tailpipe sensor measurements.
-            </span>
           </div>
         </CardContent>
       </Card>
 
-      {/* Main Grid: Registered Vehicles & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Vehicles Summary (2 cols) */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">My Vehicles</h2>
-              <p className="text-xs text-slate-500">
-                Manage your registered vehicles to offer rides to colleagues
-              </p>
-            </div>
-            <Link href="/vehicles">
-              <Button size="sm" variant="outline" className="gap-1 text-xs">
-                Manage All <ArrowRight className="h-3 w-3" />
-              </Button>
-            </Link>
+      {/* My Vehicles Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">My Vehicles</h2>
+            <p className="text-xs text-slate-500">
+              Manage your registered vehicles to offer rides to colleagues
+            </p>
           </div>
-
-          {isLoading ? (
-            <div className="py-8 flex flex-col items-center justify-center rounded-xl bg-slate-50 border border-slate-200">
-              <CarLoader size="md" message="Loading your vehicles..." />
-            </div>
-          ) : vehicles.length === 0 ? (
-            <EmptyState
-              icon={Car}
-              title="No vehicle added yet"
-              description="Add your car or two-wheeler to start offering rides to colleagues heading to campus."
-              actionLabel="Add Vehicle"
-              onAction={() => {
-                window.location.href = "/vehicles";
-              }}
-            />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {vehicles.slice(0, 2).map((vehicle) => (
-                <Card key={vehicle._id} className="border-slate-200 hover:border-slate-300 transition-colors">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary" className="text-[11px]">
-                        {vehicle.vehicleType}
-                      </Badge>
-                      <Badge
-                        variant={vehicle.status === "active" ? "default" : "outline"}
-                        className="text-[10px]"
-                      >
-                        {vehicle.status === "active" ? "Active" : "Inactive"}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-base font-semibold mt-1">
-                      {vehicle.vehicleModel}
-                    </CardTitle>
-                    <CardDescription className="font-mono text-xs text-slate-600">
-                      {vehicle.registrationNumber}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0 text-xs text-slate-500">
-                    <div className="flex items-center justify-between border-t border-slate-100 pt-2.5 mt-1">
-                      <span>Capacity: {vehicle.seatingCapacity} seats</span>
-                      <span className="font-medium text-emerald-700">
-                        {vehicle.availableSeats} offerable seats
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <Link href="/vehicles">
+            <Button size="sm" variant="outline" className="gap-1 text-xs">
+              Manage All <ArrowRight className="h-3 w-3" />
+            </Button>
+          </Link>
         </div>
 
-        {/* Corporate Trust & Commute Guidelines (1 col) */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-900">Campus Mobility</h2>
-          <Card className="border-slate-200 bg-slate-900 text-white">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold">
-                <Sparkles className="h-4 w-4" /> CommuteX Benefits
-              </div>
-              <CardTitle className="text-base font-semibold text-white">
-                Campus Verification Policy
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-xs text-slate-300">
-              <div className="flex items-start gap-2">
-                <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Admin Verified:</strong> Only approved employees with valid company IDs can participate in rides.
-                </span>
-              </div>
-              <div className="flex items-start gap-2">
-                <Leaf className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Eco Commute:</strong> Shared rides directly cut down fuel expenses, traffic congestion, and carbon footprint.
-                </span>
-              </div>
-              <div className="flex items-start gap-2">
-                <Users className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Internal Trust:</strong> Travel comfortably knowing all carpool participants belong to your campus.
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {isLoading ? (
+          <div className="py-8 flex flex-col items-center justify-center rounded-xl bg-slate-50 border border-slate-200">
+            <CarLoader size="md" message="Loading your vehicles..." />
+          </div>
+        ) : vehicles.length === 0 ? (
+          <EmptyState
+            icon={Car}
+            title="No vehicle added yet"
+            description="Add your car or two-wheeler to start offering rides to colleagues heading to campus."
+            actionLabel="Add Vehicle"
+            onAction={() => {
+              window.location.href = "/vehicles";
+            }}
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {vehicles.slice(0, 3).map((vehicle) => (
+              <Card key={vehicle._id} className="border-slate-200 hover:border-slate-300 transition-colors">
+                <CardHeader className="p-4 pb-2">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary" className="text-[11px]">
+                      {vehicle.vehicleType}
+                    </Badge>
+                    <Badge
+                      variant={vehicle.status === "active" ? "default" : "outline"}
+                      className="text-[10px]"
+                    >
+                      {vehicle.status === "active" ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-base font-semibold mt-1">
+                    {vehicle.vehicleModel}
+                  </CardTitle>
+                  <CardDescription className="font-mono text-xs text-slate-600">
+                    {vehicle.registrationNumber}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 text-xs text-slate-500">
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-2.5 mt-1">
+                    <span>Capacity: {vehicle.seatingCapacity} seats</span>
+                    <span className="font-medium text-emerald-700">
+                      {vehicle.availableSeats} offerable seats
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* VERIFICATION REQUIRED MODAL */}

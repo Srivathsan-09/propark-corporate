@@ -816,76 +816,77 @@ export default function FindRidePage() {
       )}
 
       {/* Horizontal Search & Filter Bar */}
-      <Card className="border-slate-200 shadow-sm bg-white rounded-2xl overflow-hidden">
-        <CardContent className="p-3 sm:p-4 space-y-3">
+      <Card className="border-slate-200 shadow-xs bg-white rounded-2xl overflow-hidden">
+        <CardContent className="p-2.5 sm:p-3.5 space-y-2.5">
           {/* Row 1: Primary Search Form with Smart Typo-Tolerant Autocomplete */}
           <form onSubmit={handleSearchSubmit}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-2.5 items-center">
-              {/* Origin (From) with Smart Autocomplete */}
-              <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4">
-                <LocationSearchInput
-                  placeholder="From (e.g. Porur, Poonamallee)"
-                  value={originLocation.address}
-                  onChange={(loc) => setOriginLocation(loc)}
-                  showCurrentLocation={false}
-                  className="h-9 text-xs rounded-xl"
-                />
+            <div className="flex flex-col lg:grid lg:grid-cols-12 gap-2 sm:gap-2.5">
+              {/* Row 1 on mobile: From (left) & Destination (right) */}
+              <div className="grid grid-cols-2 gap-2 lg:col-span-7">
+                <div className="col-span-1">
+                  <LocationSearchInput
+                    placeholder="From (e.g. Porur)"
+                    value={originLocation.address}
+                    onChange={(loc) => setOriginLocation(loc)}
+                    showCurrentLocation={false}
+                    className="h-8 sm:h-9 text-xs rounded-xl"
+                  />
+                </div>
+                <div className="col-span-1">
+                  <LocationSearchInput
+                    placeholder="To (e.g. Tech Park)"
+                    value={destinationLocation.address}
+                    onChange={(loc) => setDestinationLocation(loc)}
+                    showCurrentLocation={false}
+                    className="h-8 sm:h-9 text-xs rounded-xl"
+                  />
+                </div>
               </div>
 
-              {/* Destination (To) with Smart Autocomplete */}
-              <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-3">
-                <LocationSearchInput
-                  placeholder="To (e.g. Tech Park, Taramani)"
-                  value={destinationLocation.address}
-                  onChange={(loc) => setDestinationLocation(loc)}
-                  showCurrentLocation={false}
-                  className="h-9 text-xs rounded-xl"
-                />
-              </div>
+              {/* Row 2 on mobile: Date, Time & Search button */}
+              <div className="grid grid-cols-12 gap-2 lg:col-span-5 items-center">
+                <div className="col-span-5 relative">
+                  <Calendar className="absolute left-2.5 top-2 sm:top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                  <Input
+                    type="date"
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                    className="pl-7 sm:pl-8 pr-1 h-8 sm:h-9 text-xs rounded-xl"
+                  />
+                </div>
 
-              {/* Date */}
-              <div className="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-2 relative">
-                <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                <Input
-                  type="date"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                  className="pl-8 h-9 text-xs rounded-xl"
-                />
-              </div>
+                <div className="col-span-4 relative">
+                  <Clock className="absolute left-2.5 top-2 sm:top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                  <Input
+                    type="time"
+                    value={filterTime}
+                    onChange={(e) => setFilterTime(e.target.value)}
+                    className="pl-7 sm:pl-8 pr-1 h-8 sm:h-9 text-xs rounded-xl"
+                  />
+                </div>
 
-              {/* Time */}
-              <div className="col-span-1 sm:col-span-1 md:col-span-1 lg:col-span-2 relative">
-                <Clock className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-                <Input
-                  type="time"
-                  value={filterTime}
-                  onChange={(e) => setFilterTime(e.target.value)}
-                  className="pl-8 h-9 text-xs rounded-xl"
-                />
-              </div>
-
-              {/* Search Button */}
-              <div className="col-span-1 sm:col-span-2 md:col-span-1 lg:col-span-1">
-                <Button
-                  type="submit"
-                  className="w-full h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1 shadow-xs"
-                >
-                  <Search className="h-3.5 w-3.5" /> Search
-                </Button>
+                <div className="col-span-3">
+                  <Button
+                    type="submit"
+                    className="w-full h-8 sm:h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-1 shadow-xs px-2"
+                  >
+                    <Search className="h-3.5 w-3.5 shrink-0" />
+                    <span>Search</span>
+                  </Button>
+                </div>
               </div>
             </div>
           </form>
 
           {/* Row 2: Secondary Filter & Sort Controls */}
-          <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Commute Direction Quick Horizontal Pills */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+          <div className="pt-2 border-t border-slate-100 space-y-2">
+            {/* Filter Line 1: Commute Direction Quick Horizontal Pills & Reset Filters */}
+            <div className="flex items-center justify-between gap-2 w-full">
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 sm:p-1 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setFilterRideType("all")}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-bold rounded-lg transition-all ${
                     filterRideType === "all"
                       ? "bg-white text-slate-900 shadow-xs"
                       : "text-slate-600 hover:text-slate-900"
@@ -896,7 +897,7 @@ export default function FindRidePage() {
                 <button
                   type="button"
                   onClick={() => setFilterRideType("pickup")}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-all ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-bold rounded-lg flex items-center gap-1 transition-all ${
                     filterRideType === "pickup"
                       ? "bg-amber-400 text-slate-950 shadow-xs"
                       : "text-slate-600 hover:text-slate-900"
@@ -907,7 +908,7 @@ export default function FindRidePage() {
                 <button
                   type="button"
                   onClick={() => setFilterRideType("drop")}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-all ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-bold rounded-lg flex items-center gap-1 transition-all ${
                     filterRideType === "drop"
                       ? "bg-indigo-600 text-white shadow-xs"
                       : "text-slate-600 hover:text-slate-900"
@@ -917,10 +918,24 @@ export default function FindRidePage() {
                 </button>
               </div>
 
+              {/* Reset Filters Action */}
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="text-[11px] sm:text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline shrink-0 px-1.5 flex items-center gap-1"
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
+
+            {/* Filter Line 2: All Vehicles, Seats, and Sort Dropdowns side by side */}
+            <div className="grid grid-cols-3 sm:flex sm:items-center gap-1.5 sm:gap-2 w-full">
               {/* Vehicle Type Filter */}
-              <div className="w-32">
+              <div className="w-full sm:w-32">
                 <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="h-8 text-xs rounded-xl bg-slate-50 border-slate-200">
+                  <SelectTrigger className="h-7 sm:h-8 text-[11px] sm:text-xs rounded-lg sm:rounded-xl bg-slate-50 border-slate-200 px-2 sm:px-3">
                     <SelectValue placeholder="All Vehicles" />
                   </SelectTrigger>
                   <SelectContent>
@@ -933,9 +948,9 @@ export default function FindRidePage() {
               </div>
 
               {/* Available Seats Filter */}
-              <div className="w-32">
+              <div className="w-full sm:w-28">
                 <Select value={filterMinSeats} onValueChange={setFilterMinSeats}>
-                  <SelectTrigger className="h-8 text-xs rounded-xl bg-slate-50 border-slate-200">
+                  <SelectTrigger className="h-7 sm:h-8 text-[11px] sm:text-xs rounded-lg sm:rounded-xl bg-slate-50 border-slate-200 px-2 sm:px-3">
                     <SelectValue placeholder="Seats: All" />
                   </SelectTrigger>
                   <SelectContent>
@@ -949,12 +964,12 @@ export default function FindRidePage() {
               </div>
 
               {/* Sort By Filter */}
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <Select
                   value={sortBy}
                   onValueChange={(val: any) => handleSortChange(val)}
                 >
-                  <SelectTrigger className="h-8 text-xs rounded-xl bg-slate-50 border-slate-200 font-medium">
+                  <SelectTrigger className="h-7 sm:h-8 text-[11px] sm:text-xs rounded-lg sm:rounded-xl bg-slate-50 border-slate-200 font-medium px-2 sm:px-3">
                     <SelectValue placeholder="Sort: Earliest Departure" />
                   </SelectTrigger>
                   <SelectContent>
@@ -967,17 +982,6 @@ export default function FindRidePage() {
                 </Select>
               </div>
             </div>
-
-            {/* Reset Filters Action */}
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline shrink-0 px-2 flex items-center gap-1"
-              >
-                Reset Filters
-              </button>
-            )}
           </div>
         </CardContent>
       </Card>

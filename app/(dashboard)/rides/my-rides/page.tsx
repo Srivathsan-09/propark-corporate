@@ -942,14 +942,14 @@ export default function MyRidesPage() {
       )}
 
       {/* CommuteX Status History Tabs: ALL, UPCOMING, COMPLETED, CANCELLED */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-2 rounded-2xl border border-slate-200/80">
-        <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-bold">
+      <div className="bg-slate-50 p-1.5 rounded-2xl border border-slate-200/80 sm:flex sm:items-center sm:justify-between sm:gap-3">
+        <div className="grid grid-cols-4 gap-1 w-full sm:w-auto">
           {(["ALL", "UPCOMING", "COMPLETED", "CANCELLED"] as const).map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setStatusFilterTab(tab)}
-              className={`px-3.5 py-1.5 rounded-xl transition-all ${
+              className={`py-1.5 px-1 sm:px-3 text-[10px] min-[380px]:text-[11px] sm:text-xs font-bold rounded-xl text-center transition-all truncate ${
                 statusFilterTab === tab
                   ? "bg-slate-900 text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
@@ -960,7 +960,7 @@ export default function MyRidesPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium px-2">
+        <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 font-medium px-2 shrink-0">
           <span>Status:</span>
           <span className="font-bold text-slate-800 uppercase">{statusFilterTab}</span>
         </div>

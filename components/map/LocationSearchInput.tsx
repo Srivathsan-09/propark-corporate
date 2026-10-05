@@ -16,6 +16,7 @@ import { CarLoader } from "@/components/common/CarLoader";
 import { useLocationSearch } from "@/hooks/useLocationSearch";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { LocationResult } from "@/lib/services/geocoding";
+import { cn } from "@/lib/utils";
 
 interface LocationSearchInputProps {
   id?: string;
@@ -160,7 +161,7 @@ export default function LocationSearchInput({
   return (
     <div ref={containerRef} className={`relative w-full ${isOpen ? "z-50" : "z-10"}`}>
       <div className="relative flex items-center">
-        <MapPin className="absolute left-3 h-4 w-4 text-emerald-600 pointer-events-none" />
+        <MapPin className="absolute left-2.5 sm:left-3 h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 pointer-events-none" />
 
         <Input
           id={id}
@@ -177,9 +178,12 @@ export default function LocationSearchInput({
               isConfirmed: false,
             });
           }}
-          className={`pl-9 pr-20 text-xs rounded-xl h-10 ${
-            hasError ? "border-rose-500 ring-rose-200" : ""
-          } ${className}`}
+          className={cn(
+            "pl-7 sm:pl-8 text-xs rounded-xl h-9 border-slate-200 bg-white",
+            showCurrentLocation ? "pr-16" : "pr-7",
+            hasError && "border-rose-500 ring-rose-200",
+            className
+          )}
           required={required}
           autoComplete="off"
         />
