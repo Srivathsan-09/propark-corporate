@@ -33,6 +33,8 @@ import {
   FileText,
   MoreVertical,
   Eye,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -179,6 +181,14 @@ export default function MyRidesPage() {
   const [isEmpRideModalOpen, setIsEmpRideModalOpen] = useState(false);
   const [showEmpMapInModal, setShowEmpMapInModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [expandedRideDetails, setExpandedRideDetails] = useState<Record<string, boolean>>({});
+
+  const toggleRideDetails = (id: string) => {
+    setExpandedRideDetails((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
@@ -1052,6 +1062,7 @@ export default function MyRidesPage() {
               const isPickup = ride.rideType !== "drop";
               const isLive = ride.status === "in_progress";
               const isCompleted = ride.status === "completed";
+              const isExpanded = !!expandedRideDetails[ride._id];
 
               const acceptedReqs = ride.requests.filter((r) => r.status === "accepted");
               const totalExpectedFare = acceptedReqs.reduce((sum, r) => sum + (r.fare || 0), 0);
@@ -1301,35 +1312,64 @@ export default function MyRidesPage() {
                     </div>
 
                     {/* Passenger Requests Manifest */}
-                    <div className="pt-2 border-t border-slate-100 space-y-3">
+                    <div className="pt-2 border-t border-slate-100 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
                           Coworker Requests ({ride.requests.length})
                         </span>
+                        {ride.requests.length > 0 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => toggleRideDetails(ride._id)}
+                            className="h-6 text-[10px] font-bold text-slate-700 hover:bg-slate-100 gap-1 px-2 rounded-lg"
+                          >
+                            <Eye className="h-3 w-3 text-slate-500" />
+                            <span>{isExpanded ? "Hide Details" : "All Details"}</span>
+                            {isExpanded ? (
+                              <ChevronUp className="h-3 w-3 text-slate-400" />
+                            ) : (
+                              <ChevronDown className="h-3 w-3 text-slate-400" />
+                            )}
+                          </Button>
+                        )}
                       </div>
 
                       {/* Post-Ride Total Fare for Completed Rides */}
                       {isCompleted && acceptedReqs.length > 0 && (
-                        <div className="px-3.5 py-2.5 rounded-xl bg-slate-900 text-white flex items-center justify-between shadow-xs border border-slate-800 my-2">
+                        <div className="px-3.5 py-2 rounded-xl bg-slate-900 text-white flex items-center justify-between shadow-xs border border-slate-800 my-1">
                           <div className="flex items-center gap-2">
-                            <div className="h-7 w-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                              <IndianRupee className="h-4 w-4" />
+                            <div className="h-6 w-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                              <IndianRupee className="h-3.5 w-3.5" />
                             </div>
                             <div className="flex items-baseline gap-1.5">
                               <span className="text-xs text-slate-400 font-medium">Total Fare:</span>
-                              <strong className="text-base font-extrabold text-white">₹{totalExpectedFare}</strong>
+                              <strong className="text-sm font-extrabold text-white">₹{totalExpectedFare}</strong>
                             </div>
                           </div>
-                          <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                          <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-bold py-0.5">
                             Ride Completed
                           </Badge>
                         </div>
                       )}
 
                       {ride.requests.length === 0 ? (
-                        <p className="text-xs text-slate-400 italic py-2">No passenger requests received yet.</p>
+                        <p className="text-xs text-slate-400 italic py-1">No passenger requests received yet.</p>
+                      ) : !isExpanded ? (
+                        <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+                          <span className="text-slate-600 font-medium">
+                            {acceptedReqs.length} confirmed • {ride.requests.filter((r) => r.status === "pending").length} pending
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleRideDetails(ride._id)}
+                            className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-0.5"
+                          >
+                            All Details ({ride.requests.length}) →
+                          </button>
+                        </div>
                       ) : (
-                        <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden animate-in fade-in-50 duration-200">
                           {ride.requests.map((req) => {
                             const isAccepted = req.status === "accepted";
                             const isPending = req.status === "pending";
@@ -1548,6 +1588,7 @@ export default function MyRidesPage() {
                 const isLive = ride.status === "in_progress";
                 const isCompleted = ride.status === "completed" || (booking.status as string) === "completed";
                 const isAccepted = booking.status === "accepted";
+                const isExpanded = !!expandedRideDetails[booking._id];
 
                 return (
                   <Card
@@ -1665,71 +1706,91 @@ export default function MyRidesPage() {
                           </div>
                         </div>
 
-                        {/* Driver Contact */}
-                        {ride.driver.phone && (
-                          <div className="flex items-center justify-between text-xs text-slate-600 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
-                            <div className="flex items-center gap-1 text-[11px] truncate">
-                              <Phone className="h-3 w-3 text-emerald-600 shrink-0" />
-                              <span className="text-slate-500">Contact:</span>
-                              <strong className="text-slate-900 truncate">{ride.driver.phone}</strong>
-                            </div>
-                            <a href={`tel:${ride.driver.phone}`} className="text-[10px] font-bold text-emerald-700 hover:underline shrink-0 ml-1">
-                              Call
-                            </a>
-                          </div>
-                        )}
+                        {/* Complete Details (Collapsible: Shown when "All Details" is clicked) */}
+                        {isExpanded && (
+                          <div className="space-y-2 pt-1 border-t border-slate-100 animate-in fade-in-50 duration-200">
+                            {/* Driver Contact */}
+                            {ride.driver.phone && (
+                              <div className="flex items-center justify-between text-xs text-slate-600 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
+                                <div className="flex items-center gap-1 text-[11px] truncate">
+                                  <Phone className="h-3 w-3 text-emerald-600 shrink-0" />
+                                  <span className="text-slate-500">Contact:</span>
+                                  <strong className="text-slate-900 truncate">{ride.driver.phone}</strong>
+                                </div>
+                                <a href={`tel:${ride.driver.phone}`} className="text-[10px] font-bold text-emerald-700 hover:underline shrink-0 ml-1">
+                                  Call
+                                </a>
+                              </div>
+                            )}
 
-                        {/* Boarding Security PIN Card */}
-                        {isAccepted && (
-                          <div className="p-2 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[9px] uppercase font-bold text-purple-700 flex items-center gap-1">
-                                <ShieldCheck className="h-3 w-3 text-purple-600" /> Security PIN
-                              </span>
-                              {booking.isBoarded ? (
-                                <Badge className="bg-emerald-600 text-white text-[8px] font-bold py-0.2 px-1.5">
-                                  Boarded
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[8px] font-semibold py-0.2 px-1.5">
-                                  Awaiting
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-[10px] text-slate-500 truncate">Code for driver:</span>
-                              <span className="font-mono text-sm font-bold tracking-widest bg-white px-2 py-0.5 rounded border border-purple-300 text-purple-900 shadow-2xs">
-                                {booking.boardingPin || String(1000 + (parseInt(booking._id.slice(-4), 16) % 9000))}
-                              </span>
-                            </div>
-                          </div>
-                        )}
+                            {/* Boarding Security PIN Card */}
+                            {isAccepted && (
+                              <div className="p-2 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] uppercase font-bold text-purple-700 flex items-center gap-1">
+                                    <ShieldCheck className="h-3 w-3 text-purple-600" /> Security PIN
+                                  </span>
+                                  {booking.isBoarded ? (
+                                    <Badge className="bg-emerald-600 text-white text-[8px] font-bold py-0.2 px-1.5">
+                                      Boarded
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[8px] font-semibold py-0.2 px-1.5">
+                                      Awaiting
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-[10px] text-slate-500 truncate">Code for driver:</span>
+                                  <span className="font-mono text-sm font-bold tracking-widest bg-white px-2 py-0.5 rounded border border-purple-300 text-purple-900 shadow-2xs">
+                                    {booking.boardingPin || String(1000 + (parseInt(booking._id.slice(-4), 16) % 9000))}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
 
-                        {/* Read-Only Post-Ride Fare Payment Status for Passengers on Completed Rides */}
-                        {ride.status === "completed" && isAccepted && (
-                          <div className="p-2 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="font-bold text-slate-800 flex items-center gap-1 text-[10px]">
-                                <IndianRupee className="h-3 w-3 text-emerald-600" /> Payment
-                              </span>
-                              {booking.paymentStatus === "paid" ? (
-                                <Badge className="bg-emerald-600 text-white font-bold text-[8px] py-0.2 px-1.5 gap-0.5">
-                                  <CheckCircle2 className="h-2 w-2" /> Paid (₹{booking.fare})
-                                </Badge>
-                              ) : booking.paymentStatus === "partially_paid" ? (
-                                <Badge className="bg-amber-600 text-white font-bold text-[8px] py-0.2 px-1.5 gap-0.5">
-                                  <AlertCircle className="h-2 w-2" /> Part (₹{booking.amountPaid || 0})
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-rose-600 text-white font-bold text-[8px] py-0.2 px-1.5 gap-0.5">
-                                  <X className="h-2 w-2" /> Due: ₹{booking.fare}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-[10px] text-slate-500 flex items-center justify-between">
-                              <span>Total: <strong>₹{booking.fare}</strong></span>
-                              <span>Paid: <strong className="text-emerald-700">₹{booking.amountPaid || 0}</strong></span>
-                              <span>Remaining: <strong className={(booking.fare - (booking.amountPaid || 0)) > 0 ? "text-rose-600 font-bold" : "text-emerald-600 font-bold"}>₹{Math.max(0, booking.fare - (booking.amountPaid || 0))}</strong></span>
+                            {/* Read-Only Post-Ride Fare Payment Status for Passengers on Completed Rides */}
+                            {ride.status === "completed" && isAccepted && (
+                              <div className="p-2 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="font-bold text-slate-800 flex items-center gap-1 text-[10px]">
+                                    <IndianRupee className="h-3 w-3 text-emerald-600" /> Payment
+                                  </span>
+                                  {booking.paymentStatus === "paid" ? (
+                                    <Badge className="bg-emerald-600 text-white font-bold text-[8px] py-0.2 px-1.5 gap-0.5">
+                                      <CheckCircle2 className="h-2 w-2" /> Paid (₹{booking.fare})
+                                    </Badge>
+                                  ) : booking.paymentStatus === "partially_paid" ? (
+                                    <Badge className="bg-amber-600 text-white font-bold text-[8px] py-0.2 px-1.5 gap-0.5">
+                                      <AlertCircle className="h-2 w-2" /> Part (₹{booking.amountPaid || 0})
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-rose-600 text-white font-bold text-[8px] py-0.2 px-1.5 gap-0.5">
+                                      <X className="h-2 w-2" /> Due: ₹{booking.fare}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-slate-500 flex items-center justify-between">
+                                  <span>Total: <strong>₹{booking.fare}</strong></span>
+                                  <span>Paid: <strong className="text-emerald-700">₹{booking.amountPaid || 0}</strong></span>
+                                  <span>Remaining: <strong className={(booking.fare - (booking.amountPaid || 0)) > 0 ? "text-rose-600 font-bold" : "text-emerald-600 font-bold"}>₹{Math.max(0, booking.fare - (booking.amountPaid || 0))}</strong></span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Full Summary Dialog Link */}
+                            <div className="pt-0.5 flex items-center justify-end">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedEmpRide({ ...ride, role: "Passenger", booking });
+                                  setShowEmpMapInModal(false);
+                                  setIsEmpRideModalOpen(true);
+                                }}
+                                className="text-[10px] font-semibold text-purple-700 hover:text-purple-900 hover:underline flex items-center gap-1"
+                              >
+                                <FileText className="h-2.5 w-2.5" /> Full Summary Dialog
+                              </button>
                             </div>
                           </div>
                         )}
@@ -1740,14 +1801,16 @@ export default function MyRidesPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            setSelectedEmpRide({ ...ride, role: "Passenger", booking });
-                            setShowEmpMapInModal(false);
-                            setIsEmpRideModalOpen(true);
-                          }}
-                          className="flex-1 h-7 text-[11px] font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1"
+                          onClick={() => toggleRideDetails(booking._id)}
+                          className="flex-1 h-7 text-[11px] font-bold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1 shadow-2xs"
                         >
-                          <Eye className="h-3 w-3" /> View Details
+                          <Eye className="h-3 w-3 text-slate-500" />
+                          <span>{isExpanded ? "Hide Details" : "All Details"}</span>
+                          {isExpanded ? (
+                            <ChevronUp className="h-3 w-3 text-slate-400" />
+                          ) : (
+                            <ChevronDown className="h-3 w-3 text-slate-400" />
+                          )}
                         </Button>
                         {isAccepted && (
                           <Button
