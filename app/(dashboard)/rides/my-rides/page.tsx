@@ -1126,6 +1126,11 @@ export default function MyRidesPage() {
                             Drop
                           </span>
                         )}
+                        {isCompleted && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                            <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" /> Completed
+                          </span>
+                        )}
                       </div>
                       <CardDescription className="text-[11px] text-slate-500 mt-1">
                         {ride.vehicle.vehicleModel} ({ride.vehicle.registrationNumber}) • {ride.vehicleType}
@@ -1235,10 +1240,11 @@ export default function MyRidesPage() {
                             <Eye className="h-3 w-3" /> View Details
                           </Button>
                           <Badge
-                            className={`font-bold text-[9px] h-7 px-2 flex items-center justify-center ${
-                              isCompleted ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-700"
+                            className={`font-bold text-[9px] h-7 px-2 flex items-center justify-center gap-1 ${
+                              isCompleted ? "bg-emerald-50 text-emerald-800 border border-emerald-300" : "bg-slate-100 text-slate-700"
                             }`}
                           >
+                            {isCompleted && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
                             {ride.status.toUpperCase()}
                           </Badge>
                           <Button
@@ -1261,6 +1267,19 @@ export default function MyRidesPage() {
                   </CardHeader>
 
                   <CardContent className="p-3.5 space-y-3">
+                    {/* Completed Ride Indicator Banner */}
+                    {isCompleted && (
+                      <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+                        <span className="flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          <span>Ride Completed</span>
+                        </span>
+                        <span className="text-[10px] text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded font-bold">
+                          ✓ Finished
+                        </span>
+                      </div>
+                    )}
+
                     {/* Commute Info Bar */}
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
@@ -1527,6 +1546,7 @@ export default function MyRidesPage() {
               .map((booking) => {
                 const ride = booking.ride;
                 const isLive = ride.status === "in_progress";
+                const isCompleted = ride.status === "completed" || (booking.status as string) === "completed";
                 const isAccepted = booking.status === "accepted";
 
                 return (
@@ -1573,7 +1593,11 @@ export default function MyRidesPage() {
 
                         {/* Status Badge */}
                         <div className="shrink-0">
-                          {isLive && isAccepted ? (
+                          {isCompleted ? (
+                            <Badge className="bg-emerald-50 text-emerald-800 border border-emerald-300 text-[10px] font-bold px-2 py-0.5 flex items-center gap-1 shadow-2xs">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Completed
+                            </Badge>
+                          ) : isLive && isAccepted ? (
                             <span className="whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white shadow-xs animate-pulse">
                               <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping shrink-0" />
                               Live GPS
@@ -1597,6 +1621,19 @@ export default function MyRidesPage() {
 
                     <CardContent className="p-3.5 space-y-2.5 text-xs flex-1 flex flex-col justify-between">
                       <div className="space-y-2">
+                        {/* Completed Ride Indicator Banner */}
+                        {isCompleted && (
+                          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+                            <span className="flex items-center gap-1.5">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                              <span>Ride Completed</span>
+                            </span>
+                            <span className="text-[10px] text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded font-bold">
+                              ✓ Finished
+                            </span>
+                          </div>
+                        )}
+
                         {/* Stops route block */}
                         <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
                           <div className="flex items-center gap-1.5 min-w-0">
