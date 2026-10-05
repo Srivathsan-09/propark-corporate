@@ -338,21 +338,16 @@ export default function DashboardPage() {
 
       {/* MY ENVIRONMENTAL IMPACT SECTION */}
       <Card className="border-emerald-200/90 bg-gradient-to-br from-emerald-50/40 via-white to-slate-50/60 shadow-xs overflow-hidden">
-        <CardHeader className="p-3.5 sm:p-4 pb-2.5 sm:pb-3 border-b border-emerald-100/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <CardHeader className="p-3.5 sm:p-4 pb-2.5 sm:pb-3 border-b border-emerald-100/70 flex flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <div className="h-7 w-7 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-xs shrink-0">
               <Leaf className="h-3.5 w-3.5" />
             </div>
-            <div>
-              <CardTitle className="text-sm sm:text-base font-bold text-slate-900">
-                My Environmental Impact
-              </CardTitle>
-              <CardDescription className="text-[11px] sm:text-xs text-slate-500">
-                Quantitative sustainability metrics from your completed carpool rides
-              </CardDescription>
-            </div>
+            <CardTitle className="text-sm sm:text-base font-bold text-slate-900">
+              My Environmental Impact
+            </CardTitle>
           </div>
-          <Badge variant="outline" className="text-[9px] sm:text-[10px] font-semibold border-emerald-300 text-emerald-800 bg-emerald-100/50 w-fit self-start sm:self-auto py-0.5">
+          <Badge variant="outline" className="text-[9px] sm:text-[10px] font-semibold border-emerald-300 text-emerald-800 bg-emerald-100/50 w-fit shrink-0 py-0.5">
             Research-Grade Carbon Model
           </Badge>
         </CardHeader>
@@ -434,72 +429,79 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* My Vehicles Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">My Vehicles</h2>
-            <p className="text-xs text-slate-500">
-              Manage your registered vehicles to offer rides to colleagues
-            </p>
+      {/* MY VEHICLES SECTION IN CONTAINER (MATCHING ENVIRONMENTAL IMPACT) */}
+      <Card className="border-slate-200/90 bg-gradient-to-br from-slate-50/40 via-white to-slate-50/60 shadow-xs overflow-hidden">
+        <CardHeader className="p-3.5 sm:p-4 pb-2.5 sm:pb-3 border-b border-slate-100 flex flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-xs shrink-0">
+              <Car className="h-3.5 w-3.5 text-emerald-400" />
+            </div>
+            <CardTitle className="text-sm sm:text-base font-bold text-slate-900">
+              My Vehicles
+            </CardTitle>
           </div>
           <Link href="/vehicles">
-            <Button size="sm" variant="outline" className="gap-1 text-xs">
+            <Button size="sm" variant="outline" className="gap-1 text-xs h-7 sm:h-8 rounded-xl shadow-2xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100">
               Manage All <ArrowRight className="h-3 w-3" />
             </Button>
           </Link>
-        </div>
+        </CardHeader>
 
-        {isLoading ? (
-          <div className="py-8 flex flex-col items-center justify-center rounded-xl bg-slate-50 border border-slate-200">
-            <CarLoader size="md" message="Loading your vehicles..." />
-          </div>
-        ) : vehicles.length === 0 ? (
-          <EmptyState
-            icon={Car}
-            title="No vehicle added yet"
-            description="Add your car or two-wheeler to start offering rides to colleagues heading to campus."
-            actionLabel="Add Vehicle"
-            onAction={() => {
-              window.location.href = "/vehicles";
-            }}
-          />
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {vehicles.slice(0, 3).map((vehicle) => (
-              <Card key={vehicle._id} className="border-slate-200 hover:border-slate-300 transition-colors">
-                <CardHeader className="p-4 pb-2">
+        <CardContent className="p-3.5 sm:p-4">
+          {isLoading ? (
+            <div className="py-8 flex flex-col items-center justify-center rounded-xl bg-slate-50 border border-slate-200">
+              <CarLoader size="md" message="Loading your vehicles..." />
+            </div>
+          ) : vehicles.length === 0 ? (
+            <EmptyState
+              icon={Car}
+              title="No vehicle added yet"
+              description="Add your car or two-wheeler to start offering rides to colleagues heading to campus."
+              actionLabel="Add Vehicle"
+              onAction={() => {
+                window.location.href = "/vehicles";
+              }}
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {vehicles.slice(0, 3).map((vehicle) => (
+                <div
+                  key={vehicle._id}
+                  className="p-3 sm:p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-xs hover:border-slate-300 transition-colors space-y-2"
+                >
                   <div className="flex items-center justify-between">
-                    <Badge variant="secondary" className="text-[11px]">
+                    <Badge variant="secondary" className="text-[10px] font-semibold">
                       {vehicle.vehicleType}
                     </Badge>
                     <Badge
                       variant={vehicle.status === "active" ? "default" : "outline"}
-                      className="text-[10px]"
+                      className={`text-[9px] font-bold ${
+                        vehicle.status === "active" ? "bg-emerald-600 text-white" : "text-slate-500"
+                      }`}
                     >
                       {vehicle.status === "active" ? "Active" : "Inactive"}
                     </Badge>
                   </div>
-                  <CardTitle className="text-base font-semibold mt-1">
-                    {vehicle.vehicleModel}
-                  </CardTitle>
-                  <CardDescription className="font-mono text-xs text-slate-600">
-                    {vehicle.registrationNumber}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 text-xs text-slate-500">
-                  <div className="flex items-center justify-between border-t border-slate-100 pt-2.5 mt-1">
-                    <span>Capacity: {vehicle.seatingCapacity} seats</span>
-                    <span className="font-medium text-emerald-700">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                      {vehicle.vehicleModel}
+                    </h3>
+                    <p className="font-mono text-xs text-slate-600 tracking-wider">
+                      {vehicle.registrationNumber}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-xs text-slate-500">
+                    <span className="text-[11px]">Capacity: {vehicle.seatingCapacity} seats</span>
+                    <span className="text-[11px] font-bold text-emerald-700">
                       {vehicle.availableSeats} offerable seats
                     </span>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* VERIFICATION REQUIRED MODAL */}
       <Dialog open={isVerificationModalOpen} onOpenChange={setIsVerificationModalOpen}>
