@@ -23,6 +23,7 @@ import {
   Leaf,
   IndianRupee,
   Compass,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -80,16 +81,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       title: "CommuteX Analytics",
       href: "/admin/commutehub",
       icon: BarChart3,
-    },
-    {
-      title: "Sustainability",
-      href: "/admin/sustainability",
-      icon: Leaf,
-    },
-    {
-      title: "Concurrency Engine",
-      href: "/admin/concurrency",
-      icon: Cpu,
     },
   ];
 
@@ -212,6 +203,38 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             })}
           </nav>
         </div>
+
+        {/* Downwards Settings link for Admin (Campus Admin Portal) */}
+        {isAdmin && (
+          <div className="px-3 pt-2 pb-1 border-t border-slate-100">
+            <Link
+              href="/admin/settings"
+              onClick={onClose}
+              className={cn(
+                "group flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                pathname.startsWith("/admin/settings") ||
+                  pathname.startsWith("/admin/sustainability") ||
+                  pathname.startsWith("/admin/concurrency")
+                  ? "bg-purple-50 text-purple-900 font-semibold"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Settings
+                  className={cn(
+                    "h-4 w-4 transition-colors",
+                    pathname.startsWith("/admin/settings") ||
+                      pathname.startsWith("/admin/sustainability") ||
+                      pathname.startsWith("/admin/concurrency")
+                      ? "text-purple-600"
+                      : "text-slate-400 group-hover:text-slate-600"
+                  )}
+                />
+                <span>Settings</span>
+              </div>
+            </Link>
+          </div>
+        )}
 
         {/* Footer info box */}
         <div className="border-t border-slate-200 p-4">
