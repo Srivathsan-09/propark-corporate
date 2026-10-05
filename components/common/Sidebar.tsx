@@ -142,11 +142,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       <aside
         className={cn(
-          "fixed top-16 bottom-0 left-0 z-30 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-200 ease-in-out md:static md:translate-x-0",
+          "fixed top-16 bottom-0 left-0 z-30 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-200 ease-in-out md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:shrink-0 md:self-start md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex flex-1 flex-col overflow-y-auto px-3 py-4">
+        <div className="flex flex-1 flex-col overflow-y-auto px-3 py-4 min-h-0">
           <div className="px-3 mb-2.5 flex items-center justify-between gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">
               {isAdmin ? "Admin Console" : "Corporate Commute"}
@@ -206,7 +206,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Downwards Settings link for Admin (Campus Admin Portal) */}
         {isAdmin && (
-          <div className="px-3 pt-2 pb-1 border-t border-slate-100">
+          <div className="px-3 pt-2 pb-1 border-t border-slate-100 shrink-0">
             <Link
               href="/admin/settings"
               onClick={onClose}
@@ -237,7 +237,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         )}
 
         {/* Footer info box */}
-        <div className="border-t border-slate-200 p-4">
+        <div className="border-t border-slate-200 p-4 shrink-0">
           <div
             className={cn(
               "rounded-lg p-3 text-xs",
