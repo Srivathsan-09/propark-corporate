@@ -908,20 +908,20 @@ export default function MyRidesPage() {
   }, [isLiveTrackingModalOpen, trackingModalRide, liveTelemetry, driverGpsPosition]);
 
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-300 max-w-6xl mx-auto">
+    <div className="space-y-4 animate-in fade-in-50 duration-300 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
             My Commute Rides & Tracking
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500">
             Manage your offered corporate carpools, broadcast live GPS location, and track booked coworkers in real time
           </p>
         </div>
 
         <Link href="/rides/offer">
-          <Button className="bg-emerald-600 hover:bg-emerald-700 font-bold gap-2 text-xs rounded-xl shadow-xs">
+          <Button className="bg-emerald-600 hover:bg-emerald-700 font-bold gap-2 text-xs rounded-xl shadow-xs h-8 sm:h-9">
             <Plus className="h-4 w-4" /> Offer a New Ride
           </Button>
         </Link>
@@ -1047,7 +1047,7 @@ export default function MyRidesPage() {
               }}
             />
           ) : (
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
               {offeredRides.filter(filterOfferedByStatus).map((ride) => {
               const isPickup = ride.rideType !== "drop";
               const isLive = ride.status === "in_progress";
@@ -1061,13 +1061,13 @@ export default function MyRidesPage() {
               return (
                 <Card
                   key={ride._id}
-                  className={`relative border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden ${
+                  className={`relative border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden flex flex-col justify-between ${
                     isLive ? "ring-2 ring-emerald-500 border-emerald-300" : ""
                   }`}
                 >
                   {/* Three-dot menu in right top corner of the container */}
                   {ride.status === "scheduled" && (
-                    <div className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-20">
+                    <div className="absolute top-3 right-3 z-20">
                       <button
                         onClick={() => setOpenMenuId(openMenuId === ride._id ? null : ride._id)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
@@ -1078,13 +1078,13 @@ export default function MyRidesPage() {
                       {openMenuId === ride._id && (
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)} />
-                          <div className="absolute right-0 top-full mt-1 z-50 w-40 bg-white rounded-xl shadow-lg border border-slate-200 py-1 animate-in fade-in-50 zoom-in-95">
+                          <div className="absolute right-0 top-full mt-1 z-50 w-36 bg-white rounded-xl shadow-lg border border-slate-200 py-1 animate-in fade-in-50 zoom-in-95">
                             <button
                               onClick={() => {
                                 setOpenMenuId(null);
                                 window.location.href = `/rides/offer?edit=${ride._id}`;
                               }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                             >
                               <FileText className="h-3.5 w-3.5" /> Edit Ride
                             </button>
@@ -1094,7 +1094,7 @@ export default function MyRidesPage() {
                                 handleDeleteRide(ride._id);
                               }}
                               disabled={actionLoadingId === ride._id}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+                              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
                             >
                               {actionLoadingId === ride._id ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1109,33 +1109,35 @@ export default function MyRidesPage() {
                     </div>
                   )}
 
-                  <CardHeader className="p-4 sm:p-5 pr-12 sm:pr-14 bg-slate-50/80 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-1.5">
-                          {ride.startingLocation} <ArrowRight className="h-3.5 w-3.5 text-slate-400" /> {ride.destination}
+                  <CardHeader className="p-3.5 bg-slate-50/80 border-b border-slate-100 space-y-2">
+                    <div className="pr-6">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <CardTitle className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-1">
+                          <span className="truncate max-w-[130px]">{ride.startingLocation}</span>
+                          <ArrowRight className="h-3 w-3 text-slate-400 shrink-0" />
+                          <span className="truncate max-w-[130px]">{ride.destination}</span>
                         </CardTitle>
                         {isPickup ? (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">
                             Pickup
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-700">
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-700">
                             Drop
                           </span>
                         )}
                       </div>
-                      <CardDescription className="text-xs text-slate-500 mt-0.5">
+                      <CardDescription className="text-[11px] text-slate-500 mt-1">
                         {ride.vehicle.vehicleModel} ({ride.vehicle.registrationNumber}) • {ride.vehicleType}
                       </CardDescription>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
+                    <div className="pt-2 border-t border-slate-200/60 flex flex-col gap-1.5 text-xs">
                       {/* SCHEDULED RIDE ACTIONS */}
                       {ride.status === "scheduled" && (
-                        <div className="flex flex-col gap-2 w-full sm:w-auto">
+                        <div className="flex flex-col gap-1.5 w-full">
                           {/* Row 1: View Details & Scheduled */}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <Button
                               size="sm"
                               variant="outline"
@@ -1144,30 +1146,30 @@ export default function MyRidesPage() {
                                 setShowEmpMapInModal(false);
                                 setIsEmpRideModalOpen(true);
                               }}
-                              className="h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
+                              className="flex-1 h-7 text-[11px] font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1"
                             >
-                              <Eye className="h-3.5 w-3.5" /> View Details
+                              <Eye className="h-3 w-3" /> View Details
                             </Button>
-                            <Badge className="font-bold text-[10px] bg-slate-100 text-slate-700 h-8 px-2.5 flex items-center">
+                            <Badge className="font-bold text-[9px] bg-slate-100 text-slate-700 h-7 px-2 flex items-center justify-center">
                               SCHEDULED
                             </Badge>
                           </div>
 
                           {/* Row 2: View Map & Start Ride */}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <Button
                               size="sm"
                               onClick={() => handleOpenLiveTracking(ride)}
-                              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl gap-1.5 h-8 border border-slate-700 shadow-xs"
+                              className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[11px] rounded-lg gap-1 h-7 border border-slate-700 shadow-xs"
                             >
-                              <MapIcon className="h-3.5 w-3.5 text-emerald-400" /> View Map
+                              <MapIcon className="h-3 w-3 text-emerald-400" /> View Map
                             </Button>
                             <Button
                               size="sm"
                               onClick={() => startDriverGpsTracking(ride._id, true)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs gap-1.5 h-8"
+                              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-xs gap-1 h-7"
                             >
-                              <Play className="h-3.5 w-3.5 fill-current" /> Start Ride
+                              <Play className="h-3 w-3 fill-current" /> Start Ride
                             </Button>
                           </div>
                         </div>
@@ -1175,9 +1177,9 @@ export default function MyRidesPage() {
 
                       {/* IN PROGRESS RIDE ACTIONS */}
                       {ride.status === "in_progress" && (
-                        <div className="flex flex-col gap-2 w-full sm:w-auto">
+                        <div className="flex flex-col gap-1.5 w-full">
                           {/* Row 1: View Details & Live GPS Active */}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <Button
                               size="sm"
                               variant="outline"
@@ -1186,32 +1188,32 @@ export default function MyRidesPage() {
                                 setShowEmpMapInModal(false);
                                 setIsEmpRideModalOpen(true);
                               }}
-                              className="h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
+                              className="flex-1 h-7 text-[11px] font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1"
                             >
-                              <Eye className="h-3.5 w-3.5" /> View Details
+                              <Eye className="h-3 w-3" /> View Details
                             </Button>
-                            <Badge className="bg-emerald-600 text-white font-bold text-xs gap-1.5 animate-pulse py-1 px-2.5 h-8 flex items-center">
-                              <Radio className="h-3.5 w-3.5 animate-ping" /> Live GPS Active
+                            <Badge className="bg-emerald-600 text-white font-bold text-[9px] gap-1 animate-pulse h-7 px-2 flex items-center justify-center">
+                              <Radio className="h-3 w-3 animate-ping" /> Live GPS
                             </Badge>
                           </div>
 
                           {/* Row 2: Driver GPS Map & Complete Ride */}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <Button
                               size="sm"
                               onClick={() => handleOpenLiveTracking(ride)}
-                              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl gap-1.5 h-8 border border-slate-700 shadow-xs"
+                              className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[11px] rounded-lg gap-1 h-7 border border-slate-700 shadow-xs"
                             >
-                              <MapIcon className="h-3.5 w-3.5 text-emerald-400" /> Driver GPS Map
+                              <MapIcon className="h-3 w-3 text-emerald-400" /> GPS Map
                             </Button>
                             <Button
                               size="sm"
                               variant="destructive"
                               onClick={() => handleCompleteRide(ride._id)}
                               disabled={actionLoadingId === ride._id}
-                              className="text-xs font-bold rounded-xl gap-1.5 h-8 shadow-xs"
+                              className="flex-1 text-[11px] font-bold rounded-lg gap-1 h-7 shadow-xs"
                             >
-                              <Square className="h-3.5 w-3.5 fill-current" /> Complete Ride
+                              <Square className="h-3 w-3 fill-current" /> Complete
                             </Button>
                           </div>
                         </div>
@@ -1219,7 +1221,7 @@ export default function MyRidesPage() {
 
                       {/* COMPLETED / CANCELLED RIDE ACTIONS */}
                       {(ride.status === "completed" || ride.status === "cancelled") && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <Button
                             size="sm"
                             variant="outline"
@@ -1228,12 +1230,12 @@ export default function MyRidesPage() {
                               setShowEmpMapInModal(false);
                               setIsEmpRideModalOpen(true);
                             }}
-                            className="h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
+                            className="flex-1 h-7 text-[11px] font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1"
                           >
-                            <Eye className="h-3.5 w-3.5" /> View Details
+                            <Eye className="h-3 w-3" /> View Details
                           </Button>
                           <Badge
-                            className={`font-bold text-[10px] h-8 px-2.5 flex items-center ${
+                            className={`font-bold text-[9px] h-7 px-2 flex items-center justify-center ${
                               isCompleted ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-700"
                             }`}
                           >
@@ -1244,39 +1246,38 @@ export default function MyRidesPage() {
                             variant="ghost"
                             onClick={() => handleDeleteRide(ride._id)}
                             disabled={actionLoadingId === ride._id}
-                            className="text-slate-400 hover:text-rose-600 text-xs rounded-xl gap-1 h-8 px-2"
+                            className="text-slate-400 hover:text-rose-600 text-[11px] rounded-lg gap-1 h-7 px-2"
                             title="Delete Ride Record"
                           >
                             {actionLoadingId === ride._id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3 w-3" />
                             )}
-                            <span className="hidden sm:inline">Delete</span>
                           </Button>
                         </div>
                       )}
                     </div>
                   </CardHeader>
 
-                  <CardContent className="p-4 sm:p-5 space-y-4">
+                  <CardContent className="p-3.5 space-y-3">
                     {/* Commute Info Bar */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
                         <span className="text-[10px] text-slate-400 block font-semibold">Date & Time</span>
-                        <span className="font-bold text-slate-800">{ride.departureDate} at {ride.departureTime}</span>
+                        <span className="font-bold text-slate-800 text-[11px] block truncate">{ride.departureDate} at {ride.departureTime}</span>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
                         <span className="text-[10px] text-slate-400 block font-semibold">Seat Availability</span>
-                        <span className="font-bold text-emerald-700">{ride.availableSeats} of {ride.totalSeats} Left</span>
+                        <span className="font-bold text-emerald-700 text-[11px] block truncate">{ride.availableSeats} of {ride.totalSeats} Left</span>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
                         <span className="text-[10px] text-slate-400 block font-semibold">Distance</span>
-                        <span className="font-bold text-slate-800">{ride.distanceKm ? `${ride.distanceKm} km` : "N/A"}</span>
+                        <span className="font-bold text-slate-800 text-[11px] block">{ride.distanceKm ? `${ride.distanceKm} km` : "N/A"}</span>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
                         <span className="text-[10px] text-slate-400 block font-semibold">Estimated Time</span>
-                        <span className="font-bold text-slate-800">{ride.durationMinutes ? `${ride.durationMinutes} mins` : "N/A"}</span>
+                        <span className="font-bold text-slate-800 text-[11px] block">{ride.durationMinutes ? `${ride.durationMinutes} mins` : "N/A"}</span>
                       </div>
                     </div>
 
@@ -1520,7 +1521,7 @@ export default function MyRidesPage() {
             }}
           />
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
             {bookedRides
               .filter(filterBookedByStatus)
               .map((booking) => {
@@ -1531,48 +1532,174 @@ export default function MyRidesPage() {
                 return (
                   <Card
                     key={booking._id}
-                    className={`border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden ${
+                    className={`border-slate-200 bg-white shadow-sm rounded-2xl overflow-hidden flex flex-col justify-between ${
                       isLive && isAccepted ? "ring-2 ring-emerald-500 border-emerald-300" : ""
                     }`}
                   >
-                    <CardHeader className="p-4 sm:p-5 bg-slate-50/80 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-base font-bold text-slate-900">
-                            {ride.startingLocation} <ArrowRight className="h-3.5 w-3.5 text-slate-400" /> {ride.destination}
-                          </CardTitle>
-                          <Badge className="bg-slate-900 text-white font-bold text-[10px]">
-                            {ride.vehicleType}
-                          </Badge>
-                        </div>
-                        <CardDescription className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-1.5">
-                          <span>
-                            Driver: <strong>{ride.driver?.name || "Colleague"}</strong> ({ride.driver?.companyName || "Tech Mahindra"})
-                          </span>
-                          {ride.driver?.phone && (
-                            <span className="font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
-                              <Phone className="h-3 w-3 text-emerald-600 shrink-0" />
-                              <a href={`tel:${ride.driver.phone}`} className="hover:underline hover:text-emerald-800">
-                                {ride.driver.phone}
-                              </a>
+                    <CardHeader className="p-3.5 bg-slate-50/80 border-b border-slate-100 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <CardTitle className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-1">
+                              <span className="truncate max-w-[130px]">{ride.startingLocation}</span>
+                              <ArrowRight className="h-3 w-3 text-slate-400 shrink-0" />
+                              <span className="truncate max-w-[130px]">{ride.destination}</span>
+                            </CardTitle>
+                            <Badge className="bg-slate-900 text-white font-bold text-[9px] px-1.5 py-0.2">
+                              {ride.vehicleType}
+                            </Badge>
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-1 flex flex-wrap items-center gap-1">
+                            <span>
+                              Driver: <strong className="text-slate-800">{ride.driver?.name || "Colleague"}</strong>
                             </span>
+                            <span className="text-slate-400">({ride.driver?.companyName || "Tech Mahindra"})</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const driverId = (ride.driver as any)?._id || (booking.driver as any)?._id;
+                                setViewProfileUserId(driverId);
+                                setViewProfileFallback(ride.driver || booking.driver);
+                              }}
+                              className="text-[10px] font-bold text-purple-700 hover:text-purple-900 hover:underline"
+                            >
+                              • Profile
+                            </button>
+                          </div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            Plate: <span className="font-mono text-slate-600">{ride.vehicle?.registrationNumber || "Campus Vehicle"}</span>
+                          </div>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div className="shrink-0">
+                          {isLive && isAccepted ? (
+                            <span className="whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white shadow-xs animate-pulse">
+                              <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping shrink-0" />
+                              Live GPS
+                            </span>
+                          ) : (
+                            <Badge
+                              className={`text-[9px] font-bold px-2 py-0.5 ${
+                                isAccepted
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                  : booking.status === "pending"
+                                  ? "bg-amber-100 text-amber-800 border-amber-300"
+                                  : "bg-rose-100 text-rose-800"
+                              }`}
+                            >
+                              {isAccepted ? "Confirmed" : booking.status === "pending" ? "Awaiting" : booking.status}
+                            </Badge>
                           )}
-                          <span>• Plate: {ride.vehicle?.registrationNumber || "Campus Vehicle"}</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const driverId = (ride.driver as any)?._id || (booking.driver as any)?._id;
-                              setViewProfileUserId(driverId);
-                              setViewProfileFallback(ride.driver || booking.driver);
-                            }}
-                            className="text-[10px] font-bold text-purple-700 hover:text-purple-900 hover:underline"
-                          >
-                            • View Profile
-                          </button>
-                        </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="p-3.5 space-y-2.5 text-xs flex-1 flex flex-col justify-between">
+                      <div className="space-y-2">
+                        {/* Stops route block */}
+                        <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                            <span className="text-[10px] text-slate-400 font-semibold uppercase shrink-0">Boarding:</span>
+                            <span className="font-bold text-slate-800 text-xs truncate">{booking.pickupStop}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="h-2 w-2 rounded-full bg-rose-500 shrink-0" />
+                            <span className="text-[10px] text-slate-400 font-semibold uppercase shrink-0">Drop:</span>
+                            <span className="font-bold text-slate-800 text-xs truncate">{booking.dropStop || ride.destination}</span>
+                          </div>
+                        </div>
+
+                        {/* 3-metric info bar */}
+                        <div className="grid grid-cols-3 gap-1.5 text-xs">
+                          <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                            <span className="text-[9px] text-slate-400 block font-semibold">Departure</span>
+                            <span className="font-bold text-slate-800 text-[11px] block truncate">{ride.departureTime}</span>
+                            <span className="text-[9px] text-slate-400 block truncate">{ride.departureDate}</span>
+                          </div>
+                          <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                            <span className="text-[9px] text-slate-400 block font-semibold">Seats</span>
+                            <span className="font-bold text-emerald-700 text-xs block">{booking.seatsRequested} Seat(s)</span>
+                          </div>
+                          <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
+                            <span className="text-[9px] text-slate-400 block font-semibold">Total Fare</span>
+                            <span className="font-bold text-emerald-800 text-xs block">₹{booking.fare}</span>
+                          </div>
+                        </div>
+
+                        {/* Driver Contact */}
+                        {ride.driver.phone && (
+                          <div className="flex items-center justify-between text-xs text-slate-600 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
+                            <div className="flex items-center gap-1 text-[11px] truncate">
+                              <Phone className="h-3 w-3 text-emerald-600 shrink-0" />
+                              <span className="text-slate-500">Contact:</span>
+                              <strong className="text-slate-900 truncate">{ride.driver.phone}</strong>
+                            </div>
+                            <a href={`tel:${ride.driver.phone}`} className="text-[10px] font-bold text-emerald-700 hover:underline shrink-0 ml-1">
+                              Call
+                            </a>
+                          </div>
+                        )}
+
+                        {/* Boarding Security PIN Card */}
+                        {isAccepted && (
+                          <div className="p-2 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] uppercase font-bold text-purple-700 flex items-center gap-1">
+                                <ShieldCheck className="h-3 w-3 text-purple-600" /> Security PIN
+                              </span>
+                              {booking.isBoarded ? (
+                                <Badge className="bg-emerald-600 text-white text-[8px] font-bold py-0.2 px-1.5">
+                                  Boarded
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[8px] font-semibold py-0.2 px-1.5">
+                                  Awaiting
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[10px] text-slate-500 truncate">Code for driver:</span>
+                              <span className="font-mono text-sm font-bold tracking-widest bg-white px-2 py-0.5 rounded border border-purple-300 text-purple-900 shadow-2xs">
+                                {booking.boardingPin || String(1000 + (parseInt(booking._id.slice(-4), 16) % 9000))}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Read-Only Post-Ride Fare Payment Status for Passengers on Completed Rides */}
+                        {ride.status === "completed" && isAccepted && (
+                          <div className="p-2 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="font-bold text-slate-800 flex items-center gap-1 text-[10px]">
+                                <IndianRupee className="h-3 w-3 text-emerald-600" /> Payment
+                              </span>
+                              {booking.paymentStatus === "paid" ? (
+                                <Badge className="bg-emerald-600 text-white font-bold text-[8px] py-0.2 px-1.5 gap-0.5">
+                                  <CheckCircle2 className="h-2 w-2" /> Paid (₹{booking.fare})
+                                </Badge>
+                              ) : booking.paymentStatus === "partially_paid" ? (
+                                <Badge className="bg-amber-600 text-white font-bold text-[8px] py-0.2 px-1.5 gap-0.5">
+                                  <AlertCircle className="h-2 w-2" /> Part (₹{booking.amountPaid || 0})
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-rose-600 text-white font-bold text-[8px] py-0.2 px-1.5 gap-0.5">
+                                  <X className="h-2 w-2" /> Due: ₹{booking.fare}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-500 flex items-center justify-between">
+                              <span>Total: <strong>₹{booking.fare}</strong></span>
+                              <span>Paid: <strong className="text-emerald-700">₹{booking.amountPaid || 0}</strong></span>
+                              <span>Remaining: <strong className={(booking.fare - (booking.amountPaid || 0)) > 0 ? "text-rose-600 font-bold" : "text-emerald-600 font-bold"}>₹{Math.max(0, booking.fare - (booking.amountPaid || 0))}</strong></span>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-xs w-full sm:w-auto">
+                      {/* Card Action Buttons */}
+                      <div className="pt-2 border-t border-slate-100 flex items-center gap-1.5 mt-2">
                         <Button
                           size="sm"
                           variant="outline"
@@ -1581,142 +1708,29 @@ export default function MyRidesPage() {
                             setShowEmpMapInModal(false);
                             setIsEmpRideModalOpen(true);
                           }}
-                          className="h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
+                          className="flex-1 h-7 text-[11px] font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center justify-center gap-1"
                         >
-                          <Eye className="h-3.5 w-3.5" /> View Details
+                          <Eye className="h-3 w-3" /> View Details
                         </Button>
-                        {isLive && isAccepted ? (
-                          <span className="whitespace-nowrap inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-extrabold bg-emerald-600 text-white shadow-xs animate-pulse text-center">
-                            <span className="h-2 w-2 rounded-full bg-white animate-ping shrink-0" />
-                            Driver is on the way (Live)
-                          </span>
-                        ) : (
-                          <Badge
-                            className={`text-[10px] font-bold justify-center ${
-                              isAccepted
-                                ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                                : booking.status === "pending"
-                                ? "bg-amber-100 text-amber-800 border-amber-300"
-                                : "bg-rose-100 text-rose-800"
-                            }`}
-                          >
-                            {isAccepted ? "Booking Confirmed" : booking.status === "pending" ? "Awaiting Driver" : booking.status}
-                          </Badge>
-                        )}
-
-                        {/* PASSENGER TRACK DRIVER LIVE BUTTON */}
                         {isAccepted && (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleOpenLiveTracking(ride, booking)}
-                              className={`${
-                                isLive
-                                  ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                  : "bg-slate-900 hover:bg-slate-800 text-white"
-                              } font-bold text-xs rounded-xl shadow-xs gap-1.5 h-8 w-full sm:w-auto`}
-                            >
-                              <Navigation className="h-3.5 w-3.5" />
-                              {isLive ? "Track Driver Live GPS" : "View Route on Map"}
-                            </Button>
-                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenLiveTracking(ride, booking)}
+                            className={`flex-1 ${
+                              isLive
+                                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                : "bg-slate-900 hover:bg-slate-800 text-white"
+                            } font-bold text-[11px] rounded-lg shadow-xs gap-1 h-7`}
+                          >
+                            <Navigation className="h-3 w-3" />
+                            {isLive ? "Live GPS" : "View Map"}
+                          </Button>
                         )}
                       </div>
-                    </CardHeader>
-
-                  <CardContent className="p-4 sm:p-5 space-y-3 text-xs">
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="text-[10px] text-slate-400 block font-semibold">Your Boarding Stop</span>
-                        <span className="font-bold text-slate-800 truncate block">{booking.pickupStop}</span>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="text-[10px] text-slate-400 block font-semibold">Your Drop-off Stop</span>
-                        <span className="font-bold text-slate-800 truncate block">{booking.dropStop || ride.destination}</span>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="text-[10px] text-slate-400 block font-semibold">Departure Time</span>
-                        <span className="font-bold text-slate-800">{ride.departureDate} at {ride.departureTime}</span>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="text-[10px] text-slate-400 block font-semibold">Seats Booked</span>
-                        <span className="font-bold text-emerald-700">{booking.seatsRequested} Seat(s)</span>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="text-[10px] text-slate-400 block font-semibold">Total Fare</span>
-                        <span className="font-bold text-emerald-800">₹{booking.fare}</span>
-                      </div>
-                    </div>
-
-                    {ride.driver.phone && (
-                      <div className="flex items-center gap-1.5 text-slate-600 bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100">
-                        <Phone className="h-3.5 w-3.5 text-emerald-600" />
-                        <span>Driver Contact: <strong className="text-slate-900">{ride.driver.phone}</strong></span>
-                      </div>
-                    )}
-
-                    {/* Boarding Security PIN Card */}
-                    {isAccepted && (
-                      <div className="p-3 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="p-2 bg-purple-600 text-white rounded-lg font-bold">
-                            <ShieldCheck className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-purple-700 block">Boarding Security PIN</span>
-                            <span className="text-xs text-slate-600">Share this 4-digit code with your driver upon entering the vehicle</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 self-end sm:self-center">
-                          <div className="font-mono text-xl font-bold tracking-widest bg-white px-3.5 py-1 rounded-lg border-2 border-purple-300 text-purple-900 shadow-2xs">
-                            {booking.boardingPin || String(1000 + (parseInt(booking._id.slice(-4), 16) % 9000))}
-                          </div>
-                          {booking.isBoarded ? (
-                            <Badge className="bg-emerald-600 text-white text-[10px] font-bold py-1 px-2">
-                              Boarded & Verified
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-[10px] font-semibold py-1 px-2">
-                              Awaiting Boarding
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Read-Only Post-Ride Fare Payment Status for Passengers on Completed Rides */}
-                    {ride.status === "completed" && isAccepted && (
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                        <div className="space-y-0.5">
-                          <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                            <IndianRupee className="h-3.5 w-3.5 text-emerald-600" /> Fare Payment Status
-                          </span>
-                          <span className="text-[11px] text-slate-500">
-                            Total Fare: <strong>₹{booking.fare}</strong> • Paid: <strong className="text-emerald-700">₹{booking.amountPaid || 0}</strong> • Remaining: <strong className={(booking.fare - (booking.amountPaid || 0)) > 0 ? "text-rose-600 font-bold" : "text-emerald-600 font-bold"}>₹{Math.max(0, booking.fare - (booking.amountPaid || 0))}</strong>
-                          </span>
-                        </div>
-
-                        <div>
-                          {booking.paymentStatus === "paid" ? (
-                            <Badge className="bg-emerald-600 text-white font-bold text-[10px] py-1 px-2.5 gap-1">
-                              <CheckCircle2 className="h-3 w-3" /> Paid (₹{booking.fare})
-                            </Badge>
-                          ) : booking.paymentStatus === "partially_paid" ? (
-                            <Badge className="bg-amber-600 text-white font-bold text-[10px] py-1 px-2.5 gap-1">
-                              <AlertCircle className="h-3 w-3" /> Partially Paid (₹{booking.amountPaid || 0})
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-rose-600 text-white font-bold text-[10px] py-1 px-2.5 gap-1">
-                              <X className="h-3 w-3" /> Not Paid (Remaining: ₹{booking.fare})
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    </CardContent>
+                  </Card>
+                );
+              })}
           </div>
         )
       )}
