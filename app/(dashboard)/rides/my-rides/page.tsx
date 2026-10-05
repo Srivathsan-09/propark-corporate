@@ -1130,72 +1130,110 @@ export default function MyRidesPage() {
                       </CardDescription>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedEmpRide({ ...ride, role: "Driver" });
-                          setShowEmpMapInModal(false);
-                          setIsEmpRideModalOpen(true);
-                        }}
-                        className="h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
-                      >
-                        <Eye className="h-3.5 w-3.5" /> View Details
-                      </Button>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
                       {/* SCHEDULED RIDE ACTIONS */}
                       {ride.status === "scheduled" && (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge className="font-bold text-[10px] bg-slate-100 text-slate-700">
-                            SCHEDULED
-                          </Badge>
-                          <Button
-                            size="sm"
-                            onClick={() => handleOpenLiveTracking(ride)}
-                            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl gap-1.5 h-8 border border-slate-700 shadow-xs"
-                          >
-                            <MapIcon className="h-3.5 w-3.5 text-emerald-400" /> View Map
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => startDriverGpsTracking(ride._id, true)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs gap-1.5 h-8"
-                          >
-                            <Play className="h-3.5 w-3.5 fill-current" /> Start Ride
-                          </Button>
+                        <div className="flex flex-col gap-2 w-full sm:w-auto">
+                          {/* Row 1: View Details & Scheduled */}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedEmpRide({ ...ride, role: "Driver" });
+                                setShowEmpMapInModal(false);
+                                setIsEmpRideModalOpen(true);
+                              }}
+                              className="h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
+                            >
+                              <Eye className="h-3.5 w-3.5" /> View Details
+                            </Button>
+                            <Badge className="font-bold text-[10px] bg-slate-100 text-slate-700 h-8 px-2.5 flex items-center">
+                              SCHEDULED
+                            </Badge>
+                          </div>
+
+                          {/* Row 2: View Map & Start Ride */}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenLiveTracking(ride)}
+                              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl gap-1.5 h-8 border border-slate-700 shadow-xs"
+                            >
+                              <MapIcon className="h-3.5 w-3.5 text-emerald-400" /> View Map
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => startDriverGpsTracking(ride._id, true)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs gap-1.5 h-8"
+                            >
+                              <Play className="h-3.5 w-3.5 fill-current" /> Start Ride
+                            </Button>
+                          </div>
                         </div>
                       )}
 
                       {/* IN PROGRESS RIDE ACTIONS */}
                       {ride.status === "in_progress" && (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge className="bg-emerald-600 text-white font-bold text-xs gap-1.5 animate-pulse py-1 px-2.5">
-                            <Radio className="h-3.5 w-3.5 animate-ping" /> Live GPS Active
-                          </Badge>
-                          <Button
-                            size="sm"
-                            onClick={() => handleOpenLiveTracking(ride)}
-                            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl gap-1.5 h-8 border border-slate-700 shadow-xs"
-                          >
-                            <MapIcon className="h-3.5 w-3.5 text-emerald-400" /> Driver GPS Map
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleCompleteRide(ride._id)}
-                            disabled={actionLoadingId === ride._id}
-                            className="text-xs font-bold rounded-xl gap-1.5 h-8 shadow-xs"
-                          >
-                            <Square className="h-3.5 w-3.5 fill-current" /> Complete Ride
-                          </Button>
+                        <div className="flex flex-col gap-2 w-full sm:w-auto">
+                          {/* Row 1: View Details & Live GPS Active */}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedEmpRide({ ...ride, role: "Driver" });
+                                setShowEmpMapInModal(false);
+                                setIsEmpRideModalOpen(true);
+                              }}
+                              className="h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
+                            >
+                              <Eye className="h-3.5 w-3.5" /> View Details
+                            </Button>
+                            <Badge className="bg-emerald-600 text-white font-bold text-xs gap-1.5 animate-pulse py-1 px-2.5 h-8 flex items-center">
+                              <Radio className="h-3.5 w-3.5 animate-ping" /> Live GPS Active
+                            </Badge>
+                          </div>
+
+                          {/* Row 2: Driver GPS Map & Complete Ride */}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenLiveTracking(ride)}
+                              className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl gap-1.5 h-8 border border-slate-700 shadow-xs"
+                            >
+                              <MapIcon className="h-3.5 w-3.5 text-emerald-400" /> Driver GPS Map
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleCompleteRide(ride._id)}
+                              disabled={actionLoadingId === ride._id}
+                              className="text-xs font-bold rounded-xl gap-1.5 h-8 shadow-xs"
+                            >
+                              <Square className="h-3.5 w-3.5 fill-current" /> Complete Ride
+                            </Button>
+                          </div>
                         </div>
                       )}
 
                       {/* COMPLETED / CANCELLED RIDE ACTIONS */}
                       {(ride.status === "completed" || ride.status === "cancelled") && (
                         <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedEmpRide({ ...ride, role: "Driver" });
+                              setShowEmpMapInModal(false);
+                              setIsEmpRideModalOpen(true);
+                            }}
+                            className="h-8 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
+                          >
+                            <Eye className="h-3.5 w-3.5" /> View Details
+                          </Button>
                           <Badge
-                            className={`font-bold text-[10px] ${
+                            className={`font-bold text-[10px] h-8 px-2.5 flex items-center ${
                               isCompleted ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-700"
                             }`}
                           >
@@ -1250,34 +1288,21 @@ export default function MyRidesPage() {
                         </span>
                       </div>
 
-                      {/* Post-Ride Fare Payment & Collection Summary Ledger for Completed Rides */}
+                      {/* Post-Ride Total Fare for Completed Rides */}
                       {isCompleted && acceptedReqs.length > 0 && (
-                        <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-3 shadow-md border border-slate-800 my-2">
-                          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                              <IndianRupee className="h-4 w-4 text-emerald-400" /> Post-Ride Fare Collection Ledger
-                            </span>
-                            <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
-                              Ride Completed
-                            </Badge>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-center">
-                            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
-                              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Total Expected Fare</span>
-                              <strong className="text-base text-white font-extrabold">₹{totalExpectedFare}</strong>
+                        <div className="px-3.5 py-2.5 rounded-xl bg-slate-900 text-white flex items-center justify-between shadow-xs border border-slate-800 my-2">
+                          <div className="flex items-center gap-2">
+                            <div className="h-7 w-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                              <IndianRupee className="h-4 w-4" />
                             </div>
-
-                            <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/40">
-                              <span className="text-[10px] text-emerald-400 uppercase font-semibold block">Total Collected</span>
-                              <strong className="text-base text-emerald-300 font-extrabold">₹{totalCollected}</strong>
-                            </div>
-
-                            <div className={`p-3 rounded-xl border ${outstandingAmount > 0 ? "bg-rose-950/80 border-rose-500/40 text-rose-300" : "bg-slate-800/80 border-slate-700 text-emerald-400"}`}>
-                              <span className="text-[10px] text-slate-400 uppercase font-semibold block">Outstanding Amount</span>
-                              <strong className="text-base font-extrabold">₹{outstandingAmount}</strong>
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-xs text-slate-400 font-medium">Total Fare:</span>
+                              <strong className="text-base font-extrabold text-white">₹{totalExpectedFare}</strong>
                             </div>
                           </div>
+                          <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                            Ride Completed
+                          </Badge>
                         </div>
                       )}
 

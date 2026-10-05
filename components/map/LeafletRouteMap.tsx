@@ -420,12 +420,12 @@ export default function LeafletRouteMap({
         className: "custom-leaflet-marker",
         html: `
           <div style="position: relative; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); cursor: pointer; pointer-events: auto;">
-            <div style="display: flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 2px solid white; color: white; font-weight: 700; font-size: 11px; white-space: nowrap; line-height: 1;" class="${bgClass}">
-              <span style="display: flex; height: 16px; width: 16px; align-items: center; justify-content: center; border-radius: 9999px; background: rgba(255,255,255,0.25); font-size: 10px;">${isNumber ? label : "●"}</span>
-              <span style="max-width: 140px; overflow: hidden; text-overflow: ellipsis;">${subLabel || label}</span>
+            <div style="display: flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 9999px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); border: 1.5px solid white; color: white; font-weight: 700; font-size: 10px; white-space: nowrap; line-height: 1;" class="${bgClass}">
+              <span style="display: flex; height: 13px; width: 13px; align-items: center; justify-content: center; border-radius: 9999px; background: rgba(255,255,255,0.25); font-size: 8px; font-weight: 800;">${isNumber ? label : "●"}</span>
+              <span style="max-width: 80px; overflow: hidden; text-overflow: ellipsis;">${subLabel || label}</span>
             </div>
-            <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid white; margin-top: -1px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));"></div>
-            <div style="width: 6px; height: 6px; border-radius: 50%; background: #0f172a; margin-top: -3px; opacity: 0.85;"></div>
+            <div style="width: 0; height: 0; border-left: 3.5px solid transparent; border-right: 3.5px solid transparent; border-top: 5px solid white; margin-top: -1px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));"></div>
+            <div style="width: 4px; height: 4px; border-radius: 50%; background: #0f172a; margin-top: -2px; opacity: 0.85;"></div>
           </div>
         `,
         iconSize: [0, 0],
