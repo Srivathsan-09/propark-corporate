@@ -370,9 +370,6 @@ export default function VehiclesPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Vehicle Management
           </h1>
-          <p className="text-sm text-slate-500">
-            Register your car or two-wheeler with number plate & driver&apos;s license verification to offer rides
-          </p>
         </div>
 
         <Button

@@ -976,11 +976,6 @@ function OfferRideForm() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
           {isEditMode ? "Edit Ride" : "Offer a Ride"}
         </h1>
-        <p className="text-sm text-slate-500">
-          {isEditMode
-            ? "Update your commute route, pickup points, timings, or seats"
-            : "Share your commute with interactive OpenStreetMap routing, custom pickup/drop points, and real-time distance calculations"}
-        </p>
       </div>
 
       {isLoadingVehicles || isLoadingRideForEdit ? (
@@ -1446,8 +1441,8 @@ function OfferRideForm() {
                 </div>
 
                 {/* 4. Schedule, Date, Time & Available Seats */}
-                <div className="grid grid-cols-3 gap-2.5 pt-2 border-t border-slate-100">
-                  <div className="space-y-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 border-t border-slate-100">
+                  <div className="space-y-1 col-span-2 sm:col-span-1">
                     <Label htmlFor="departureDate" className="text-[10px] font-bold uppercase text-slate-500 block">
                       Date
                     </Label>
@@ -1469,12 +1464,12 @@ function OfferRideForm() {
                           }
                         });
                       }}
-                      className="rounded-xl h-9 text-xs"
+                      className="rounded-xl h-9 text-xs w-full min-w-0"
                       required
                     />
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1 col-span-1">
                     <Label htmlFor="departureTime" className="text-[10px] font-bold uppercase text-slate-500 block">
                       Time
                     </Label>
@@ -1494,12 +1489,12 @@ function OfferRideForm() {
                           }
                         });
                       }}
-                      className="rounded-xl h-9 text-xs font-semibold"
+                      className="rounded-xl h-9 text-xs font-semibold w-full min-w-0"
                       required
                     />
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1 col-span-1">
                     <Label htmlFor="availableSeats" className="text-[10px] font-bold uppercase text-slate-500 block">
                       Seats
                     </Label>
@@ -1510,7 +1505,7 @@ function OfferRideForm() {
                       max={selectedVehicle?.seatingCapacity || 6}
                       value={formData.availableSeats}
                       onChange={(e) => setFormData((prev) => ({ ...prev, availableSeats: Number(e.target.value) }))}
-                      className="rounded-xl h-9 text-xs text-center font-bold"
+                      className="rounded-xl h-9 text-xs text-center font-bold w-full min-w-0"
                       required
                     />
                   </div>

@@ -925,9 +925,6 @@ export default function MyRidesPage() {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
             My Commute Rides & Tracking
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500">
-            Manage your offered corporate carpools, broadcast live GPS location, and track booked coworkers in real time
-          </p>
         </div>
 
         <Link href="/rides/offer">

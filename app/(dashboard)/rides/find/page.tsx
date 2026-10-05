@@ -793,9 +793,6 @@ export default function FindRidePage() {
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-500">
-            Real-time seat availability, OpenStreetMap routes, and morning pickup or evening drop locations
-          </p>
         </div>
 
         <Link href="/rides/offer">

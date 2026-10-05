@@ -215,9 +215,6 @@ export default function FinancesPage() {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
             Earnings & Payouts
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Track your carpool commute earnings, fares collected from coworkers, and pending amounts.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -240,27 +237,27 @@ export default function FinancesPage() {
         </div>
       </div>
 
-      {/* Summary Cards: How the Employee Earned */}
-      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
+      {/* Summary Cards: How the Employee Earned (Compact 2-in-a-row on Mobile) */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3">
         {/* Card 1: Total Earnings Collected */}
         <Card className="rounded-2xl border-slate-200/90 bg-white shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2 space-y-0">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-4 pb-1 sm:pb-2 space-y-0">
+            <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">
               Total Fares Collected
             </CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
-              <IndianRupee className="h-4 w-4" />
+            <div className="flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-lg sm:rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">
+              <IndianRupee className="h-3 w-3 sm:h-4 sm:w-4" />
             </div>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl sm:text-3xl font-bold text-slate-900">
+          <CardContent className="p-2.5 sm:p-4 pt-0">
+            <div className="text-lg sm:text-3xl font-bold text-slate-900">
               ₹{summary.totalDriverCollected.toLocaleString()}
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Received directly from coworker passengers
+            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 truncate">
+              From coworker passengers
             </p>
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <span>Settled earnings:</span>
+            <div className="mt-1.5 sm:mt-3 pt-1.5 sm:pt-2.5 border-t border-slate-100 flex items-center justify-between text-[9px] sm:text-[11px] text-slate-500">
+              <span>Settled:</span>
               <strong className="text-emerald-700 font-bold">100% credited</strong>
             </div>
           </CardContent>
@@ -268,46 +265,46 @@ export default function FinancesPage() {
 
         {/* Card 2: Pending to Collect */}
         <Card className="rounded-2xl border-slate-200/90 bg-white shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2 space-y-0">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-4 pb-1 sm:pb-2 space-y-0">
+            <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">
               Pending Collection
             </CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
-              <AlertCircle className="h-4 w-4" />
+            <div className="flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-lg sm:rounded-xl bg-amber-50 text-amber-600 border border-amber-100 shrink-0">
+              <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4" />
             </div>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl sm:text-3xl font-bold text-slate-900">
+          <CardContent className="p-2.5 sm:p-4 pt-0">
+            <div className="text-lg sm:text-3xl font-bold text-slate-900">
               ₹{summary.totalDriverPending.toLocaleString()}
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Fares due from completed coworker rides
+            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 truncate">
+              From completed rides
             </p>
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <span>Expected total:</span>
+            <div className="mt-1.5 sm:mt-3 pt-1.5 sm:pt-2.5 border-t border-slate-100 flex items-center justify-between text-[9px] sm:text-[11px] text-slate-500">
+              <span>Expected:</span>
               <strong className="text-slate-800 font-semibold">₹{summary.totalDriverEarningsCommitted.toLocaleString()}</strong>
             </div>
           </CardContent>
         </Card>
 
         {/* Card 3: Carpool Rides Offered */}
-        <Card className="rounded-2xl border-slate-200/90 bg-white shadow-xs">
-          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2 space-y-0">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <Card className="col-span-2 md:col-span-1 rounded-2xl border-slate-200/90 bg-white shadow-xs">
+          <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-4 pb-1 sm:pb-2 space-y-0">
+            <CardTitle className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">
               Rides Offered & Shared
             </CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-600 border border-slate-200">
-              <CheckCircle2 className="h-4 w-4" />
+            <div className="flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-lg sm:rounded-xl bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+              <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" />
             </div>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl sm:text-3xl font-bold text-slate-900">
-              {summary.ridesOfferedCount} <span className="text-base font-medium text-slate-500">Rides</span>
+          <CardContent className="p-2.5 sm:p-4 pt-0">
+            <div className="text-lg sm:text-3xl font-bold text-slate-900">
+              {summary.ridesOfferedCount} <span className="text-xs sm:text-base font-medium text-slate-500">Rides</span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 truncate">
               Campus carpool trips you drove
             </p>
-            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+            <div className="mt-1.5 sm:mt-3 pt-1.5 sm:pt-2.5 border-t border-slate-100 flex items-center justify-between text-[9px] sm:text-[11px] text-slate-500">
               <span>Passengers carried:</span>
               <strong className="text-slate-800 font-semibold">{summary.passengersCarriedCount} coworkers</strong>
             </div>

@@ -548,11 +548,6 @@ export default function ProfilePage() {
         <h1 className="text-lg font-bold tracking-tight text-slate-900">
           {isAdmin ? "Super Admin Profile" : isCampusAdmin ? "Campus Admin Profile" : "Employee Profile"}
         </h1>
-        <p className="text-xs text-slate-500 mt-0.5">
-          {isAdminOrCampusAdmin
-            ? "Manage your name and contact number"
-            : "Manage your personal information and commute preferences"}
-        </p>
       </div>
 
       {successMessage && (
@@ -816,32 +811,6 @@ export default function ProfilePage() {
                 </>
               )}
             </CardContent>
-          </Card>
-
-          {/* Security & Access Clearance Card */}
-          <Card className="border-slate-200 bg-slate-50/50 shadow-2xs rounded-2xl p-3 space-y-2 border-dashed">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Enterprise Security
-              </span>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md">
-                Active
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-600">
-              <div className="p-1.5 rounded-lg bg-white border border-slate-100">
-                <div className="font-semibold text-slate-800 flex items-center gap-1">
-                  <Lock className="h-2.5 w-2.5 text-slate-400" /> Phone Masking
-                </div>
-                <div className="text-[9px] text-slate-400">Enabled on listings</div>
-              </div>
-              <div className="p-1.5 rounded-lg bg-white border border-slate-100">
-                <div className="font-semibold text-slate-800 flex items-center gap-1">
-                  <CheckCircle className="h-2.5 w-2.5 text-emerald-600" /> Ride OTP
-                </div>
-                <div className="text-[9px] text-slate-400">Boarding PIN active</div>
-              </div>
-            </div>
           </Card>
         </div>
 

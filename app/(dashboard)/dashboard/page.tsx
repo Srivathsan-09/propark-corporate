@@ -205,12 +205,6 @@ export default function DashboardPage() {
             </h1>
           )}
 
-          <p className="mt-2 text-sm sm:text-base text-slate-300 leading-relaxed">
-            {isAdmin
-              ? "Welcome to the administrator portal. Manage corporate campus carpools, review verified employees, and track fleet operations in real time."
-              : "Ready for your campus commute? Connect with verified coworkers, share daily rides, cut commute expenses, and travel sustainably."}
-          </p>
-
           {isAdmin ? (
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link href="/admin">

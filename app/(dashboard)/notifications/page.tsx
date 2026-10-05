@@ -109,9 +109,6 @@ export default function NotificationsPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <Bell className="h-6 w-6 text-emerald-600" /> Notifications & Alerts
           </h1>
-          <p className="text-sm text-slate-500">
-            Real-time updates on campus rides offered, live GPS departures, and passenger confirmations
-          </p>
         </div>
 
         {unreadCount > 0 && (
